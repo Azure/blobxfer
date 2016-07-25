@@ -1,0 +1,20 @@
+language: python
+cache: pip
+python:
+  - 2.7
+  - 3.3
+  - 3.4
+  - 3.5
+  # disable pypy until travis upgrades to at least pypy2.6 due to cryptography
+  #- pypy
+  # disable pypy3 until 3.3 compliance
+  #- pypy3
+install:
+  - pip install -e .
+  - pip install coveralls flake8 pytest pytest-cov requests_mock
+script:
+  - flake8 blobxfer.py test/test_blobxfer.py
+  - PYTHONPATH=. py.test -l --cov-config .coveragerc --cov-report term-missing --cov blobxfer test/test_blobxfer.py
+after_success:
+  - coveralls --rcfile=.coveragerc --verbose
+
