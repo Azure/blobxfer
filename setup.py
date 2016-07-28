@@ -20,7 +20,7 @@ setup(
     description='Azure storage transfer tool with AzCopy-like features',
     long_description=long_description,
     platforms='any',
-    url='https://github.com/Azure/azure-batch-samples/Python/Storage',
+    url='https://github.com/Azure/blobxfer',
     license='MIT',
     py_modules=['blobxfer'],
     entry_points={

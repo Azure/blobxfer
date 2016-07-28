@@ -104,7 +104,7 @@ except NameError:  # pragma: no cover
 # pylint: enable=W0622,C0103
 
 # global defines
-_SCRIPT_VERSION = '0.11.1'
+_SCRIPT_VERSION = '0.11.2'
 _PY2 = sys.version_info.major == 2
 _DEFAULT_MAX_STORAGEACCOUNT_WORKERS = multiprocessing.cpu_count() * 3
 _MAX_BLOB_CHUNK_SIZE_BYTES = 4194304
@@ -115,6 +115,7 @@ _DEFAULT_STORAGE_ENDPOINT = 'core.windows.net'
 _DEFAULT_MANAGEMENT_ENDPOINT = 'management.core.windows.net'
 _ENVVAR_STORAGEACCOUNTKEY = 'BLOBXFER_STORAGEACCOUNTKEY'
 _ENVVAR_SASKEY = 'BLOBXFER_SASKEY'
+_ENVVAR_RSAKEYPASSPHRASE = 'BLOBXFER_RSAKEYPASSPHRASE'
 # encryption defines
 _AES256_KEYLENGTH_BYTES = 32
 _AES256_BLOCKSIZE_BYTES = 16
@@ -2014,6 +2015,8 @@ def main():
         args.storageaccountkey = os.getenv(_ENVVAR_STORAGEACCOUNTKEY)
     if args.saskey is None:
         args.saskey = os.getenv(_ENVVAR_SASKEY)
+    if args.rsakeypassphrase is None:
+        args.rsakeypassphrase = os.getenv(_ENVVAR_RSAKEYPASSPHRASE)
 
     # check some parameters
     if (len(args.localresource) < 1 or len(args.storageaccount) < 1 or
@@ -2952,7 +2955,9 @@ def parseargs():  # pragma: no cover
         'for encrypting and uploading blobs.')
     parser.add_argument(
         '--rsakeypassphrase',
-        help='Optional passphrase for decrypting an RSA private key.')
+        help='Optional passphrase for decrypting an RSA private key; can be '
+        'specified as {} environment variable instead'.format(
+            _ENVVAR_RSAKEYPASSPHRASE))
     parser.add_argument(
         '--remoteresource',
         help='name of remote resource on Azure storage. "."=container '
