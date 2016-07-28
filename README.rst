@@ -370,4 +370,4 @@ Change Log
 
 See the `CHANGELOG.md`_ file.
 
-.. _CHANGELOG.md: https://github.com/Azure/blobxfer/CHANGELOG.md
+.. _CHANGELOG.md: https://github.com/Azure/blobxfer/blob/master/CHANGELOG.md

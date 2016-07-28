@@ -3,119 +3,119 @@
 ## [Unreleased]
 
 ## [0.11.2] - 2016-07-28
-### Added
+#### Added
 - Allow rsakeypassphrase to be passed as an environment variable
 
 ## 0.11.1 - 2016-07-05
-### Added
+#### Added
 - Allow storage account or sas key credentials to be passed as
   environment variables
 
 ## 0.11.0 - 2016-06-09
-### Added
+#### Added
 - Azure Files support, please refer to the General Notes section for
   limitations
 
-### Changed
+#### Changed
 - `--blobep` option has been renamed to `--endpoint`
 
 ## 0.10.1 - 2016-06-06
-### Changed
+#### Changed
 - Update all dependencies to latest versions
 - Add flag for block/page level md5 computation which is now disabled by
   default
 
-### Fixed
+#### Fixed
 - Update against breaking changes from azure-storage 0.32.0
 
-### Removed
+#### Removed
 - Remove RC designation from encryption/decryption functionality
 
-### Security
+#### Security
 - Update cryptography requirement to 1.4
 
 ## 0.10.0 - 2016-03-22
-### Added
+#### Added
 - Added ``--disable-urllib-warnings`` option to suppress urllib3 warnings
   (use with care)
 
-### Changed
+#### Changed
 - Update script for compatibility with azure-storage 0.30.0 which
   is now a required dependency
 - Promote encryption to RC status
 - `--blobep` now refers to endpoint suffix rather than blob endpoint
   (e.g., core.windows.net rather than blob.core.windows.net)
 
-### Security
+#### Security
 - Update cryptography requirement to 1.3
 
 ## 0.9.9.11 - 2016-02-22
-### Fixed
-- Minor bug fixes
-
-## Changed
+#### Changed
 - Pin azure dependencies due to breaking changes
 
-### Security
+#### Fixed
+- Minor bug fixes
+
+#### Security
 - Update cryptography requirement to 1.2.2
 
 ## 0.9.9.10 - 2016-01-31
-### Fixed
+#### Fixed
 - Fix regression in blob name encoding with Python3
 
 ## 0.9.9.9 - 2016-01-29
-### Added
+#### Added
 - Emit warning when attempting to use remoteresource with a directory upload
 
-### Changed
+#### Changed
 - Update setup.py dependencies to latest available versions
 
-### Fixed
+#### Fixed
 - Fix regression in single file upload and remoteresource renaming
 - Replace socket exception handling with requests ConnectionError handling
 - Properly handle blob names containing `?` if using SAS
 
 ## 0.9.9.8 - 2016-01-06
-### Fixed
+#### Fixed
 - Disable unnecessary thread daemonization
 - Gracefully handle KeyboardInterrupts
 - Explicitly add azure-common to setup.py install reqs
 
 ## 0.9.9.7 - 2016-01-05
-### Added
+#### Added
 - Add python environment and package info to parameter dump to aid issue/bug
   reports
 
-### Changed
+#### Changed
 - Reduce number of default concurrent workers to 3x CPU count
 - Change azure\_request backoff mechanism
 
-### Fixed
+#### Fixed
 - Make base requirements non-optional in import process
 - Update azure\_request exception handling to support new Azure Storage Python
   SDK errors
 
 ## 0.9.9.6 - 2016-01-04
-### Added
+#### Added
 - Encryption support
 - No file overwrite on download option
 - Auto-detection of file mimetype
 - Remote delete option
 - Include pattern option
 
-### Changed
+#### Changed
 - Replace keeprootdir with strip-components option
 - Reduce the number of default concurrent workers to 4x CPU count
 
-### Fixed
+#### Fixed
 - Fix shared key upload with non-existent container
 - Fix zero-byte blob download issue
 
 ## 0.9.9.5 - 2015-09-27
-### Added
+#### Added
 - File collation support
 
-### Fixed
+#### Fixed
 - Fix page alignment bug
 - Reduce memory usage
 
