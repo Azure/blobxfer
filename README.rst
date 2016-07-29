@@ -89,9 +89,10 @@ must be supplied: ``--subscriptionid`` with ``--managementcert``,
 ``--storageaccountkey``, or ``--saskey``. Do not combine different
 authentication schemes together.
 
-Environment variables ``BLOBXFER_STORAGEACCOUNTKEY`` or ``BLOBXFER_SASKEY``
-can take the place of ``--storageaccountkey`` or ``--saskey``, respectively if
-you do not want to expose credentials on a command line.
+Environment variables ``BLOBXFER_STORAGEACCOUNTKEY``, ``BLOBXFER_SASKEY``,
+and ``BLOBXFER_RSAKEYPASSPHRASE`` can take the place of
+``--storageaccountkey``, ``--saskey``, and ``--rsakeypassphrase`` respectively
+if you do not want to expose credentials on a command line.
 
 It is generally recommended to use SAS keys wherever appropriate; only HTTPS
 transport is used in the script. Please note that when using SAS keys that

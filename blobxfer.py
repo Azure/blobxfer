@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# blobxfer.py Code Sample
+# blobxfer Tool
 #
 # Copyright (c) Microsoft Corporation
 #
