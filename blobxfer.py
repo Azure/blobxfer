@@ -27,7 +27,7 @@
 # DEALINGS IN THE SOFTWARE.
 
 """
-Code sample to show data transfer to/from Azure blob storage
+Data transfer tool for Azure blob and file storage
 
 See notes in the README.rst file.
 
