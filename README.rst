@@ -24,6 +24,13 @@ Installation
 blobxfer is compatible with Python 2.7 and 3.3+. To install for Python 3, some
 distributions may use ``pip3`` instead.
 
+blobxfer is also on `Docker Hub`_, and the Docker image for Linux can be
+pulled with the following command:
+
+::
+
+  docker pull alfpark/blobxfer
+
 If you encounter difficulties installing the script, it may be due to the
 ``cryptography`` dependency. Please ensure that your system is able to install
 binary wheels provided by these dependencies (e.g., on Windows) or is able to
@@ -63,6 +70,7 @@ setup.py procedures. These dependencies will be automatically installed if
 using a package-based install or setup.py.
 
 .. _blobxfer: https://pypi.python.org/pypi/blobxfer
+.. _Docker Hub: https://hub.docker.com/r/alfpark/blobxfer
 .. _azure-common: https://pypi.python.org/pypi/azure-common
 .. _azure-storage: https://pypi.python.org/pypi/azure-storage
 .. _requests: https://pypi.python.org/pypi/requests
@@ -237,6 +245,17 @@ Azure Files as the destination or source. Please refer to this `MSDN article`_
 for features not supported by the Azure File Service.
 
 .. _MSDN article: https://msdn.microsoft.com/en-us/library/azure/dn744326.aspx
+
+Docker Usage
+------------
+
+An example execution for transferring the host path ``/example/host/path``
+would be:
+
+::
+
+  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer blobxfer storageaccount container /example/path/in/container --upload
+
 
 General Notes
 -------------
