@@ -8,6 +8,10 @@
   :target: https://pypi.python.org/pypi/blobxfer
 .. image:: https://img.shields.io/pypi/l/blobxfer.svg
   :target: https://pypi.python.org/pypi/blobxfer
+.. image:: https://img.shields.io/docker/stars/alfpark/blobxfer.svg
+  :target: https://hub.docker.com/r/alfpark/blobxfer
+.. image:: https://img.shields.io/docker/pulls/alfpark/blobxfer.svg
+  :target: https://hub.docker.com/r/alfpark/blobxfer
 
 blobxfer
 ========
@@ -30,6 +34,8 @@ pulled with the following command:
 ::
 
   docker pull alfpark/blobxfer
+
+Please see example usage below on how to use the docker image.
 
 If you encounter difficulties installing the script, it may be due to the
 ``cryptography`` dependency. Please ensure that your system is able to install
@@ -249,12 +255,12 @@ for features not supported by the Azure File Service.
 Docker Usage
 ------------
 
-An example execution for transferring the host path ``/example/host/path``
-would be:
+An example execution for uploading the host path ``/example/host/path``
+to a storage container named ``container0`` would be:
 
 ::
 
-  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer blobxfer storageaccount container /example/path/in/container --upload
+  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer blobxfer mystorageacct container0 /example/path/in/container --upload
 
 
 General Notes

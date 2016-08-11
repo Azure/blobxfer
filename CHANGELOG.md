@@ -1,6 +1,8 @@
 # Change Log
 
 ## [Unreleased]
+#### Added
+- Created Docker image
 
 ## [0.11.2] - 2016-07-28
 #### Added
