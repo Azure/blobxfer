@@ -8,10 +8,10 @@
   :target: https://pypi.python.org/pypi/blobxfer
 .. image:: https://img.shields.io/pypi/l/blobxfer.svg
   :target: https://pypi.python.org/pypi/blobxfer
-.. image:: https://img.shields.io/docker/stars/alfpark/blobxfer.svg
-  :target: https://hub.docker.com/r/alfpark/blobxfer
 .. image:: https://img.shields.io/docker/pulls/alfpark/blobxfer.svg
   :target: https://hub.docker.com/r/alfpark/blobxfer
+.. image:: https://images.microbadger.com/badges/image/alfpark/blobxfer.svg
+  :target: https://microbadger.com/images/alfpark/blobxfer
 
 blobxfer
 ========
