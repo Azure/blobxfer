@@ -260,7 +260,7 @@ to a storage container named ``container0`` would be:
 
 ::
 
-  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer blobxfer mystorageacct container0 /example/path/in/container --upload
+  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer mystorageacct container0 /example/path/in/container --upload
 
 
 General Notes
