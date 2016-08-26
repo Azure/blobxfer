@@ -260,8 +260,12 @@ to a storage container named ``container0`` would be:
 
 ::
 
-  docker run --rm -t -v /example/host/path:/example/path/in/container alfpark/blobxfer mystorageacct container0 /example/path/in/container --upload
+  docker run --rm -t -v /example/host/path:/path/in/container alfpark/blobxfer mystorageacct container0 /path/in/container --upload
 
+Note that docker volume mount mappings must be crafted with care to ensure
+consistency with directory depth between the host and the container.
+Optionally, you can utilize the ``--strip-components`` flag to remove leading
+path components as desired.
 
 General Notes
 -------------
