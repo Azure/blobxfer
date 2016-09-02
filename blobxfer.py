@@ -1597,7 +1597,10 @@ def get_blob_listing(blob_service, args, metadata=True):
     """
     marker = None
     blobdict = {}
-    incl = azure.storage.blob.Include(metadata=metadata)
+    if metadata:
+        incl = azure.storage.blob.Include.METADATA
+    else:
+        incl = None
     while True:
         try:
             result = azure_request(
