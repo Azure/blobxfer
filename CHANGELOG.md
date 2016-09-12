@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.11.3] - 2016-09-12
+## [0.11.4] - 2016-09-12
 #### Added
 - Created [Docker image](https://hub.docker.com/r/alfpark/blobxfer)
 
@@ -158,7 +158,7 @@
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/0.11.3...HEAD
-[0.11.3]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.3
+[Unreleased]: https://github.com/Azure/blobxfer/compare/0.11.4...HEAD
+[0.11.4]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.4
 [0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...v0.11.2
 

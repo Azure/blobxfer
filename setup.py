@@ -29,7 +29,7 @@ setup(
     install_requires=[
         'azure-common==1.1.4',
         'azure-storage==0.33.0',
-        'azure-servicemanagement-legacy==0.20.3',
+        'azure-servicemanagement-legacy==0.20.4',
         'cryptography>=1.5',
         'requests==2.11.1'
     ],
