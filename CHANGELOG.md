@@ -1,8 +1,19 @@
 # Change Log
 
 ## [Unreleased]
+
+## [0.11.3] - 2016-09-12
 #### Added
-- Created Docker image
+- Created [Docker image](https://hub.docker.com/r/alfpark/blobxfer)
+
+#### Changed
+- Update all dependencies to latest versions
+
+#### Fixed
+- Fix `--delete` and blob listing with azure-storage
+
+#### Security
+- Update cryptography requirement to 1.5
 
 ## [0.11.2] - 2016-07-28
 #### Added
@@ -147,6 +158,7 @@
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/v0.11.2...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/0.11.3...HEAD
+[0.11.3]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.3
 [0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...v0.11.2
 

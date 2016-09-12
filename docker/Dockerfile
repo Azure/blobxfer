@@ -1,6 +1,7 @@
 # Dockerfile for Azure/blobxfer
 
 FROM gliderlabs/alpine:3.4
+MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 RUN apk add --update --no-cache musl build-base python3 python3-dev openssl-dev libffi-dev ca-certificates \
     && pip3 install --no-cache-dir --upgrade pip \

@@ -51,6 +51,9 @@ Python 2.7, issue the following commands:
     apt-get install -y build-essential libssl-dev libffi-dev libpython-dev python-dev python-pip
     pip install --upgrade blobxfer
 
+If you do not want to modify system-wide dependencies, use the ``--user`` flag
+with ``pip``.
+
 If you need more fine-grained control on installing dependencies, continue
 reading this section. Depending upon the desired mode of authentication with
 Azure and options, the script will require the following packages, some of
