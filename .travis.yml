@@ -5,13 +5,25 @@ python:
   - 3.3
   - 3.4
   - 3.5
-  # disable pypy until travis upgrades to at least pypy2.6 due to cryptography
-  #- pypy
+  - pypy
   # disable pypy3 until 3.3 compliance
   #- pypy3
 install:
-  - pip install -e .
-  - pip install coveralls flake8 pytest pytest-cov requests_mock
+  - |
+      if [ "$TRAVIS_PYTHON_VERSION" = "pypy" ]; then
+        export PYENV_ROOT="$HOME/.pyenv"
+        if [ -f "$PYENV_ROOT/bin/pyenv" ]; then
+          pushd "$PYENV_ROOT" && git pull && popd
+        else
+          rm -rf "$PYENV_ROOT" && git clone --depth 1 https://github.com/yyuu/pyenv.git "$PYENV_ROOT"
+        fi
+        export PYPY_VERSION="5.4.1"
+        "$PYENV_ROOT/bin/pyenv" install --skip-existing "pypy-$PYPY_VERSION"
+        virtualenv --python="$PYENV_ROOT/versions/pypy-$PYPY_VERSION/bin/python" "$HOME/virtualenvs/pypy-$PYPY_VERSION"
+        source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
+      fi
+  - travis_retry pip install -e .
+  - travis_retry pip install coveralls flake8 mock pytest pytest-cov requests_mock
 script:
   - flake8 blobxfer.py test/test_blobxfer.py
   - PYTHONPATH=. py.test -l --cov-config .coveragerc --cov-report term-missing --cov blobxfer test/test_blobxfer.py

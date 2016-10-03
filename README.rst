@@ -62,21 +62,22 @@ dependent packages:
 
 - Base Requirements
 
-  - `azure-common`_ == 1.1.4
-  - `azure-storage`_ == 0.33.0
-  - `requests`_ == 2.11.1
+  - `azure-common`_
+  - `azure-storage`_
+  - `requests`_
 
 - Encryption Support
 
-  - `cryptography`_ >= 1.5
+  - `cryptography`_
 
 - Service Management Certificate Support
 
-  - `azure-servicemanagement-legacy`_ == 0.20.4
+  - `azure-servicemanagement-legacy`_
 
 You can install these packages using pip, easy_install or through standard
 setup.py procedures. These dependencies will be automatically installed if
-using a package-based install or setup.py.
+using a package-based install or setup.py. The required versions of these
+dependent packages can be found in ``setup.py``.
 
 .. _blobxfer: https://pypi.python.org/pypi/blobxfer
 .. _Docker Hub: https://hub.docker.com/r/alfpark/blobxfer

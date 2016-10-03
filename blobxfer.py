@@ -104,7 +104,7 @@ except NameError:  # pragma: no cover
 # pylint: enable=W0622,C0103
 
 # global defines
-_SCRIPT_VERSION = '0.11.4'
+_SCRIPT_VERSION = '0.11.5'
 _PY2 = sys.version_info.major == 2
 _DEFAULT_MAX_STORAGEACCOUNT_WORKERS = multiprocessing.cpu_count() * 3
 _MAX_BLOB_CHUNK_SIZE_BYTES = 4194304
@@ -1669,9 +1669,9 @@ def split_fileshare_path_into_parts(remotefname):
     Raises:
         Nothing
     """
-    fname = remotefname.split(os.path.sep)[-1]
-    dirname = remotefname.rstrip(os.path.sep + fname)
-    return (dirname, fname)
+    parts = remotefname.split(os.path.sep)
+    dirname = os.path.sep.join(parts[:len(parts) - 1])
+    return (dirname, parts[-1])
 
 
 def get_fileshare_file_properties(file_service, args, remotefname):
