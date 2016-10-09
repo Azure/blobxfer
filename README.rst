@@ -26,7 +26,9 @@ Installation
   pip install blobxfer
 
 blobxfer is compatible with Python 2.7 and 3.3+. To install for Python 3, some
-distributions may use ``pip3`` instead.
+distributions may use ``pip3`` instead. If you do not want to install blobxfer
+as a system-wide binary and modify system-wide python packages, use the
+``--user`` flag with ``pip`` or ``pip3``.
 
 blobxfer is also on `Docker Hub`_, and the Docker image for Linux can be
 pulled with the following command:
@@ -42,7 +44,7 @@ If you encounter difficulties installing the script, it may be due to the
 binary wheels provided by these dependencies (e.g., on Windows) or is able to
 compile the dependencies (i.e., ensure you have a C compiler, python, ssl,
 and ffi development libraries/headers installed prior to invoking pip). For
-instance, to install blobxfer on a fresh Ubuntu 14.04 installation for
+instance, to install blobxfer on a fresh Ubuntu 14.04/16.04 installation for
 Python 2.7, issue the following commands:
 
 ::
@@ -50,9 +52,6 @@ Python 2.7, issue the following commands:
     apt-get update
     apt-get install -y build-essential libssl-dev libffi-dev libpython-dev python-dev python-pip
     pip install --upgrade blobxfer
-
-If you do not want to modify system-wide dependencies, use the ``--user`` flag
-with ``pip``.
 
 If you need more fine-grained control on installing dependencies, continue
 reading this section. Depending upon the desired mode of authentication with
@@ -116,8 +115,10 @@ It is generally recommended to use SAS keys wherever appropriate; only HTTPS
 transport is used in the script. Please note that when using SAS keys that
 only container- or fileshare-level SAS keys will allow for entire directory
 uploading or container/fileshare downloading. The container/fileshare must
-also have been created beforehand, as containers/fileshares cannot be created
-using SAS keys.
+also have been created beforehand if using a service SAS, as
+containers/fileshares cannot be created using service SAS keys. Account-level
+SAS keys with a signed resource type of ``c`` or container will allow
+containers/fileshares to be created with SAS keys.
 
 Example Usage
 -------------
@@ -274,6 +275,14 @@ path components as desired.
 General Notes
 -------------
 
+- If the pyOpenSSL package is present, urllib3/requests may use this package
+  (as discussed in the Performance Notes below), which may result in
+  exceptions being thrown that are not normalized by urllib3. This may
+  result in exceptions that should be retried, but are not. It is recommended
+  to upgrade your Python where pyOpenSSL is not required for fully validating
+  peers and such that blobxfer can operate without pyOpenSSL in a secure
+  fashion. You can also run blobxfer via Docker or in a virtualenv
+  environment without pyOpenSSL.
 - blobxfer does not take any leases on blobs or containers. It is up to
   the user to ensure that blobs are not modified while download/uploads
   are being performed.
@@ -282,11 +291,12 @@ General Notes
 - blobxfer will attempt to download from blob storage as-is. If the source
   filename is incompatible with the destination operating system, then
   failure may result.
-- When using SAS, the SAS key must be a container-level SAS if performing
-  recursive directory upload or container download.
-- If uploading via SAS, the container must already be created in blob
-  storage prior to upload. This is a limitation of SAS keys. The script
-  will force disable container creation if a SAS key is specified.
+- When using SAS, the SAS key must be a container- or share-level SAS if
+  performing recursive directory upload or container/file share download.
+- If uploading via service-level SAS keys, the container or file share must
+  already be created in Azure storage prior to upload. Account-level SAS keys
+  with the signed resource type of ``c`` or container-level permission will
+  allow conatiner or file share creation.
 - For non-SAS requests, timeouts may not be properly honored due to
   limitations of the Azure Python SDK.
 - By default, files with matching MD5 checksums will be skipped for both
@@ -295,8 +305,8 @@ General Notes
 - When uploading files as page blobs, the content is page boundary
   byte-aligned. The MD5 for the blob is computed using the final aligned
   data if the source is not page boundary byte-aligned. This enables these
-  page blobs or files to be skipped during subsequent download or upload,
-  if the ``--no-skiponmatch`` parameter is not specified.
+  page blobs or files to be skipped during subsequent download or upload by
+  default (i.e., ``--no-skiponmatch`` parameter is not specified).
 - If ``--delete`` is specified, any remote files found that have no
   corresponding local file in directory upload mode will be deleted. Deletion
   occurs prior to any transfers, analogous to the delete-before rsync option.
@@ -366,7 +376,7 @@ Encryption Notes
   metadata. These metadata entries are used on download to configure the proper
   download and parameters for the decryption process as well as to authenticate
   the encryption. Encryption metadata set by blobxfer (or the Azure Storage
-  .NET/Java client library) should not be modified or blobs may be
+  .NET/Java client library) should not be modified or blobs/files may be
   unrecoverable.
 - Local files can be encrypted by blobxfer and stored in Azure Files and,
   correspondingly, remote files on Azure File shares can be decrypted by
