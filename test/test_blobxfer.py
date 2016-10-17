@@ -433,6 +433,22 @@ def test_sasblobservice_createblob():
             sbs.create_blob('container', 'blob', 0, cs)
 
 
+def test_sasblobservice_createcontainer():
+    session = requests.Session()
+    adapter = requests_mock.Adapter()
+    session.mount('mock', adapter)
+
+    with requests_mock.mock() as m:
+        m.put('mock://blobepcontainer?saskey', status_code=201)
+        sbs = blobxfer.SasBlobService('mock://blobep', 'saskey', None)
+        sbs.create_container('container', fail_on_exist=False)
+
+        m.put('mock://blobepcontainer?saskey', status_code=409)
+        sbs = blobxfer.SasBlobService('mock://blobep', 'saskey', None)
+        with pytest.raises(requests.exceptions.HTTPError):
+            sbs.create_container('container', fail_on_exist=True)
+
+
 def test_storagechunkworker_run(tmpdir):
     lpath = str(tmpdir.join('test.tmp'))
     with open(lpath, 'wt') as f:
@@ -1050,6 +1066,17 @@ def test_main1(
     args.managementcert = None
     args.managementep = None
     args.subscriptionid = None
+
+    args.upload = False
+    args.download = True
+    args.remoteresource = None
+    args.saskey = 'saskey&srt=c'
+    with pytest.raises(ValueError):
+        blobxfer.main()
+    args.upload = True
+    args.download = False
+    args.saskey = None
+
     os.environ[blobxfer._ENVVAR_SASKEY] = 'saskey'
     with open(lpath, 'wt') as f:
         f.write(str(uuid.uuid4()))

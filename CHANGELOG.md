@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2016-10-17
+#### Added
+- Support for Account-level SAS keys
+- Update README regarding non-normalized exceptions being thrown (#5)
+
 ## [0.11.5] - 2016-10-03
 #### Changed
 - Update all dependencies to latest versions
@@ -168,7 +173,8 @@
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/0.11.5...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/0.12.0...HEAD
+[0.12.0]: https://github.com/Azure/blobxfer/compare/0.11.5...0.12.0
 [0.11.5]: https://github.com/Azure/blobxfer/compare/0.11.4...0.11.5
 [0.11.4]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.4
 [0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...v0.11.2

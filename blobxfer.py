@@ -104,7 +104,7 @@ except NameError:  # pragma: no cover
 # pylint: enable=W0622,C0103
 
 # global defines
-_SCRIPT_VERSION = '0.11.5'
+_SCRIPT_VERSION = '0.12.0'
 _PY2 = sys.version_info.major == 2
 _DEFAULT_MAX_STORAGEACCOUNT_WORKERS = multiprocessing.cpu_count() * 3
 _MAX_BLOB_CHUNK_SIZE_BYTES = 4194304
@@ -870,6 +870,32 @@ class SasBlobService(object):
                 'incorrect status code returned for delete_blob: {}'.format(
                     response.status_code))
 
+    def create_container(
+            self, container_name, fail_on_exist=False):
+        """Create a container
+        Parameters:
+            container_name - container name
+        Returns:
+            Nothing
+        Raises:
+            IOError if unexpected status code
+        """
+        url = '{endpoint}{container_name}{saskey}'.format(
+            endpoint=self.endpoint, container_name=container_name,
+            saskey=self.saskey)
+        reqparams = {'restype': 'container'}
+        response = azure_request(
+            requests.put, url=url, params=reqparams, timeout=self.timeout)
+        if response.status_code != 201:
+            if response.status_code == 409:
+                if fail_on_exist:
+                    response.raise_for_status()
+                else:
+                    return
+            raise IOError('incorrect status code returned for '
+                          'create_container: {}'.format(
+                              response.status_code))
+
 
 class StorageChunkWorker(threading.Thread):
     """Chunk worker for a storage entity"""
@@ -1416,7 +1442,7 @@ def azure_request(req, timeout=None, *args, **kwargs):
     while True:
         try:
             return req(*args, **kwargs)
-        except requests.Timeout as exc:
+        except requests.Timeout:
             pass
         except (requests.ConnectionError,
                 requests.exceptions.ChunkedEncodingError) as exc:
@@ -2160,8 +2186,18 @@ def main():
             account_name=args.storageaccount,
             sas_token=args.saskey,
             endpoint_suffix=args.endpoint)
-        # disable container/share creation (not possible with SAS)
-        args.createcontainer = False
+        # disable container/share creation if SAS is not account-level and
+        # does not contain a signed resource type with container-level access
+        if args.createcontainer:
+            args.createcontainer = False
+            sasparts = args.saskey.split('&')
+            for part in sasparts:
+                tmp = part.split('=')
+                if tmp[0] == 'srt':
+                    if 'c' in tmp[1]:
+                        args.createcontainer = True
+                    break
+            del sasparts
     if blob_service is None:
         raise ValueError('blob_service is invalid')
     if args.fileshare and file_service is None:
