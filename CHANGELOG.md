@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.12.1] - 2016-12-09
+#### Changed
+- Update all dependencies to latest versions
+
+#### Fixed
+- Allow page blobs up to 1TB
+
+#### Security
+- Update cryptography requirement to 1.6
+
 ## [0.12.0] - 2016-10-17
 #### Added
 - Support for Account-level SAS keys
@@ -173,7 +183,8 @@
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/0.12.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/0.12.1...HEAD
+[0.12.1]: https://github.com/Azure/blobxfer/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/Azure/blobxfer/compare/0.11.5...0.12.0
 [0.11.5]: https://github.com/Azure/blobxfer/compare/0.11.4...0.11.5
 [0.11.4]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.4

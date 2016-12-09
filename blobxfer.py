@@ -104,7 +104,7 @@ except NameError:  # pragma: no cover
 # pylint: enable=W0622,C0103
 
 # global defines
-_SCRIPT_VERSION = '0.12.0'
+_SCRIPT_VERSION = '0.12.1'
 _PY2 = sys.version_info.major == 2
 _DEFAULT_MAX_STORAGEACCOUNT_WORKERS = multiprocessing.cpu_count() * 3
 _MAX_BLOB_CHUNK_SIZE_BYTES = 4194304
@@ -1953,13 +1953,18 @@ def generate_xferspec_upload(
             args.rsaprivatekey is not None or
             args.rsapublickey is not None):
         chunksizebytes = _MAX_BLOB_CHUNK_SIZE_BYTES
+        nchunks = filesize // chunksizebytes
+        if nchunks > 250000:
+            raise RuntimeError(
+                '{} chunks for file {} exceeds Azure Storage limits for a '
+                'single page blob'.format(nchunks, localfile))
     else:
         chunksizebytes = args.chunksizebytes
-    nchunks = filesize // chunksizebytes
-    if nchunks > 50000:
-        raise RuntimeError(
-            '{} chunks for file {} exceeds Azure Storage limits for a '
-            'single blob'.format(nchunks, localfile))
+        nchunks = filesize // chunksizebytes
+        if nchunks > 50000:
+            raise RuntimeError(
+                '{} chunks for file {} exceeds Azure Storage limits for a '
+                'single block blob'.format(nchunks, localfile))
     chunktoadd = min(chunksizebytes, filesize)
     currfileoffset = 0
     nstorageops = 0
@@ -3022,6 +3027,7 @@ def parseargs():  # pragma: no cover
         help='force transfer direction to upload to Azure')
     parser.add_argument('--version', action='version', version=_SCRIPT_VERSION)
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     main()
