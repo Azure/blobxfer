@@ -1,41 +1,76 @@
+from codecs import open
+import os
 import re
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
+import sys
 
-with open('blobxfer.py', 'r') as fd:
+if sys.argv[-1] == 'publish':
+    os.system('rm -rf blobxfer.egg-info/ build dist __pycache__/')
+    os.system('python setup.py sdist bdist_wheel')
+    os.unlink('README.rst')
+    sys.exit()
+elif sys.argv[-1] == 'upload':
+    os.system('twine upload dist/*')
+    sys.exit()
+elif sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
+    import pypandoc
+    long_description = pypandoc.convert('README.md', 'rst')
+else:
+    long_description = ''
+
+with open('blobxfer/version.py', 'r', 'utf-8') as fd:
     version = re.search(
-        r'^_SCRIPT_VERSION\s*=\s*[\'"]([^\'"]*)[\'"]',
+        r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         fd.read(), re.MULTILINE).group(1)
 
-with open('README.rst') as readme:
-    long_description = ''.join(readme).strip()
+if not version:
+    raise RuntimeError('Cannot find version')
+
+packages = [
+    'blobxfer',
+    'blobxfer.blob',
+    'blobxfer.blob.block',
+    'blobxfer_cli',
+]
+
+install_requires = [
+    'azure-common==1.1.4',
+    'azure-storage==0.33.0',
+    'click==6.6',
+    'cryptography>=1.7.1',
+    'future==0.16.0',
+    'ruamel.yaml==0.13.11',
+]
+
+if sys.version_info < (3, 5):
+    install_requires.append('pathlib2')
+    install_requires.append('scandir')
 
 setup(
     name='blobxfer',
     version=version,
     author='Microsoft Corporation, Azure Batch and HPC Team',
     author_email='',
-    description='Azure storage transfer tool with AzCopy-like features',
+    description=(
+        'Azure storage transfer tool and library with AzCopy-like features'),
     long_description=long_description,
     platforms='any',
     url='https://github.com/Azure/blobxfer',
     license='MIT',
-    py_modules=['blobxfer'],
+    packages=packages,
+    package_data={'blobxfer': ['LICENSE']},
+    package_dir={'blobxfer': 'blobxfer', 'blobxfer_cli': 'cli'},
     entry_points={
-        'console_scripts': 'blobxfer=blobxfer:main',
+        'console_scripts': 'blobxfer=blobxfer_cli.cli:cli',
     },
-    install_requires=[
-        'azure-common==1.1.4',
-        'azure-storage==0.33.0',
-        'azure-servicemanagement-legacy==0.20.5',
-        'cryptography>=1.6',
-        'requests==2.12.3'
-    ],
+    zip_safe=False,
+    install_requires=install_requires,
     tests_require=['pytest'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',
@@ -47,7 +82,8 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Utilities',
     ],
-    keywords='azcopy azure storage blob files transfer copy smb',
+    keywords='azcopy azure storage blob files transfer copy smb cifs',
 )
