@@ -32,7 +32,10 @@ if not version:
 packages = [
     'blobxfer',
     'blobxfer.blob',
+    'blobxfer.blob.append',
     'blobxfer.blob.block',
+    'blobxfer.blob.page',
+    'blobxfer.file',
     'blobxfer_cli',
 ]
 
@@ -44,6 +47,9 @@ install_requires = [
     'future==0.16.0',
     'ruamel.yaml==0.13.11',
 ]
+
+if sys.version_info < (3, 4):
+    install_requires.append('enum34')
 
 if sys.version_info < (3, 5):
     install_requires.append('pathlib2')

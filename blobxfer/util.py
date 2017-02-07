@@ -25,7 +25,7 @@
 # compat imports
 from __future__ import absolute_import, division, print_function
 from builtins import (  # noqa
-    bytes, dict, int, list, object, range, str, ascii, chr, hex, input,
+    bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip
 )
 # stdlib imports

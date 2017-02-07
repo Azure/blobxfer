@@ -83,7 +83,7 @@ def test_scantree(tmpdir):
     defpath = abcpath.join('def')
     defpath.join('world.txt').write('world')
     found = set()
-    for de in blobxfer.util.scantree(str(tmpdir.dirpath())):
+    for de in blobxfer.util.scantree(str(tmpdir)):
         if de.name != '.lock':
             found.add(de.name)
     assert 'hello.txt' in found
@@ -103,7 +103,10 @@ def test_get_mime_type():
 def test_base64_encode_as_string():
     a = b'abc'
     enc = blobxfer.util.base64_encode_as_string(a)
-    assert type(enc) != bytes
+    if blobxfer.util.on_python2():
+        assert type(enc) == str
+    else:
+        assert type(enc) != bytes
     dec = blobxfer.util.base64_decode_string(enc)
     assert a == dec
 
