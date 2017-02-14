@@ -39,12 +39,12 @@ try:
     from os import scandir as scandir
 except ImportError:  # noqa
     from scandir import scandir as scandir
-import sys
+import re
 # non-stdlib imports
+import future.utils
 # local imports
 
 # global defines
-_PY2 = sys.version_info.major == 2
 _PAGEBLOB_BOUNDARY = 512
 
 
@@ -54,7 +54,7 @@ def on_python2():
     :rtype: bool
     :return: if on Python2
     """
-    return _PY2
+    return future.utils.PY2
 
 
 def setup_logger(logger):  # noqa
@@ -148,7 +148,7 @@ def base64_encode_as_string(obj):  # noqa
     :rtype: str
     :return: base64 encoded string
     """
-    if _PY2:
+    if on_python2():
         return base64.b64encode(obj)
     else:
         return str(base64.b64encode(obj), 'ascii')
@@ -211,3 +211,33 @@ def page_align_content_length(length):
     if mod != 0:
         return length + (_PAGEBLOB_BOUNDARY - mod)
     return length
+
+
+def normalize_azure_path(path):
+    # type: (str) -> str
+    """Normalize remote path (strip slashes and use forward slashes)
+    :param str path: path to normalize
+    :rtype: str
+    :return: normalized path
+    """
+    if is_none_or_empty(path):
+        raise ValueError('provided path is invalid')
+    _path = path.strip('/').strip('\\')
+    return '/'.join(re.split('/|\\\\', _path))
+
+
+def explode_azure_path(path):
+    # type: (str) -> Tuple[str, str]
+    """Explodes an azure path into a container or fileshare and the
+    remaining virtual path
+    :param str path: path to explode
+    :rtype: tuple
+    :return: container, vpath
+    """
+    rpath = normalize_azure_path(path).split('/')
+    container = rpath[0]
+    if len(rpath) > 1:
+        rpath = '/'.join(rpath[1:])
+    else:
+        rpath = ''
+    return container, rpath

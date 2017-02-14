@@ -41,7 +41,16 @@ except ImportError:
     import pathlib
 # non-stdlib imports
 # local imports
-from .util import scantree
+from .api import (
+    create_append_blob_client,
+    create_block_blob_client,
+    create_file_client,
+    create_page_blob_client,
+)
+from .util import (
+    normalize_azure_path,
+    scantree,
+)
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -81,15 +90,12 @@ UploadOptions = collections.namedtuple(
     'UploadOptions', [
         'chunk_size_bytes',
         'delete_extraneous_destination',
-        'exclude',
-        'include',
         'mode',
         'overwrite',
         'recursive',
         'rsa_private_key',
         'rsa_private_key_passphrase',
         'rsa_public_key',
-        'skip_on',
         'store_file_attributes',
         'store_file_md5',
         'strip_components',
@@ -101,15 +107,12 @@ DownloadOptions = collections.namedtuple(
     'DownloadOptions', [
         'check_file_md5',
         'delete_extraneous_destination',
-        'exclude',
-        'include',
         'mode',
         'overwrite',
         'recursive',
         'restore_file_attributes',
         'rsa_private_key',
-        'rsa_private_key_passphrase',
-        'skip_on',
+        'rsa_private_key_passphrase'
     ]
 )
 SyncCopyOptions = collections.namedtuple(
@@ -124,15 +127,6 @@ SyncCopyOptions = collections.namedtuple(
 LocalPath = collections.namedtuple(
     'LocalPath', [
         'parent_path', 'relative_path'
-    ]
-)
-AzureDestinationOptions = collections.namedtuple(
-    'AzureDestinationOptions', [
-        'path',
-    ]
-)
-AzureSourceOptions = collections.namedtuple(
-    'AzureSourceOptions', [
     ]
 )
 
@@ -177,10 +171,15 @@ class AzureStorageAccount(object):
         :param str key: storage key or sas
         :param str endpoint: endpoint
         """
+        self._append_blob_client = None
+        self._block_blob_client = None
+        self._file_client = None
+        self._page_blob_client = None
         self.name = name
         self.key = key
         self.endpoint = endpoint
         self.is_sas = self._key_is_sas(self.key)
+        self._create_clients()
 
     @staticmethod
     def _key_is_sas(key):
@@ -205,6 +204,56 @@ class AzureStorageAccount(object):
                 return True
         return False
 
+    def _create_clients(self):
+        # type: (AzureStorageAccount) -> None
+        """Create Azure Storage clients
+        :param AzureStorageAccount self: this
+        """
+        self._append_blob_client = create_append_blob_client(self)
+        self._block_blob_client = create_block_blob_client(self)
+        self._file_client = create_file_client(self)
+        self._page_blob_client = create_page_blob_client(self)
+
+    @property
+    def append_blob_client(self):
+        # type: (AzureStorageAccount) -> azure.storage.blob.AppendBlobService
+        """Get append blob client
+        :param AzureStorageAccount self: this
+        :rtype: azure.storage.blob.AppendBlobService
+        :return: append blob client
+        """
+        return self._append_blob_client
+
+    @property
+    def block_blob_client(self):
+        # type: (AzureStorageAccount) -> azure.storage.blob.BlockBlobService
+        """Get block blob client
+        :param AzureStorageAccount self: this
+        :rtype: azure.storage.blob.BlockBlobService
+        :return: block blob client
+        """
+        return self._block_blob_client
+
+    @property
+    def file_client(self):
+        # type: (AzureStorageAccount) -> azure.storage.file.FileService
+        """Get file client
+        :param AzureStorageAccount self: this
+        :rtype: azure.storage.file.FileService
+        :return: file client
+        """
+        return self._file_client
+
+    @property
+    def page_blob_client(self):
+        # type: (AzureStorageAccount) -> azure.storage.blob.PageBlobService
+        """Get page blob client
+        :param AzureStorageAccount self: this
+        :rtype: azure.storage.blob.PageBlobService
+        :return: page blob client
+        """
+        return self._page_blob_client
+
 
 class _BaseSourcePaths(object):
     """Base Source Paths"""
@@ -216,6 +265,16 @@ class _BaseSourcePaths(object):
         self._include = None
         self._exclude = None
         self._paths = []
+
+    @property
+    def paths(self):
+        # type: (_BaseSourcePaths) -> List[pathlib.Path]
+        """Stored paths
+        :param _BaseSourcePaths self: this
+        :rtype: list
+        :return: list of pathlib.Path
+        """
+        return self._paths
 
     def add_include(self, incl):
         # type: (_BaseSourcePaths, str) -> None
@@ -271,7 +330,10 @@ class _BaseSourcePaths(object):
         :param _BaseSourcePaths self: this
         :param str path: path to add
         """
-        self._paths.append(pathlib.Path(path))
+        if isinstance(path, pathlib.Path):
+            self._paths.append(path)
+        else:
+            self._paths.append(pathlib.Path(path))
 
     def add_paths(self, paths):
         # type: (_BaseSourcePaths, list) -> None
@@ -390,28 +452,79 @@ class LocalDestinationPath(object):
                     mode=0o750, parents=True, exist_ok=True)
 
 
-class AzureSourcePaths(_BaseSourcePaths):
-    def __init__(self, mode):
-        super.__init__()
-        self._mode = mode
+class DownloadSpecification(object):
+    """DownloadSpecification"""
+    def __init__(
+            self, download_options, skip_on_options, local_destination_path):
+        # type: (DownloadSpecification, DownloadOptions, SkipOnOptions,
+        #        LocalDestinationPath) -> None
+        """Ctor for DownloadSpecification
+        :param DownloadSepcification self: this
+        :param DownloadOptions download_options: download options
+        :param SkipOnOptions skip_on_options: skip on options
+        :param LocalDestinationPath local_destination_path: local dest path
+        """
+        self.options = download_options
+        self.skip_on = skip_on_options
+        self.destination = local_destination_path
+        self.sources = []
 
-    def set_clients(self, append, block, file, page):
-        pass
+    def add_azure_source_path(self, source):
+        # type: (DownloadSpecification, AzureSourcePath) -> None
+        """Add an Azure Source Path
+        :param DownloadSepcification self: this
+        :param AzureSourcePath source: Azure source path to add
+        """
+        self.sources.append(source)
 
-    def files(self):
-        if self._mode == AzureStorageModes.Auto:
+
+class AzureSourcePath(_BaseSourcePaths):
+    """AzureSourcePath"""
+    def __init__(self):
+        # type: (AzureSourcePath) -> None
+        """Ctor for AzureSourcePath
+        :param AzureSourcePath self: this
+        """
+        super(AzureSourcePath, self).__init__()
+        self._path_map = {}
+
+    def add_path_with_storage_account(self, remote_path, storage_account):
+        # type: (AzureSourcePath, str, str) -> None
+        """Add a path with an associated storage account
+        :param AzureSourcePath self: this
+        :param str remote_path: remote path
+        :param str storage_account: storage account to associate with path
+        """
+        if len(self._path_map) >= 1:
+            raise RuntimeError(
+                'cannot add multiple remote paths to AzureSourcePath objects')
+        rpath = normalize_azure_path(remote_path)
+        self.add_path(rpath)
+        self._path_map[rpath] = storage_account
+
+    def lookup_storage_account(self, remote_path):
+        # type: (AzureSourcePath, str) -> str
+        """Lookup the storage account associated with the remote path
+        :param AzureSourcePath self: this
+        :param str remote_path: remote path
+        :rtype: str
+        :return: storage account associated with path
+        """
+        return self._path_map[normalize_azure_path(remote_path)]
+
+    def files(self, mode):
+        if mode == AzureStorageModes.Auto:
             pass
-        elif self._mode == AzureStorageModes.Append:
+        elif mode == AzureStorageModes.Append:
             pass
-        elif self._mode == AzureStorageModes.Block:
+        elif mode == AzureStorageModes.Block:
             pass
-        elif self._mode == AzureStorageModes.File:
+        elif mode == AzureStorageModes.File:
             pass
-        elif self._mode == AzureStorageModes.Page:
+        elif mode == AzureStorageModes.Page:
             pass
         else:
-            raise RuntimeError('unknown Azure Storage Mode: {}'.format(
-                self._mode))
+            raise RuntimeError('unknown Azure Storage Mode: {}'.format(mode))
 
     def _append_files(self):
         for _path in self._paths:

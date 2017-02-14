@@ -41,6 +41,7 @@ import ruamel.yaml
 import blobxfer.api
 import blobxfer.util
 # local imports
+import download as dl
 import settings
 
 # create logger
@@ -57,10 +58,8 @@ class CliContext(object):
         self.yaml_config = None
         self.config = {}
         self.cli_options = {}
-        self.block_blob_client = None
-        self.page_blob_client = None
-        self.append_blob_client = None
-        self.smb_file_client = None
+        self.credentials = None
+        self.general_options = None
 
     def initialize(self):
         # type: (CliContext) -> None
@@ -68,6 +67,9 @@ class CliContext(object):
         :param CliContext self: this
         """
         self._init_config()
+        self.credentials = settings.create_azure_storage_credentials(
+            self.config)
+        self.general_options = settings.create_general_options(self.config)
 
     def _read_yaml_file(self, yaml_file):
         # type: (CliContext, pathlib.Path) -> None
@@ -588,7 +590,9 @@ def download(ctx, local_resource, storage_account, remote_path):
         ctx.cli_options, settings.TransferAction.Download, local_resource,
         storage_account, remote_path)
     ctx.initialize()
-    raise NotImplementedError()
+    specs = settings.create_download_specifications(ctx.config)
+    for spec in specs:
+        dl.download(ctx.general_options, ctx.credentials, spec)
 
 
 @cli.command('synccopy')

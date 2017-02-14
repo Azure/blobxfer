@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 def check_if_single_blob(client, container, prefix):
     # type: (azure.storage.blob.BaseBlobService, str, str) -> bool
-    """List append blobs in path
+    """Check if prefix is a single blob or multiple blobs
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix

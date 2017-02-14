@@ -3,7 +3,12 @@
 
 # stdlib imports
 import os
+try:
+    import pathlib2 as pathlib
+except ImportError:
+    import pathlib
 # non-stdlib imports
+import azure.storage
 import pytest
 # module under test
 import blobxfer.models
@@ -17,6 +22,14 @@ def test_storage_credentials():
     assert a.name == 'sa1'
     assert a.key == 'somekey1'
     assert a.endpoint == 'endpoint'
+    assert isinstance(
+        a.append_blob_client, azure.storage.blob.AppendBlobService)
+    assert isinstance(
+        a.block_blob_client, azure.storage.blob.BlockBlobService)
+    assert isinstance(
+        a.file_client, azure.storage.file.FileService)
+    assert isinstance(
+        a.page_blob_client, azure.storage.blob.PageBlobService)
 
     with pytest.raises(KeyError):
         a = creds.get_storage_account('sa2')
@@ -86,6 +99,7 @@ def test_localsourcepaths_files(tmpdir):
         sfile = str(file.parent_path / file.relative_path)
         a_set.add(sfile)
 
+    assert len(a.paths) == 1
     assert str(abcpath.join('blah.x')) not in a_set
     assert str(defpath.join('world.txt')) in a_set
     assert str(defpath.join('moo.cow')) not in a_set
@@ -95,7 +109,7 @@ def test_localsourcepaths_files(tmpdir):
     b.add_include('*.txt')
     b.add_excludes(['world.txt'])
     b.add_exclude('**/blah.x')
-    b.add_paths([str(tmpdir)])
+    b.add_paths([pathlib.Path(str(tmpdir))])
     for file in a.files():
         sfile = str(file.parent_path / file.relative_path)
         assert sfile in a_set
@@ -130,3 +144,48 @@ def test_localdestinationpath(tmpdir):
     assert os.path.exists(str(path2))
     assert os.path.isdir(str(path2))
     assert not c.is_dir
+
+
+def test_azuresourcepath():
+    p = '/cont/remote/path'
+    asp = blobxfer.models.AzureSourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+
+    with pytest.raises(RuntimeError):
+        asp.add_path_with_storage_account('x', 'x')
+
+    assert 'sa' == asp.lookup_storage_account(p)
+
+
+def test_downloadspecification():
+    ds = blobxfer.models.DownloadSpecification(
+        download_options=blobxfer.models.DownloadOptions(
+            check_file_md5=True,
+            delete_extraneous_destination=False,
+            mode=blobxfer.models.AzureStorageModes.Auto,
+            overwrite=True,
+            recursive=True,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+            rsa_private_key_passphrase=None,
+        ),
+        skip_on_options=blobxfer.models.SkipOnOptions(
+            filesize_match=True,
+            lmt_ge=False,
+            md5_match=True,
+        ),
+        local_destination_path=blobxfer.models.LocalDestinationPath('dest'),
+    )
+
+    asp = blobxfer.models.AzureSourcePath()
+    p = 'some/remote/path'
+    asp.add_path_with_storage_account(p, 'sa')
+
+    ds.add_azure_source_path(asp)
+
+    assert ds.options.check_file_md5
+    assert not ds.skip_on.lmt_ge
+    assert ds.destination.path == pathlib.Path('dest')
+    assert len(ds.sources) == 1
+    assert p in ds.sources[0]._path_map
+    assert ds.sources[0]._path_map[p] == 'sa'

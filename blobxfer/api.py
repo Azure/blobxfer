@@ -32,7 +32,6 @@ from builtins import (  # noqa
 # non-stdlib imports
 # local imports
 
-from .blob.operations import check_if_single_blob  # noqa
 from .blob.append.operations import (  # noqa
     create_client as create_append_blob_client
 )

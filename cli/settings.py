@@ -33,6 +33,7 @@ from builtins import (  # noqa
 import enum
 # non-stdlib imports
 # local imports
+import blobxfer.models
 from blobxfer.util import is_none_or_empty, is_not_empty, merge_dict
 
 
@@ -201,11 +202,98 @@ def merge_settings(config, cli_options):
     # merge general options
     if 'options' not in config:
         config['options'] = {}
-    try:
-        config['options']['verbose'] = cli_options['verbose']
-    except KeyError:
-        pass
-    try:
-        config['options']['timeout_sec'] = cli_options['timeout']
-    except KeyError:
-        pass
+    config['options']['progress_bar'] = cli_options['progress_bar']
+    config['options']['timeout_sec'] = cli_options['timeout']
+    config['options']['verbose'] = cli_options['verbose']
+
+
+def create_azure_storage_credentials(config):
+    # type: (dict) -> blobxfer.models.AzureStorageCredentials
+    """Create an AzureStorageCredentials object from configuration
+    :param dict config: config dict
+    :rtype: blobxfer.models.AzureStorageCredentials
+    :return: credentials object
+    """
+    creds = blobxfer.models.AzureStorageCredentials()
+    endpoint = config['azure_storage']['endpoint']
+    for name in config['azure_storage']['accounts']:
+        key = config['azure_storage']['accounts'][name]
+        creds.add_storage_account(name, key, endpoint)
+    return creds
+
+
+def create_general_options(config):
+    # type: (dict) -> blobxfer.models.GeneralOptions
+    """Create a GeneralOptions object from configuration
+    :param dict config: config dict
+    :rtype: blobxfer.models.GeneralOptions
+    :return: general options object
+    """
+    return blobxfer.models.GeneralOptions(
+        progress_bar=config['options']['progress_bar'],
+        timeout_sec=config['options']['timeout_sec'],
+        verbose=config['options']['verbose'],
+    )
+
+
+def create_download_specifications(config):
+    # type: (dict) -> List[blobxfer.models.DownloadSpecification]
+    """Create a list of DownloadSpecification objects from configuration
+    :param dict config: config dict
+    :rtype: list
+    :return: list of DownloadSpecification objects
+    """
+    specs = []
+    for conf in config['download']:
+        # create download options
+        confmode = conf['options']['mode'].lower()
+        if confmode == 'auto':
+            mode = blobxfer.models.AzureStorageModes.Auto
+        elif confmode == 'append':
+            mode = blobxfer.models.AzureStorageModes.Append
+        elif confmode == 'block':
+            mode = blobxfer.models.AzureStorageModes.Block
+        elif confmode == 'file':
+            mode == blobxfer.models.AzureStorageModes.File
+        elif confmode == 'page':
+            mode == blobxfer.models.AzureStorageModes.Page
+        else:
+            raise ValueError('unknown mode: {}'.format(confmode))
+        ds = blobxfer.models.DownloadSpecification(
+            download_options=blobxfer.models.DownloadOptions(
+                check_file_md5=conf['options']['check_file_md5'],
+                delete_extraneous_destination=conf[
+                    'options']['delete_extraneous_destination'],
+                mode=mode,
+                overwrite=conf['options']['overwrite'],
+                recursive=conf['options']['recursive'],
+                restore_file_attributes=conf[
+                    'options']['restore_file_attributes'],
+                rsa_private_key=conf['options']['rsa_private_key'],
+                rsa_private_key_passphrase=conf[
+                    'options']['rsa_private_key_passphrase'],
+            ),
+            skip_on_options=blobxfer.models.SkipOnOptions(
+                filesize_match=conf['options']['skip_on']['filesize_match'],
+                lmt_ge=conf['options']['skip_on']['lmt_ge'],
+                md5_match=conf['options']['skip_on']['md5_match'],
+            ),
+            local_destination_path=blobxfer.models.LocalDestinationPath(
+                conf['destination']
+            )
+        )
+        # create remote source paths
+        for src in conf['source']:
+            if len(src) != 1:
+                raise RuntimeError(
+                    'invalid number of source pairs specified per entry')
+            sa = next(iter(src))
+            asp = blobxfer.models.AzureSourcePath()
+            asp.add_path_with_storage_account(src[sa], sa)
+            if is_not_empty(conf['include']):
+                asp.add_includes(conf['include'])
+            if is_not_empty(conf['exclude']):
+                asp.add_excludes(conf['exclude'])
+            ds.add_azure_source_path(asp)
+        specs.append(ds)
+    return specs

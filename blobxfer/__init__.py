@@ -23,3 +23,8 @@
 # DEALINGS IN THE SOFTWARE.
 
 from .version import __version__  # noqa
+
+# monkeypatch User-Agent string
+import azure.storage
+azure.storage._constants.USER_AGENT_STRING = 'blobxfer/{} {}'.format(
+    __version__, azure.storage._constants.USER_AGENT_STRING)

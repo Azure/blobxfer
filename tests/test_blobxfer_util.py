@@ -131,6 +131,49 @@ def test_compute_md5(tmpdir):
 
 def test_page_align_content_length():
     assert 0 == blobxfer.util.page_align_content_length(0)
+    assert 512 == blobxfer.util.page_align_content_length(1)
     assert 512 == blobxfer.util.page_align_content_length(511)
     assert 512 == blobxfer.util.page_align_content_length(512)
     assert 1024 == blobxfer.util.page_align_content_length(513)
+    assert 1024 == blobxfer.util.page_align_content_length(1023)
+    assert 1024 == blobxfer.util.page_align_content_length(1024)
+    assert 1536 == blobxfer.util.page_align_content_length(1025)
+
+
+def test_normalize_azure_path():
+    a = '\\cont\\r1\\r2\\r3\\'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    a = '/cont/r1/r2/r3/'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    a = '/cont\\r1/r2\\r3/'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    with pytest.raises(ValueError):
+        blobxfer.util.normalize_azure_path('')
+
+
+def test_explode_azure_path():
+    p = 'cont'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == ''
+
+    p = 'cont/'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == ''
+
+    p = 'cont/a/'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == 'a'
+
+    p = '/some/remote/path'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'some'
+    assert rpath == 'remote/path'

@@ -32,7 +32,43 @@ from builtins import (  # noqa
 import logging
 # non-stdlib imports
 # local imports
-from .models import FileDescriptor
+from .models import (  # noqa
+    AzureStorageCredentials,
+    AzureStorageModes,
+    DownloadSpecification,
+    FileDescriptor,
+)
+from .blob.operations import check_if_single_blob
+from .file.operations import check_if_single_file
+from .util import explode_azure_path
+
+
+def ensure_local_destination(creds, spec):
+    """Ensure a local destination path given a download spec
+    :param AzureStorageCredentials creds: creds
+    :param DownloadSpecification spec: download spec
+    """
+    # ensure destination path is writable given the source
+    if len(spec.sources) < 1:
+        raise RuntimeError('no sources to download from specified')
+    # set is_dir for destination
+    spec.destination.is_dir = True
+    if len(spec.sources) == 1:
+        # we need to query the source to see if this is a directory
+        rpath = str(spec.sources[0].paths[0])
+        sa = creds.get_storage_account(
+            spec.sources[0].lookup_storage_account(rpath))
+        cont, dir = explode_azure_path(rpath)
+        if spec.options.mode == AzureStorageModes.File:
+            if check_if_single_file(sa.file_client, cont, dir):
+                spec.destination.is_dir = False
+        else:
+            if check_if_single_blob(sa.block_blob_client, cont, dir):
+                spec.destination.is_dir = False
+    logging.debug('dest is_dir={} for {} specs'.format(
+        spec.destination.is_dir, len(spec.sources)))
+    # ensure destination path
+    spec.destination.ensure_path_exists()
 
 
 def file_chunks(fd, chunk_size):
