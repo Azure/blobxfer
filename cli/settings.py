@@ -33,8 +33,9 @@ from builtins import (  # noqa
 import enum
 # non-stdlib imports
 # local imports
+import blobxfer.crypto.operations
 import blobxfer.models
-from blobxfer.util import is_none_or_empty, is_not_empty, merge_dict
+import blobxfer.util
 
 
 # enums
@@ -59,16 +60,16 @@ def add_cli_options(
     :param str sync_copy_dest_remote_path: synccopy dest rp
     """
     cli_options['_action'] = action.name.lower()
-    if is_not_empty(storage_account):
+    if blobxfer.util.is_not_empty(storage_account):
         # add credentials
         try:
             key = cli_options['access_key']
-            if is_none_or_empty(key):
+            if blobxfer.util.is_none_or_empty(key):
                 raise KeyError()
         except KeyError:
             try:
                 key = cli_options['sas']
-                if is_none_or_empty(key):
+                if blobxfer.util.is_none_or_empty(key):
                     raise KeyError()
             except KeyError:
                 raise RuntimeError('access key or sas must be provided')
@@ -133,7 +134,7 @@ def add_cli_options(
                 },
             }
         elif action == TransferAction.Synccopy:
-            if is_none_or_empty(sync_copy_dest_storage_account):
+            if blobxfer.util.is_none_or_empty(sync_copy_dest_storage_account):
                 raise RuntimeError(
                     'must specify a destination storage account')
             arg = {
@@ -159,12 +160,12 @@ def add_cli_options(
             }
             try:
                 destkey = cli_options['sync_copy_dest_access_key']
-                if is_none_or_empty(destkey):
+                if blobxfer.util.is_none_or_empty(destkey):
                     raise KeyError()
             except KeyError:
                 try:
                     destkey = cli_options['sync_copy_dest_sas']
-                    if is_none_or_empty(destkey):
+                    if blobxfer.util.is_none_or_empty(destkey):
                         raise KeyError()
                 except KeyError:
                     raise RuntimeError(
@@ -197,7 +198,7 @@ def merge_settings(config, cli_options):
     if 'azure_storage' in cli_options:
         if 'azure_storage' not in config:
             config['azure_storage'] = {}
-        config['azure_storage'] = merge_dict(
+        config['azure_storage'] = blobxfer.util.merge_dict(
             config['azure_storage'], cli_options['azure_storage'])
     # merge general options
     if 'options' not in config:
@@ -259,6 +260,14 @@ def create_download_specifications(config):
             mode == blobxfer.models.AzureStorageModes.Page
         else:
             raise ValueError('unknown mode: {}'.format(confmode))
+        # load RSA private key PEM file if specified
+        rpk = conf['options']['rsa_private_key']
+        if blobxfer.util.is_not_empty(rpk):
+            rpkp = conf['options']['rsa_private_key_passphrase']
+            rpk = blobxfer.crypto.operations.load_rsa_private_key_file(
+                rpk, rpkp)
+        else:
+            rpk = None
         ds = blobxfer.models.DownloadSpecification(
             download_options=blobxfer.models.DownloadOptions(
                 check_file_md5=conf['options']['check_file_md5'],
@@ -269,9 +278,7 @@ def create_download_specifications(config):
                 recursive=conf['options']['recursive'],
                 restore_file_attributes=conf[
                     'options']['restore_file_attributes'],
-                rsa_private_key=conf['options']['rsa_private_key'],
-                rsa_private_key_passphrase=conf[
-                    'options']['rsa_private_key_passphrase'],
+                rsa_private_key=rpk,
             ),
             skip_on_options=blobxfer.models.SkipOnOptions(
                 filesize_match=conf['options']['skip_on']['filesize_match'],
@@ -290,9 +297,9 @@ def create_download_specifications(config):
             sa = next(iter(src))
             asp = blobxfer.models.AzureSourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
-            if is_not_empty(conf['include']):
+            if blobxfer.util.is_not_empty(conf['include']):
                 asp.add_includes(conf['include'])
-            if is_not_empty(conf['exclude']):
+            if blobxfer.util.is_not_empty(conf['exclude']):
                 asp.add_excludes(conf['exclude'])
             ds.add_azure_source_path(asp)
         specs.append(ds)

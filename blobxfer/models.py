@@ -47,10 +47,9 @@ from .api import (
     create_file_client,
     create_page_blob_client,
 )
-from .util import (
-    normalize_azure_path,
-    scantree,
-)
+import blobxfer.blob.operations
+import blobxfer.crypto
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -94,7 +93,6 @@ UploadOptions = collections.namedtuple(
         'overwrite',
         'recursive',
         'rsa_private_key',
-        'rsa_private_key_passphrase',
         'rsa_public_key',
         'store_file_attributes',
         'store_file_md5',
@@ -112,7 +110,6 @@ DownloadOptions = collections.namedtuple(
         'recursive',
         'restore_file_attributes',
         'rsa_private_key',
-        'rsa_private_key_passphrase'
     ]
 )
 SyncCopyOptions = collections.namedtuple(
@@ -179,6 +176,9 @@ class AzureStorageAccount(object):
         self.key = key
         self.endpoint = endpoint
         self.is_sas = self._key_is_sas(self.key)
+        # normalize sas keys
+        if self.is_sas and self.key.startswith('?'):
+            self.key = self.key[1:]
         self._create_clients()
 
     @staticmethod
@@ -373,7 +373,7 @@ class LocalSourcePaths(_BaseSourcePaths):
         for _path in self._paths:
             _ppath = os.path.expandvars(os.path.expanduser(str(_path)))
             _expath = pathlib.Path(_ppath)
-            for entry in scantree(_ppath):
+            for entry in blobxfer.util.scantree(_ppath):
                 _rpath = pathlib.Path(entry.path).relative_to(_ppath)
                 if not self._inclusion_check(_rpath):
                     logger.debug(
@@ -498,7 +498,7 @@ class AzureSourcePath(_BaseSourcePaths):
         if len(self._path_map) >= 1:
             raise RuntimeError(
                 'cannot add multiple remote paths to AzureSourcePath objects')
-        rpath = normalize_azure_path(remote_path)
+        rpath = blobxfer.util.normalize_azure_path(remote_path)
         self.add_path(rpath)
         self._path_map[rpath] = storage_account
 
@@ -510,11 +510,12 @@ class AzureSourcePath(_BaseSourcePaths):
         :rtype: str
         :return: storage account associated with path
         """
-        return self._path_map[normalize_azure_path(remote_path)]
+        return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
 
-    def files(self, mode):
+    def files(self, creds, mode):
         if mode == AzureStorageModes.Auto:
-            pass
+            for blob in self._auto_blobs(creds):
+                yield blob
         elif mode == AzureStorageModes.Append:
             pass
         elif mode == AzureStorageModes.Block:
@@ -526,10 +527,33 @@ class AzureSourcePath(_BaseSourcePaths):
         else:
             raise RuntimeError('unknown Azure Storage Mode: {}'.format(mode))
 
-    def _append_files(self):
+    def _append_blobs(self):
         for _path in self._paths:
-
             pass
+
+    def _auto_blobs(self, creds):
+        for _path in self._paths:
+            rpath = str(_path)
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            sa = creds.get_storage_account(self.lookup_storage_account(rpath))
+            for blob in blobxfer.blob.operations.list_blobs(
+                    sa.block_blob_client, cont, dir):
+                if blobxfer.crypto.models.EncryptionMetadata.\
+                        encryption_metadata_exists(blob.metadata):
+                    ed = blobxfer.crypto.models.EncryptionMetadata()
+                    ed.convert_from_json(blob.metadata)
+                else:
+                    ed = None
+                yield (_path, blob.name, ed)
+
+
+class AzureStorageEntity(object):
+    def __init__(self):
+        self._name = None
+        self._size = None
+        self._md5 = None
+        self._enc = None
+        self._vio = None
 
 
 class AzureDestinationPaths(object):

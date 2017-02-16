@@ -31,8 +31,9 @@ from builtins import (  # noqa
 # stdlib imports
 import logging
 # non-stdlib imports
+import azure.common
+import azure.storage.blob.models
 # local imports
-from ..util import is_none_or_empty
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -47,18 +48,28 @@ def check_if_single_blob(client, container, prefix):
     :rtype: bool
     :return: if prefix in container is a single blob
     """
-    blobs = client.list_blobs(
-        container_name=container, prefix=prefix, num_results=1)
-    return is_none_or_empty(blobs.next_marker)
+    try:
+        client.get_blob_properties(
+            container_name=container, blob_name=prefix)
+    except azure.common.AzureMissingResourceHttpError:
+        return False
+    return True
 
 
-def list_blobs(client, container, prefix, mode):
-    # type: (azure.storage.blob.BaseBlobService, str, str,
-    #        blobxfer.models.AzureStorageModes) -> list
+def list_blobs(client, container, prefix):
+    # type: (azure.storage.blob.BaseBlobService, str,
+    #        str) -> azure.storage.blob.models.Blob
     """List blobs in path conforming to mode
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix
+    :rtype: azure.storage.blob.models.Blob
+    :return: generator of blobs
     """
-
-    pass
+    blobs = client.list_blobs(
+        container_name=container,
+        prefix=prefix,
+        include=azure.storage.blob.models.Include.METADATA,
+    )
+    for blob in blobs:
+        yield blob

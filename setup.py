@@ -35,6 +35,7 @@ packages = [
     'blobxfer.blob.append',
     'blobxfer.blob.block',
     'blobxfer.blob.page',
+    'blobxfer.crypto',
     'blobxfer.file',
     'blobxfer_cli',
 ]

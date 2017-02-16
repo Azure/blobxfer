@@ -14,8 +14,8 @@ import blobxfer.models
 import blobxfer.operations as ops
 
 
-@patch('blobxfer.operations.check_if_single_file')
-@patch('blobxfer.operations.check_if_single_blob')
+@patch('blobxfer.file.operations.check_if_single_file')
+@patch('blobxfer.blob.operations.check_if_single_blob')
 def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     downdir = tmpdir.join('down')
 
@@ -29,7 +29,6 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
-            rsa_private_key_passphrase=None,
         ),
         skip_on_options=MagicMock(),
         local_destination_path=blobxfer.models.LocalDestinationPath(
@@ -64,7 +63,6 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
-            rsa_private_key_passphrase=None,
         ),
         skip_on_options=MagicMock(),
         local_destination_path=blobxfer.models.LocalDestinationPath(

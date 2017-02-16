@@ -38,9 +38,9 @@ from .models import (  # noqa
     DownloadSpecification,
     FileDescriptor,
 )
-from .blob.operations import check_if_single_blob
-from .file.operations import check_if_single_file
-from .util import explode_azure_path
+import blobxfer.blob.operations
+import blobxfer.file.operations
+import blobxfer.util
 
 
 def ensure_local_destination(creds, spec):
@@ -56,15 +56,18 @@ def ensure_local_destination(creds, spec):
     if len(spec.sources) == 1:
         # we need to query the source to see if this is a directory
         rpath = str(spec.sources[0].paths[0])
-        sa = creds.get_storage_account(
-            spec.sources[0].lookup_storage_account(rpath))
-        cont, dir = explode_azure_path(rpath)
-        if spec.options.mode == AzureStorageModes.File:
-            if check_if_single_file(sa.file_client, cont, dir):
-                spec.destination.is_dir = False
-        else:
-            if check_if_single_blob(sa.block_blob_client, cont, dir):
-                spec.destination.is_dir = False
+        cont, dir = blobxfer.util.explode_azure_path(rpath)
+        if not blobxfer.util.is_none_or_empty(dir):
+            sa = creds.get_storage_account(
+                spec.sources[0].lookup_storage_account(rpath))
+            if spec.options.mode == AzureStorageModes.File:
+                if blobxfer.file.operations.check_if_single_file(
+                        sa.file_client, cont, dir):
+                    spec.destination.is_dir = False
+            else:
+                if blobxfer.blob.operations.check_if_single_blob(
+                        sa.block_blob_client, cont, dir):
+                    spec.destination.is_dir = False
     logging.debug('dest is_dir={} for {} specs'.format(
         spec.destination.is_dir, len(spec.sources)))
     # ensure destination path

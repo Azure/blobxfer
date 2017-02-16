@@ -167,7 +167,6 @@ def test_downloadspecification():
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
-            rsa_private_key_passphrase=None,
         ),
         skip_on_options=blobxfer.models.SkipOnOptions(
             filesize_match=True,
