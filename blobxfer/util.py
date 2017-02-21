@@ -235,7 +235,7 @@ def explode_azure_path(path):
     :return: container, vpath
     """
     rpath = normalize_azure_path(path).split('/')
-    container = rpath[0]
+    container = str(rpath[0])
     if len(rpath) > 1:
         rpath = '/'.join(rpath[1:])
     else:

@@ -1,12 +1,14 @@
 # coding=utf-8
-"""Tests for models"""
+"""Tests for file operations"""
 
 # stdlib imports
+import mock
 # non-stdlib imports
+import azure.common
 import azure.storage
-import pytest
 # local imports
 import blobxfer.models as models
+import blobxfer.util as util
 # module under test
 import blobxfer.file.operations as ops
 
@@ -27,3 +29,94 @@ def test_create_client():
     assert isinstance(
         client.authentication,
         azure.storage._auth._StorageSASAuthentication)
+
+
+def test_parse_file_path():
+    rpath = '/a/b/c'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir == 'b'
+    assert fname == 'c'
+
+    rpath = 'a/b/c/d'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir == 'b/c'
+    assert fname == 'd'
+
+    rpath = 'a/b'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir is None
+    assert fname == 'b'
+
+    rpath = 'a'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir is None
+    assert fname is None
+
+
+def test_check_if_single_file():
+    client = mock.MagicMock()
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.return_value = mock.MagicMock()
+
+    result = ops.check_if_single_file(client, 'a', 'b/c')
+    assert result[0]
+
+    client = mock.MagicMock()
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.side_effect = \
+        azure.common.AzureMissingResourceHttpError('msg', 404)
+
+    result = ops.check_if_single_file(client, 'a', 'b/c')
+    assert not result[0]
+
+
+def test_list_files_single_file():
+    client = mock.MagicMock()
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.return_value = 'fp'
+
+    i = 0
+    for file in ops.list_files(client, 'a', 'b/c'):
+        i += 1
+        assert file == 'fp'
+    assert i == 1
+
+
+@mock.patch(
+    'blobxfer.file.operations.check_if_single_file',
+    return_value=(False, None)
+)
+def test_list_files_directory(patched_cisf):
+    client = mock.MagicMock()
+    client.list_directories_and_files = mock.MagicMock()
+    _file = azure.storage.file.models.File(name='name')
+    client.list_directories_and_files.return_value = [_file]
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.return_value = _file
+
+    i = 0
+    for file in ops.list_files(client, 'dir', ''):
+        i += 1
+        assert file.name == 'name'
+    assert i == 1
+
+    client = mock.MagicMock()
+    client.list_directories_and_files = mock.MagicMock()
+    _file = azure.storage.file.models.File(name='name')
+    client.list_directories_and_files.side_effect = [['dir'], [file]]
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.return_value = _file
+
+    i = 0
+    for file in ops.list_files(client, 'dir', ''):
+        i += 1
+        assert file.name == 'name'
+    assert i == 1

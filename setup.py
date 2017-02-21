@@ -46,6 +46,7 @@ install_requires = [
     'click==6.6',
     'cryptography>=1.7.1',
     'future==0.16.0',
+    'python-dateutil==2.6.0',
     'ruamel.yaml==0.13.11',
 ]
 

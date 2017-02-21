@@ -44,3 +44,7 @@ from .blob.page.operations import (  # noqa
 from .file.operations import (  # noqa
     create_client as create_file_client
 )
+
+from .download import (  # noqa
+    download
+)

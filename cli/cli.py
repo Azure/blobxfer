@@ -41,7 +41,6 @@ import ruamel.yaml
 import blobxfer.api
 import blobxfer.util
 # local imports
-import download as dl
 import settings
 
 # create logger
@@ -592,7 +591,7 @@ def download(ctx, local_resource, storage_account, remote_path):
     ctx.initialize()
     specs = settings.create_download_specifications(ctx.config)
     for spec in specs:
-        dl.download(ctx.general_options, ctx.credentials, spec)
+        blobxfer.api.download(ctx.general_options, ctx.credentials, spec)
 
 
 @cli.command('synccopy')

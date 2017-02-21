@@ -72,10 +72,10 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
 
     ds.add_azure_source_path(asp)
 
-    patched_file.return_value = False
+    patched_file.return_value = (False, None)
     ops.ensure_local_destination(MagicMock(), ds)
     assert ds.destination.is_dir
 
-    patched_file.return_value = True
+    patched_file.return_value = (True, MagicMock())
     with pytest.raises(RuntimeError):
         ops.ensure_local_destination(MagicMock(), ds)

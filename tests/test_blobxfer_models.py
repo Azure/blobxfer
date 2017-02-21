@@ -2,6 +2,7 @@
 """Tests for models"""
 
 # stdlib imports
+import mock
 import os
 try:
     import pathlib2 as pathlib
@@ -9,6 +10,7 @@ except ImportError:
     import pathlib
 # non-stdlib imports
 import azure.storage
+import azure.storage.blob
 import pytest
 # module under test
 import blobxfer.models
@@ -188,3 +190,36 @@ def test_downloadspecification():
     assert len(ds.sources) == 1
     assert p in ds.sources[0]._path_map
     assert ds.sources[0]._path_map[p] == 'sa'
+
+
+def test_azurestorageentity():
+    ase = blobxfer.models.AzureStorageEntity('cont')
+    assert ase.container == 'cont'
+    assert ase.encryption_metadata is None
+
+    blob = mock.MagicMock()
+    blob.name = 'name'
+    blob.properties = mock.MagicMock()
+    blob.properties.last_modified = 'lmt'
+    blob.properties.content_length = 123
+    blob.properties.content_settings = mock.MagicMock()
+    blob.properties.content_settings.content_md5 = 'abc'
+    blob.properties.blob_type = azure.storage.blob.models._BlobTypes.BlockBlob
+    ase.populate_from_blob(blob)
+
+    assert ase.name == 'name'
+    assert ase.lmt == 'lmt'
+    assert ase.size == 123
+    assert ase.md5 == 'abc'
+    assert ase.mode == blobxfer.models.AzureStorageModes.Block
+
+    blob.properties.blob_type = azure.storage.blob.models._BlobTypes.AppendBlob
+    ase.populate_from_blob(blob)
+    assert ase.mode == blobxfer.models.AzureStorageModes.Append
+
+    blob.properties.blob_type = azure.storage.blob.models._BlobTypes.PageBlob
+    ase.populate_from_blob(blob)
+    assert ase.mode == blobxfer.models.AzureStorageModes.Page
+
+    ase.populate_from_file(blob)
+    assert ase.mode == blobxfer.models.AzureStorageModes.File

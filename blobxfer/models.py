@@ -47,8 +47,10 @@ from .api import (
     create_file_client,
     create_page_blob_client,
 )
+from azure.storage.blob.models import _BlobTypes as BlobTypes
 import blobxfer.blob.operations
-import blobxfer.crypto
+import blobxfer.file.operations
+import blobxfer.crypto.models
 import blobxfer.util
 
 # create logger
@@ -57,11 +59,11 @@ logger = logging.getLogger(__name__)
 
 # enums
 class AzureStorageModes(enum.Enum):
-    Auto = 1
-    Append = 2
-    Block = 3
-    File = 4
-    Page = 5
+    Auto = 10
+    Append = 20
+    Block = 30
+    File = 40
+    Page = 50
 
 
 # named tuples
@@ -512,48 +514,203 @@ class AzureSourcePath(_BaseSourcePaths):
         """
         return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
 
-    def files(self, creds, mode):
-        if mode == AzureStorageModes.Auto:
-            for blob in self._auto_blobs(creds):
-                yield blob
-        elif mode == AzureStorageModes.Append:
-            pass
-        elif mode == AzureStorageModes.Block:
-            pass
-        elif mode == AzureStorageModes.File:
-            pass
-        elif mode == AzureStorageModes.Page:
-            pass
+    def files(self, creds, options, general_options):
+        # type: (AzureSourcePath, AzureStorageCredentials, DownloadOptions,
+        #        GeneralOptions) -> AzureStorageEntity
+        """Generator of Azure remote files or blobs
+        :param AzureSourcePath self: this
+        :param AzureStorageCredentials creds: storage creds
+        :param DownloadOptions options: download options
+        :param GeneralOptions general_options: general options
+        :rtype: AzureStorageEntity
+        :return: Azure storage entity object
+        """
+        if options.mode == AzureStorageModes.File:
+            for file in self._populate_from_list_files(
+                    creds, options, general_options):
+                yield file
         else:
-            raise RuntimeError('unknown Azure Storage Mode: {}'.format(mode))
+            for blob in self._populate_from_list_blobs(
+                    creds, options, general_options):
+                yield blob
 
-    def _append_blobs(self):
+    def _populate_from_list_files(self, creds, options, general_options):
+        # type: (AzureSourcePath, AzureStorageCredentials, DownloadOptions,
+        #        GeneralOptions) -> AzureStorageEntity
+        """Internal generator for Azure remote files
+        :param AzureSourcePath self: this
+        :param AzureStorageCredentials creds: storage creds
+        :param DownloadOptions options: download options
+        :param GeneralOptions general_options: general options
+        :rtype: AzureStorageEntity
+        :return: Azure storage entity object
+        """
         for _path in self._paths:
-            pass
+            rpath = str(_path)
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            sa = creds.get_storage_account(self.lookup_storage_account(rpath))
+            for file in blobxfer.file.operations.list_files(
+                    sa.file_client, cont, dir, general_options.timeout_sec):
+                if blobxfer.crypto.models.EncryptionMetadata.\
+                        encryption_metadata_exists(file.metadata):
+                    ed = blobxfer.crypto.models.EncryptionMetadata()
+                    ed.convert_from_json(
+                        file.metadata, file.name, options.rsa_private_key)
+                else:
+                    ed = None
+                ase = AzureStorageEntity(cont, ed)
+                ase.populate_from_file(file)
+                yield ase
 
-    def _auto_blobs(self, creds):
+    def _populate_from_list_blobs(self, creds, options, general_options):
+        # type: (AzureSourcePath, AzureStorageCredentials, DownloadOptions,
+        #        GeneralOptions) -> AzureStorageEntity
+        """Internal generator for Azure remote blobs
+        :param AzureSourcePath self: this
+        :param AzureStorageCredentials creds: storage creds
+        :param DownloadOptions options: download options
+        :param GeneralOptions general_options: general options
+        :rtype: AzureStorageEntity
+        :return: Azure storage entity object
+        """
         for _path in self._paths:
             rpath = str(_path)
             cont, dir = blobxfer.util.explode_azure_path(rpath)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             for blob in blobxfer.blob.operations.list_blobs(
-                    sa.block_blob_client, cont, dir):
+                    sa.block_blob_client, cont, dir, options.mode,
+                    general_options.timeout_sec):
                 if blobxfer.crypto.models.EncryptionMetadata.\
                         encryption_metadata_exists(blob.metadata):
                     ed = blobxfer.crypto.models.EncryptionMetadata()
-                    ed.convert_from_json(blob.metadata)
+                    ed.convert_from_json(
+                        blob.metadata, blob.name, options.rsa_private_key)
                 else:
                     ed = None
-                yield (_path, blob.name, ed)
+                ase = AzureStorageEntity(cont, ed)
+                ase.populate_from_blob(blob)
+                yield ase
 
 
 class AzureStorageEntity(object):
-    def __init__(self):
+    """Azure Storage Entity"""
+    def __init__(self, container, ed=None):
+        # type: (AzureStorageEntity, str
+        #        blobxfer.crypto.models.EncryptionMetadata) -> None
+        """Ctor for AzureStorageEntity
+        :param AzureStorageEntity self: this
+        :param str container: container name
+        :param blobxfer.crypto.models.EncryptionMetadata ed:
+            encryption metadata
+        """
+        self._container = container
         self._name = None
+        self._mode = None
+        self._lmt = None
         self._size = None
         self._md5 = None
-        self._enc = None
+        self._encryption = ed
         self._vio = None
+
+    def populate_from_blob(self, blob):
+        # type: (AzureStorageEntity, azure.storage.blob.models.Blob) -> None
+        """Populate properties from Blob
+        :param AzureStorageEntity self: this
+        :param azure.storage.blob.models.Blob blob: blob to populate from
+        """
+        self._name = blob.name
+        self._lmt = blob.properties.last_modified
+        self._size = blob.properties.content_length
+        self._md5 = blob.properties.content_settings.content_md5
+        if blob.properties.blob_type == BlobTypes.AppendBlob:
+            self._mode = AzureStorageModes.Append
+        elif blob.properties.blob_type == BlobTypes.BlockBlob:
+            self._mode = AzureStorageModes.Block
+        elif blob.properties.blob_type == BlobTypes.PageBlob:
+            self._mode = AzureStorageModes.Page
+
+    def populate_from_file(self, file):
+        # type: (AzureStorageEntity, azure.storage.file.models.File) -> None
+        """Populate properties from File
+        :param AzureStorageEntity self: this
+        :param azure.storage.file.models.File file: file to populate from
+        """
+        self._name = file.name
+        self._lmt = file.properties.last_modified
+        self._size = file.properties.content_length
+        self._md5 = file.properties.content_settings.content_md5
+        self._mode = AzureStorageModes.File
+
+    @property
+    def container(self):
+        # type: (AzureStorageEntity) -> str
+        """Container name
+        :param AzureStorageEntity self: this
+        :rtype: str
+        :return: name of container or file share
+        """
+        return self._container
+
+    @property
+    def name(self):
+        # type: (AzureStorageEntity) -> str
+        """Entity name
+        :param AzureStorageEntity self: this
+        :rtype: str
+        :return: name of entity
+        """
+        return self._name
+
+    @property
+    def lmt(self):
+        # type: (AzureStorageEntity) -> datetime.datetime
+        """Entity last modified time
+        :param AzureStorageEntity self: this
+        :rtype: datetime.datetime
+        :return: LMT of entity
+        """
+        return self._lmt
+
+    @property
+    def size(self):
+        # type: (AzureStorageEntity) -> int
+        """Entity size
+        :param AzureStorageEntity self: this
+        :rtype: int
+        :return: size of entity
+        """
+        return self._size
+
+    @property
+    def md5(self):
+        # type: (AzureStorageEntity) -> str
+        """Base64-encoded MD5
+        :param AzureStorageEntity self: this
+        :rtype: str
+        :return: md5 of entity
+        """
+        return self._md5
+
+    @property
+    def mode(self):
+        # type: (AzureStorageEntity) -> AzureStorageModes
+        """Entity mode (type)
+        :param AzureStorageEntity self: this
+        :rtype: AzureStorageModes
+        :return: type of entity
+        """
+        return self._mode
+
+    @property
+    def encryption_metadata(self):
+        # type: (AzureStorageEntity) ->
+        #        blobxfer.crypto.models.EncryptionMetadata
+        """Entity mode (type)
+        :param AzureStorageEntity self: this
+        :rtype: blobxfer.crypto.models.EncryptionMetadata
+        :return: encryption metadata of entity
+        """
+        return self._encryption
 
 
 class AzureDestinationPaths(object):

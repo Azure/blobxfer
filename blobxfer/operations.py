@@ -32,21 +32,21 @@ from builtins import (  # noqa
 import logging
 # non-stdlib imports
 # local imports
-from .models import (  # noqa
-    AzureStorageCredentials,
-    AzureStorageModes,
-    DownloadSpecification,
-    FileDescriptor,
-)
+import blobxfer.models
 import blobxfer.blob.operations
 import blobxfer.file.operations
 import blobxfer.util
 
+# create logger
+logger = logging.getLogger(__name__)
+
 
 def ensure_local_destination(creds, spec):
+    # type: (blobxfer.models.AzureStorageCredentials,
+    #        blobxfer.models.DownloadSpecification) -> None
     """Ensure a local destination path given a download spec
-    :param AzureStorageCredentials creds: creds
-    :param DownloadSpecification spec: download spec
+    :param blobxfer.models.AzureStorageCredentials creds: creds
+    :param blobxfer.models.DownloadSpecification spec: download spec
     """
     # ensure destination path is writable given the source
     if len(spec.sources) < 1:
@@ -60,15 +60,15 @@ def ensure_local_destination(creds, spec):
         if not blobxfer.util.is_none_or_empty(dir):
             sa = creds.get_storage_account(
                 spec.sources[0].lookup_storage_account(rpath))
-            if spec.options.mode == AzureStorageModes.File:
+            if spec.options.mode == blobxfer.models.AzureStorageModes.File:
                 if blobxfer.file.operations.check_if_single_file(
-                        sa.file_client, cont, dir):
+                        sa.file_client, cont, dir)[0]:
                     spec.destination.is_dir = False
             else:
                 if blobxfer.blob.operations.check_if_single_blob(
                         sa.block_blob_client, cont, dir):
                     spec.destination.is_dir = False
-    logging.debug('dest is_dir={} for {} specs'.format(
+    logger.debug('dest is_dir={} for {} specs'.format(
         spec.destination.is_dir, len(spec.sources)))
     # ensure destination path
     spec.destination.ensure_path_exists()

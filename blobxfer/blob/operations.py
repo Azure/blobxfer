@@ -34,42 +34,63 @@ import logging
 import azure.common
 import azure.storage.blob.models
 # local imports
+import blobxfer.models
 
 # create logger
 logger = logging.getLogger(__name__)
 
 
-def check_if_single_blob(client, container, prefix):
-    # type: (azure.storage.blob.BaseBlobService, str, str) -> bool
+def check_if_single_blob(client, container, prefix, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, str, int) -> bool
     """Check if prefix is a single blob or multiple blobs
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix
+    :param int timeout: timeout
     :rtype: bool
     :return: if prefix in container is a single blob
     """
     try:
         client.get_blob_properties(
-            container_name=container, blob_name=prefix)
+            container_name=container, blob_name=prefix, timeout=timeout)
     except azure.common.AzureMissingResourceHttpError:
         return False
     return True
 
 
-def list_blobs(client, container, prefix):
-    # type: (azure.storage.blob.BaseBlobService, str,
-    #        str) -> azure.storage.blob.models.Blob
+def list_blobs(client, container, prefix, mode, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, str, int,
+    #        blobxfer.models.AzureStorageModes) ->
+    #        azure.storage.blob.models.Blob
     """List blobs in path conforming to mode
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix
+    :param blobxfer.models.AzureStorageModes mode: storage mode
+    :param int timeout: timeout
     :rtype: azure.storage.blob.models.Blob
     :return: generator of blobs
     """
+    if mode == blobxfer.models.AzureStorageModes.File:
+        raise RuntimeError('cannot list Azure Files from blob client')
     blobs = client.list_blobs(
         container_name=container,
         prefix=prefix,
         include=azure.storage.blob.models.Include.METADATA,
+        timeout=timeout,
     )
     for blob in blobs:
+        if (mode == blobxfer.models.AzureStorageModes.Append and
+                blob.properties.blob_type !=
+                azure.storage.blob.models._BlobTypes.AppendBlob):
+            continue
+        elif (mode == blobxfer.models.AzureStorageModes.Block and
+                blob.properties.blob_type !=
+                azure.storage.blob.models._BlobTypes.BlockBlob):
+            continue
+        elif (mode == blobxfer.models.AzureStorageModes.Page and
+                blob.properties.blob_type !=
+                azure.storage.blob.models._BlobTypes.PageBlob):
+            continue
+        # auto or match, yield the blob
         yield blob
