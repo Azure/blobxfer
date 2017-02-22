@@ -3,7 +3,7 @@ import os
 import re
 try:
     from setuptools import setup
-except ImportError:
+except ImportError:  # noqa
     from distutils.core import setup
 import sys
 

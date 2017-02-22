@@ -36,7 +36,7 @@ import enum
 import logging
 try:
     import pathlib2 as pathlib
-except ImportError:
+except ImportError:  # noqa
     import pathlib
 import threading
 # non-stdlib imports
@@ -77,33 +77,33 @@ class Downloader(object):
         self._creds = creds
         self._spec = spec
 
-    def _check_download_conditions(self, lpath, rfile, spec):
-        # type: (Downloader, pathlib.Path, blobxfer.models.AzureStorageEntity,
-        #        blobxfer.models.DownloadSpecification) -> DownloadAction
+    def _check_download_conditions(self, lpath, rfile):
+        # type: (Downloader, pathlib.Path,
+        #        blobxfer.models.AzureStorageEntity) -> DownloadAction
         """Check for download conditions
         :param Downloader self: this
         :param pathlib.Path lpath: local path
         :param blobxfer.models.AzureStorageEntity rfile: remote file
-        :param blobxfer.models.DownloadSpecification spec: download spec
         :rtype: DownloadAction
         :return: download action
         """
         if not lpath.exists():
             return DownloadAction.Download
-        if not spec.options.overwrite:
+        if not self._spec.options.overwrite:
             logger.info(
                 'not overwriting local file: {} (remote: {}/{})'.format(
                     lpath, rfile.container, rfile.name))
             return DownloadAction.Skip
         # check skip on options, MD5 match takes priority
-        if spec.skip_on.md5_match:
+        if self._spec.skip_on.md5_match:
             return DownloadAction.CheckMd5
         # if neither of the remaining skip on actions are activated, download
-        if not spec.skip_on.filesize_match and not spec.skip_on.lmt_ge:
+        if (not self._spec.skip_on.filesize_match and
+                not self._spec.skip_on.lmt_ge):
             return DownloadAction.Download
         # check skip on file size match
         dl_fs = None
-        if spec.skip_on.filesize_match:
+        if self._spec.skip_on.filesize_match:
             lsize = lpath.stat().st_size
             if rfile.mode == blobxfer.models.AzureStorageModes.Page:
                 lsize = blobxfer.util.page_align_content_length(lsize)
@@ -113,7 +113,7 @@ class Downloader(object):
                 dl_fs = True
         # check skip on lmt ge
         dl_lmt = None
-        if spec.skip_on.lmt_ge:
+        if self._spec.skip_on.lmt_ge:
             mtime = datetime.datetime.fromtimestamp(
                 lpath.stat().st_mtime, tz=dateutil.tz.tzlocal())
             if mtime >= rfile.lmt:
@@ -211,8 +211,7 @@ class Downloader(object):
                 # form local path for remote file
                 lpath = pathlib.Path(self._spec.destination.path, rfile.name)
                 # check on download conditions
-                action = self._check_download_conditions(
-                    lpath, rfile, self._spec)
+                action = self._check_download_conditions(lpath, rfile)
                 if action == DownloadAction.Skip:
                     continue
                 elif action == DownloadAction.CheckMd5:

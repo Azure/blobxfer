@@ -6,18 +6,19 @@ import mock
 import os
 try:
     import pathlib2 as pathlib
-except ImportError:
+except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
 import azure.storage
 import azure.storage.blob
+import azure.storage.file
 import pytest
 # module under test
-import blobxfer.models
+import blobxfer.models as models
 
 
 def test_storage_credentials():
-    creds = blobxfer.models.AzureStorageCredentials()
+    creds = models.AzureStorageCredentials()
     creds.add_storage_account('sa1', 'somekey1', 'endpoint')
 
     a = creds.get_storage_account('sa1')
@@ -51,24 +52,24 @@ def test_storage_credentials():
 
 
 def test_key_is_sas():
-    a = blobxfer.models.AzureStorageAccount('name', 'abcdef', 'endpoint')
+    a = models.AzureStorageAccount('name', 'abcdef', 'endpoint')
     assert not a.is_sas
 
-    a = blobxfer.models.AzureStorageAccount('name', 'abcdef&blah', 'endpoint')
+    a = models.AzureStorageAccount('name', 'abcdef&blah', 'endpoint')
     assert not a.is_sas
 
-    a = blobxfer.models.AzureStorageAccount('name', '?abcdef', 'endpoint')
+    a = models.AzureStorageAccount('name', '?abcdef', 'endpoint')
     assert a.is_sas
 
-    a = blobxfer.models.AzureStorageAccount(
+    a = models.AzureStorageAccount(
         'name', '?sv=0&sr=1&sig=2', 'endpoint')
     assert a.is_sas
 
-    a = blobxfer.models.AzureStorageAccount(
+    a = models.AzureStorageAccount(
         'name', 'sv=0&sr=1&sig=2', 'endpoint')
     assert a.is_sas
 
-    a = blobxfer.models.AzureStorageAccount(
+    a = models.AzureStorageAccount(
         'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint')
     assert a.is_sas
 
@@ -86,7 +87,7 @@ def test_localsourcepaths_files(tmpdir):
     defpath.join('world.txt').write('world')
     defpath.join('moo.cow').write('y')
 
-    a = blobxfer.models.LocalSourcePaths()
+    a = models.LocalSourcePaths()
     a.add_include('*.txt')
     a.add_includes(['moo.cow', '*blah*'])
     with pytest.raises(ValueError):
@@ -106,7 +107,7 @@ def test_localsourcepaths_files(tmpdir):
     assert str(defpath.join('world.txt')) in a_set
     assert str(defpath.join('moo.cow')) not in a_set
 
-    b = blobxfer.models.LocalSourcePaths()
+    b = models.LocalSourcePaths()
     b.add_includes(['moo.cow', '*blah*'])
     b.add_include('*.txt')
     b.add_excludes(['world.txt'])
@@ -121,7 +122,7 @@ def test_localdestinationpath(tmpdir):
     tmpdir.mkdir('1')
     path = tmpdir.join('1')
 
-    a = blobxfer.models.LocalDestinationPath(str(path))
+    a = models.LocalDestinationPath(str(path))
     a.is_dir = True
     assert str(a.path) == str(path)
     assert a.is_dir
@@ -129,7 +130,7 @@ def test_localdestinationpath(tmpdir):
     a.ensure_path_exists()
     assert os.path.exists(str(a.path))
 
-    b = blobxfer.models.LocalDestinationPath()
+    b = models.LocalDestinationPath()
     b.is_dir = False
     b.path = str(path)
     with pytest.raises(RuntimeError):
@@ -138,7 +139,7 @@ def test_localdestinationpath(tmpdir):
 
     path2 = tmpdir.join('2')
     path3 = path2.join('3')
-    c = blobxfer.models.LocalDestinationPath(str(path3))
+    c = models.LocalDestinationPath(str(path3))
     with pytest.raises(RuntimeError):
         c.ensure_path_exists()
     c.is_dir = False
@@ -150,7 +151,7 @@ def test_localdestinationpath(tmpdir):
 
 def test_azuresourcepath():
     p = '/cont/remote/path'
-    asp = blobxfer.models.AzureSourcePath()
+    asp = models.AzureSourcePath()
     asp.add_path_with_storage_account(p, 'sa')
 
     with pytest.raises(RuntimeError):
@@ -159,26 +160,106 @@ def test_azuresourcepath():
     assert 'sa' == asp.lookup_storage_account(p)
 
 
+@mock.patch('blobxfer.crypto.models.EncryptionMetadata')
+@mock.patch('blobxfer.file.operations.list_files')
+def test_azuresourcepath_files(patched_lf, patched_em):
+    p = '/cont/remote/path'
+    asp = models.AzureSourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+
+    options = mock.MagicMock()
+    options.mode = models.AzureStorageModes.File
+    creds = mock.MagicMock()
+    creds.get_storage_account = mock.MagicMock()
+    sa = mock.MagicMock()
+    sa.file_client = mock.MagicMock()
+    creds.get_storage_account.return_value = sa
+    f = azure.storage.file.models.File(name='name')
+    patched_lf.side_effect = [[f]]
+    patched_em.encryption_metadata_exists = mock.MagicMock()
+    patched_em.encryption_metadata_exists.return_value = False
+
+    i = 0
+    for file in asp.files(creds, options, mock.MagicMock()):
+        i += 1
+        assert file.name == 'name'
+        assert file.encryption_metadata is None
+    assert i == 1
+
+    fe = azure.storage.file.models.File(name='name')
+    fe.metadata = {'encryptiondata': {'a': 'b'}}
+    patched_lf.side_effect = [[fe]]
+    patched_em.encryption_metadata_exists.return_value = True
+    patched_em.convert_from_json = mock.MagicMock()
+
+    i = 0
+    for file in asp.files(creds, options, mock.MagicMock()):
+        i += 1
+        assert file.name == 'name'
+        assert file.encryption_metadata is not None
+    assert i == 1
+
+
+@mock.patch('blobxfer.crypto.models.EncryptionMetadata')
+@mock.patch('blobxfer.blob.operations.list_blobs')
+def test_azuresourcepath_blobs(patched_lb, patched_em):
+    p = '/cont/remote/path'
+    asp = models.AzureSourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+
+    options = mock.MagicMock()
+    options.mode = models.AzureStorageModes.Auto
+    creds = mock.MagicMock()
+    creds.get_storage_account = mock.MagicMock()
+    sa = mock.MagicMock()
+    sa.block_blob_client = mock.MagicMock()
+    creds.get_storage_account.return_value = sa
+    b = azure.storage.blob.models.Blob(name='name')
+    patched_lb.side_effect = [[b]]
+    patched_em.encryption_metadata_exists = mock.MagicMock()
+    patched_em.encryption_metadata_exists.return_value = False
+
+    i = 0
+    for file in asp.files(creds, options, mock.MagicMock()):
+        i += 1
+        assert file.name == 'name'
+        assert file.encryption_metadata is None
+    assert i == 1
+
+    be = azure.storage.blob.models.Blob(name='name')
+    be.metadata = {'encryptiondata': {'a': 'b'}}
+    patched_lb.side_effect = [[be]]
+    patched_em.encryption_metadata_exists.return_value = True
+    patched_em.convert_from_json = mock.MagicMock()
+
+    i = 0
+    for file in asp.files(creds, options, mock.MagicMock()):
+        i += 1
+        assert file.name == 'name'
+        assert file.encryption_metadata is not None
+    assert i == 1
+
+
 def test_downloadspecification():
-    ds = blobxfer.models.DownloadSpecification(
-        download_options=blobxfer.models.DownloadOptions(
+    ds = models.DownloadSpecification(
+        download_options=models.DownloadOptions(
             check_file_md5=True,
             delete_extraneous_destination=False,
-            mode=blobxfer.models.AzureStorageModes.Auto,
+            mode=models.AzureStorageModes.Auto,
             overwrite=True,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=blobxfer.models.SkipOnOptions(
+        skip_on_options=models.SkipOnOptions(
             filesize_match=True,
             lmt_ge=False,
             md5_match=True,
         ),
-        local_destination_path=blobxfer.models.LocalDestinationPath('dest'),
+        local_destination_path=models.LocalDestinationPath('dest'),
     )
 
-    asp = blobxfer.models.AzureSourcePath()
+    asp = models.AzureSourcePath()
     p = 'some/remote/path'
     asp.add_path_with_storage_account(p, 'sa')
 
@@ -193,7 +274,7 @@ def test_downloadspecification():
 
 
 def test_azurestorageentity():
-    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase = models.AzureStorageEntity('cont')
     assert ase.container == 'cont'
     assert ase.encryption_metadata is None
 
@@ -211,15 +292,15 @@ def test_azurestorageentity():
     assert ase.lmt == 'lmt'
     assert ase.size == 123
     assert ase.md5 == 'abc'
-    assert ase.mode == blobxfer.models.AzureStorageModes.Block
+    assert ase.mode == models.AzureStorageModes.Block
 
     blob.properties.blob_type = azure.storage.blob.models._BlobTypes.AppendBlob
     ase.populate_from_blob(blob)
-    assert ase.mode == blobxfer.models.AzureStorageModes.Append
+    assert ase.mode == models.AzureStorageModes.Append
 
     blob.properties.blob_type = azure.storage.blob.models._BlobTypes.PageBlob
     ase.populate_from_blob(blob)
-    assert ase.mode == blobxfer.models.AzureStorageModes.Page
+    assert ase.mode == models.AzureStorageModes.Page
 
     ase.populate_from_file(blob)
-    assert ase.mode == blobxfer.models.AzureStorageModes.File
+    assert ase.mode == models.AzureStorageModes.File

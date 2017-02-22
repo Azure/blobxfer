@@ -37,7 +37,7 @@ import logging
 import os
 try:
     import pathlib2 as pathlib
-except ImportError:
+except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
 # local imports
