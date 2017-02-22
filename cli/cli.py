@@ -591,7 +591,9 @@ def download(ctx, local_resource, storage_account, remote_path):
     ctx.initialize()
     specs = settings.create_download_specifications(ctx.config)
     for spec in specs:
-        blobxfer.api.download(ctx.general_options, ctx.credentials, spec)
+        blobxfer.api.Downloader(
+            ctx.general_options, ctx.credentials, spec
+        ).start()
 
 
 @cli.command('synccopy')

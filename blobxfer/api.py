@@ -46,5 +46,5 @@ from .file.operations import (  # noqa
 )
 
 from .download import (  # noqa
-    download
+    Downloader
 )
