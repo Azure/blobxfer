@@ -17,6 +17,41 @@ import pytest
 import blobxfer.models as models
 
 
+def test_concurrency_options():
+    a = models.ConcurrencyOptions(
+        crypto_processes=-1,
+        md5_processes=0,
+        transfer_threads=-2,
+    )
+
+    assert a.crypto_processes == 1
+    assert a.md5_processes == 1
+    assert a.transfer_threads == 1
+
+
+def test_general_options():
+    a = models.GeneralOptions(
+        concurrency=models.ConcurrencyOptions(
+            crypto_processes=1,
+            md5_processes=2,
+            transfer_threads=3,
+        ),
+        progress_bar=False,
+        timeout_sec=1,
+        verbose=True,
+    )
+
+    assert a.concurrency.crypto_processes == 1
+    assert a.concurrency.md5_processes == 2
+    assert a.concurrency.transfer_threads == 3
+    assert not a.progress_bar
+    assert a.timeout_sec == 1
+    assert a.verbose
+
+    with pytest.raises(ValueError):
+        a = models.GeneralOptions(None)
+
+
 def test_storage_credentials():
     creds = models.AzureStorageCredentials()
     creds.add_storage_account('sa1', 'somekey1', 'endpoint')
@@ -304,3 +339,47 @@ def test_azurestorageentity():
 
     ase.populate_from_file(blob)
     assert ase.mode == models.AzureStorageModes.File
+
+
+def test_azurestorageentity_prepare_for_download(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+
+    ase = models.AzureStorageEntity('cont')
+    ase._size = 0
+    ase.prepare_for_download(lp, opts)
+
+    assert ase.download.hmac is None
+    assert ase.download.md5 is not None
+    assert ase.download.final_path == lp
+    assert ase.download.current_position == 0
+
+    ase._encryption = mock.MagicMock()
+    ase.prepare_for_download(lp, opts)
+
+    assert ase.download.hmac is not None
+    assert ase.download.md5 is None
+
+
+def test_downloaddescriptor(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    d = models.DownloadDescriptor(lp, None, None)
+    assert d.current_position == 0
+    assert d.final_path == lp
+    assert str(d.local_path) == str(lp) + '.bxtmp'
+
+    d.allocate_disk_space(1024, True)
+    assert d.local_path.stat().st_size == 1024 - 16
+
+    d.local_path.unlink()
+    d.allocate_disk_space(1, True)
+    assert d.local_path.stat().st_size == 0
+
+    d.local_path.unlink()
+    d.allocate_disk_space(1024, False)
+    assert d.local_path.stat().st_size == 1024
+
+    # pre-existing file check
+    d.allocate_disk_space(0, False)
+    assert d.local_path.stat().st_size == 0

@@ -51,6 +51,7 @@ from azure.storage.blob.models import _BlobTypes as BlobTypes
 import blobxfer.blob.operations
 import blobxfer.file.operations
 import blobxfer.crypto.models
+import blobxfer.md5
 import blobxfer.util
 
 # create logger
@@ -67,13 +68,6 @@ class AzureStorageModes(enum.Enum):
 
 
 # named tuples
-GeneralOptions = collections.namedtuple(
-    'GeneralOptions', [
-        'progress_bar',
-        'timeout_sec',
-        'verbose',
-    ]
-)
 VectoredIoOptions = collections.namedtuple(
     'VectoredIoOptions', [
         'stripe_chunk_size_bytes',
@@ -128,6 +122,46 @@ LocalPath = collections.namedtuple(
         'parent_path', 'relative_path'
     ]
 )
+
+
+class ConcurrencyOptions(object):
+    """Concurrency Options"""
+    def __init__(self, crypto_processes, md5_processes, transfer_threads):
+        """Ctor for Concurrency Options
+        :param ConcurrencyOptions self: this
+        :param int crypto_processes: number of crypto procs
+        :param int md5_processes: number of md5 procs
+        :param int transfer_threads: number of transfer threads
+        """
+        self.crypto_processes = crypto_processes
+        self.md5_processes = md5_processes
+        self.transfer_threads = transfer_threads
+        if self.crypto_processes is None or self.crypto_processes < 1:
+            self.crypto_processes = 1
+        if self.md5_processes is None or self.md5_processes < 1:
+            self.md5_processes = 1
+        if self.transfer_threads is None or self.transfer_threads < 1:
+            self.transfer_threads = 1
+
+
+class GeneralOptions(object):
+    """General Options"""
+    def __init__(
+            self, concurrency, progress_bar=True, timeout_sec=None,
+            verbose=False):
+        """Ctor for General Options
+        :param GeneralOptions self: this
+        :param ConcurrencyOptions concurrency: concurrency options
+        :param bool progress_bar: progress bar
+        :param int timeout_sec: timeout in seconds
+        :param bool verbose: verbose output
+        """
+        if concurrency is None:
+            raise ValueError('concurrency option is unspecified')
+        self.concurrency = concurrency
+        self.progress_bar = progress_bar
+        self.timeout_sec = timeout_sec
+        self.verbose = verbose
 
 
 class AzureStorageCredentials(object):
@@ -608,38 +642,11 @@ class AzureStorageEntity(object):
         self._mode = None
         self._lmt = None
         self._size = None
+        self._snapshot = None
         self._md5 = None
         self._encryption = ed
         self._vio = None
-
-    def populate_from_blob(self, blob):
-        # type: (AzureStorageEntity, azure.storage.blob.models.Blob) -> None
-        """Populate properties from Blob
-        :param AzureStorageEntity self: this
-        :param azure.storage.blob.models.Blob blob: blob to populate from
-        """
-        self._name = blob.name
-        self._lmt = blob.properties.last_modified
-        self._size = blob.properties.content_length
-        self._md5 = blob.properties.content_settings.content_md5
-        if blob.properties.blob_type == BlobTypes.AppendBlob:
-            self._mode = AzureStorageModes.Append
-        elif blob.properties.blob_type == BlobTypes.BlockBlob:
-            self._mode = AzureStorageModes.Block
-        elif blob.properties.blob_type == BlobTypes.PageBlob:
-            self._mode = AzureStorageModes.Page
-
-    def populate_from_file(self, file):
-        # type: (AzureStorageEntity, azure.storage.file.models.File) -> None
-        """Populate properties from File
-        :param AzureStorageEntity self: this
-        :param azure.storage.file.models.File file: file to populate from
-        """
-        self._name = file.name
-        self._lmt = file.properties.last_modified
-        self._size = file.properties.content_length
-        self._md5 = file.properties.content_settings.content_md5
-        self._mode = AzureStorageModes.File
+        self.download = None
 
     @property
     def container(self):
@@ -711,6 +718,105 @@ class AzureStorageEntity(object):
         :return: encryption metadata of entity
         """
         return self._encryption
+
+    def populate_from_blob(self, blob):
+        # type: (AzureStorageEntity, azure.storage.blob.models.Blob) -> None
+        """Populate properties from Blob
+        :param AzureStorageEntity self: this
+        :param azure.storage.blob.models.Blob blob: blob to populate from
+        """
+        self._name = blob.name
+        self._snapshot = blob.snapshot
+        self._lmt = blob.properties.last_modified
+        self._size = blob.properties.content_length
+        self._md5 = blob.properties.content_settings.content_md5
+        if blob.properties.blob_type == BlobTypes.AppendBlob:
+            self._mode = AzureStorageModes.Append
+        elif blob.properties.blob_type == BlobTypes.BlockBlob:
+            self._mode = AzureStorageModes.Block
+        elif blob.properties.blob_type == BlobTypes.PageBlob:
+            self._mode = AzureStorageModes.Page
+
+    def populate_from_file(self, file):
+        # type: (AzureStorageEntity, azure.storage.file.models.File) -> None
+        """Populate properties from File
+        :param AzureStorageEntity self: this
+        :param azure.storage.file.models.File file: file to populate from
+        """
+        self._name = file.name
+        self._lmt = file.properties.last_modified
+        self._size = file.properties.content_length
+        self._md5 = file.properties.content_settings.content_md5
+        self._mode = AzureStorageModes.File
+
+    def prepare_for_download(self, lpath, options):
+        # type: (AzureStorageEntity, pathlib.Path, DownloadOptions) -> None
+        """Prepare entity for download
+        :param AzureStorageEntity self: this
+        :param pathlib.Path lpath: local path
+        :param DownloadOptions options: download options
+        """
+        if self._encryption is not None:
+            hmac = self._encryption.initialize_hmac()
+        else:
+            hmac = None
+        if hmac is None and options.check_file_md5:
+            md5 = blobxfer.md5.new_md5_hasher()
+        else:
+            md5 = None
+        self.download = DownloadDescriptor(lpath, hmac, md5)
+        self.download.allocate_disk_space(
+            self._size, self._encryption is not None)
+
+
+class DownloadDescriptor(object):
+    """DownloadDescriptor"""
+    def __init__(self, lpath, hmac, md5):
+        # type: (DownloadDescriptior, pathlib.Path, hmac.HMAC, md5.MD5) -> None
+        """Ctor for Download Descriptor
+        :param DownloadDescriptor self: this
+        :param pathlib.Path lpath: local path
+        :param hmac.HMAC hmac: hmac
+        :param md5.MD5 md5: md5
+        """
+        self.final_path = lpath
+        # create path holding the temporary file to download to
+        _tmp = list(lpath.parts[:-1])
+        _tmp.append(lpath.name + '.bxtmp')
+        self.local_path = pathlib.Path(*_tmp)
+        self.hmac = hmac
+        self.md5 = md5
+        self.current_position = 0
+
+    def allocate_disk_space(self, size, encryption):
+        # type: (DownloadDescriptor, int, bool) -> None
+        """Perform file allocation (possibly sparse), if encrypted this may
+        be an underallocation
+        :param DownloadDescriptor self: this
+        :param int size: size
+        :param bool encryption: encryption enabled
+        """
+        # compute size
+        if size > 0:
+            if encryption:
+                allocatesize = size - \
+                    blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES
+            else:
+                allocatesize = size
+            if allocatesize < 0:
+                allocatesize = 0
+        else:
+            allocatesize = 0
+        # create parent path
+        self.local_path.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
+        # allocate file
+        with self.local_path.open('wb') as fd:
+            if allocatesize > 0:
+                try:
+                    os.posix_fallocate(fd.fileno(), 0, allocatesize)
+                except AttributeError:
+                    fd.seek(allocatesize - 1)
+                    fd.write(b'\0')
 
 
 class AzureDestinationPaths(object):

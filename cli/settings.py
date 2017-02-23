@@ -203,8 +203,11 @@ def merge_settings(config, cli_options):
     # merge general options
     if 'options' not in config:
         config['options'] = {}
+    config['options']['crypto_processes'] = cli_options['crypto_processes']
+    config['options']['md5_processes'] = cli_options['md5_processes']
     config['options']['progress_bar'] = cli_options['progress_bar']
     config['options']['timeout_sec'] = cli_options['timeout']
+    config['options']['transfer_threads'] = cli_options['transfer_threads']
     config['options']['verbose'] = cli_options['verbose']
 
 
@@ -231,6 +234,11 @@ def create_general_options(config):
     :return: general options object
     """
     return blobxfer.models.GeneralOptions(
+        concurrency=blobxfer.models.ConcurrencyOptions(
+            crypto_processes=config['options']['crypto_processes'],
+            md5_processes=config['options']['md5_processes'],
+            transfer_threads=config['options']['transfer_threads'],
+        ),
         progress_bar=config['options']['progress_bar'],
         timeout_sec=config['options']['timeout_sec'],
         verbose=config['options']['verbose'],

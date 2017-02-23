@@ -31,7 +31,7 @@ from builtins import (  # noqa
 # stdlib imports
 import base64
 import copy
-import hashlib
+import dateutil
 import logging
 import logging.handlers
 import mimetypes
@@ -164,42 +164,6 @@ def base64_decode_string(string):
     return base64.b64decode(string)
 
 
-def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
-    # type: (str, bool, int) -> str
-    """Compute MD5 hash for file and encode as Base64
-    :param str filename: file to compute MD5 for
-    :param bool pagealign: page align data
-    :param int blocksize: block size
-    :rtype: str
-    :return: MD5 for file encoded as Base64
-    """
-    hasher = hashlib.md5()
-    with open(filename, 'rb') as filedesc:
-        while True:
-            buf = filedesc.read(blocksize)
-            if not buf:
-                break
-            buflen = len(buf)
-            if pagealign and buflen < blocksize:
-                aligned = page_align_content_length(buflen)
-                if aligned != buflen:
-                    buf = buf.ljust(aligned, b'\0')
-            hasher.update(buf)
-        return base64_encode_as_string(hasher.digest())
-
-
-def compute_md5_for_data_asbase64(data):
-    # type: (obj) -> str
-    """Compute MD5 hash for bits and encode as Base64
-    :param any data: data to compute MD5 for
-    :rtype: str
-    :return: MD5 for data
-    """
-    hasher = hashlib.md5()
-    hasher.update(data)
-    return base64_encode_as_string(hasher.digest())
-
-
 def page_align_content_length(length):
     # type: (int) -> int
     """Compute page boundary alignment
@@ -241,3 +205,19 @@ def explode_azure_path(path):
     else:
         rpath = ''
     return container, rpath
+
+
+def blob_is_snapshot(url):
+    # type: (str) -> bool
+    """Checks if the blob is a snapshot blob
+    :param url str: blob url
+    :rtype: bool
+    :return: if blob is a snapshot blob
+    """
+    if '?snapshot=' in url:
+        try:
+            dateutil.parser.parse(url.split('?snapshot=')[-1])
+            return True
+        except (ValueError, OverflowError):
+            pass
+    return False

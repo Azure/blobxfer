@@ -15,10 +15,13 @@ import blobxfer.blob.operations as ops
 
 def test_check_if_single_blob():
     client = mock.MagicMock()
-    client.get_blob_properties = mock.MagicMock()
-    client.get_blob_properties.return_value = mock.MagicMock()
+    client.get_blob_properties.return_value = True
 
     result = ops.check_if_single_blob(client, 'a', 'b/c')
+    assert result
+
+    result = ops.check_if_single_blob(
+        client, 'a', 'a?snapshot=2017-02-23T22:21:14.8121864Z')
     assert result
 
     client = mock.MagicMock()

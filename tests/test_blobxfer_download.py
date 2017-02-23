@@ -184,7 +184,10 @@ def test_post_md5_skip_on_check():
     d._post_md5_skip_on_check(lpath, True)
     assert lpath not in d._md5_map
 
-    # TODO test mismatch
+    d._add_to_download_queue = mock.MagicMock()
+    d._pre_md5_skip_on_check(lpath, rfile)
+    d._post_md5_skip_on_check(lpath, False)
+    assert d._add_to_download_queue.call_count == 1
 
 
 def test_initialize_check_md5_downloads_thread():
@@ -208,12 +211,28 @@ def test_initialize_check_md5_downloads_thread():
     assert d._post_md5_skip_on_check.call_count == 1
 
 
+def test_initialize_and_terminate_download_threads():
+    opts = mock.MagicMock()
+    opts.concurrency.transfer_threads = 2
+    d = dl.Downloader(opts, mock.MagicMock(), mock.MagicMock())
+    d._worker_thread_download = mock.MagicMock()
+
+    d._initialize_download_threads()
+    assert len(d._download_threads) == 2
+
+    d._terminate_download_threads()
+    assert d._download_terminate
+    for thr in d._download_threads:
+        assert not thr.is_alive()
+
+
 @mock.patch('blobxfer.md5.LocalFileMd5Offload')
 @mock.patch('blobxfer.blob.operations.list_blobs')
 @mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
 def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._initialize_check_md5_downloads_thread = mock.MagicMock()
+    d._initialize_download_threads = mock.MagicMock()
     d._md5_check_thread = mock.MagicMock()
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
@@ -232,17 +251,19 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d._spec.sources.append(asp)
 
     b = azure.storage.blob.models.Blob(name='name')
+    b.properties.content_length = 0
     patched_lb.side_effect = [[b]]
+
+    d._pre_md5_skip_on_check = mock.MagicMock()
 
     d._check_download_conditions = mock.MagicMock()
     d._check_download_conditions.return_value = dl.DownloadAction.Skip
     d.start()
-    # TODO assert
+    assert d._pre_md5_skip_on_check.call_count == 0
 
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = dl.DownloadAction.CheckMd5
-    d._pre_md5_skip_on_check = mock.MagicMock()
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 1
 
@@ -250,4 +271,15 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = dl.DownloadAction.Download
     d.start()
-    # TODO assert
+    assert d._download_queue.qsize() == 1
+
+
+def test_start_keyboard_interrupt():
+    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._run = mock.MagicMock(side_effect=KeyboardInterrupt)
+    d._terminate_download_threads = mock.MagicMock()
+    d._md5_offload = mock.MagicMock()
+
+    with pytest.raises(KeyboardInterrupt):
+        d.start()
+    assert d._terminate_download_threads.call_count == 1

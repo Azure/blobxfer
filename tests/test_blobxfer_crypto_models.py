@@ -179,9 +179,13 @@ def test_convert_from_json(tmpdir):
     }
     em = models.EncryptionMetadata()
     em.convert_from_json(md, 'blob', rsaprivatekey)
+    hmac = em.initialize_hmac()
     assert em.wrapped_content_key is not None
+    assert em._symkey == em.symmetric_key
+    assert em._signkey == em.signing_key
     assert em._symkey is not None
     assert em._signkey is not None
+    assert hmac is not None
 
     em = models.EncryptionMetadata()
     em.convert_from_json(md, 'blob', None)
@@ -197,6 +201,8 @@ def test_convert_from_json(tmpdir):
     }
     em = models.EncryptionMetadata()
     em.convert_from_json(md, 'blob', rsaprivatekey)
+    hmac = em.initialize_hmac()
     assert em.wrapped_content_key is not None
     assert em._symkey is not None
     assert em._signkey is None
+    assert hmac is None

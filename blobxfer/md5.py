@@ -30,6 +30,7 @@ from builtins import (  # noqa
 )
 # stdlib imports
 import logging
+import hashlib
 import multiprocessing
 try:
     import queue
@@ -42,6 +43,51 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
+
+
+def new_md5_hasher():
+    # type: (None) -> md5.MD5
+    """Create a new MD5 hasher
+    :rtype: md5.MD5
+    :return: new MD5 hasher
+    """
+    return hashlib.md5()
+
+
+def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
+    # type: (str, bool, int) -> str
+    """Compute MD5 hash for file and encode as Base64
+    :param str filename: file to compute MD5 for
+    :param bool pagealign: page align data
+    :param int blocksize: block size
+    :rtype: str
+    :return: MD5 for file encoded as Base64
+    """
+    hasher = new_md5_hasher()
+    with open(filename, 'rb') as filedesc:
+        while True:
+            buf = filedesc.read(blocksize)
+            if not buf:
+                break
+            buflen = len(buf)
+            if pagealign and buflen < blocksize:
+                aligned = blobxfer.util.page_align_content_length(buflen)
+                if aligned != buflen:
+                    buf = buf.ljust(aligned, b'\0')
+            hasher.update(buf)
+        return blobxfer.util.base64_encode_as_string(hasher.digest())
+
+
+def compute_md5_for_data_asbase64(data):
+    # type: (obj) -> str
+    """Compute MD5 hash for bits and encode as Base64
+    :param any data: data to compute MD5 for
+    :rtype: str
+    :return: MD5 for data
+    """
+    hasher = new_md5_hasher()
+    hasher.update(data)
+    return blobxfer.util.base64_encode_as_string(hasher.digest())
 
 
 class LocalFileMd5Offload(object):
@@ -76,7 +122,7 @@ class LocalFileMd5Offload(object):
         :param int num_workers: number of worker processes
         """
         if num_workers is None:
-            num_workers = multiprocessing.cpu_count() // 2
+            num_workers = multiprocessing.cpu_count() // 2 - 1
         if num_workers < 1:
             num_workers = 1
         for _ in range(num_workers):
@@ -104,8 +150,7 @@ class LocalFileMd5Offload(object):
                 filename, remote_md5, pagealign = self._task_queue.get(True, 1)
             except queue.Empty:
                 continue
-            md5 = blobxfer.util.compute_md5_for_file_asbase64(
-                filename, pagealign)
+            md5 = compute_md5_for_file_asbase64(filename, pagealign)
             logger.debug('MD5: {} <L..R> {} {}'.format(
                 md5, remote_md5, filename))
             self._done_cv.acquire()

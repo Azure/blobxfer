@@ -3,7 +3,6 @@
 
 # stdlib imports
 import sys
-import uuid
 # non-stdlib imports
 import pytest
 # module under test
@@ -111,24 +110,6 @@ def test_base64_encode_as_string():
     assert a == dec
 
 
-def test_compute_md5(tmpdir):
-    lpath = str(tmpdir.join('test.tmp'))
-    testdata = str(uuid.uuid4())
-    with open(lpath, 'wt') as f:
-        f.write(testdata)
-    md5_file = blobxfer.util.compute_md5_for_file_asbase64(lpath)
-    md5_data = blobxfer.util.compute_md5_for_data_asbase64(
-        testdata.encode('utf8'))
-    assert md5_file == md5_data
-
-    md5_file_page = blobxfer.util.compute_md5_for_file_asbase64(lpath, True)
-    assert md5_file != md5_file_page
-
-    # test non-existent file
-    with pytest.raises(IOError):
-        blobxfer.util.compute_md5_for_file_asbase64(testdata)
-
-
 def test_page_align_content_length():
     assert 0 == blobxfer.util.page_align_content_length(0)
     assert 512 == blobxfer.util.page_align_content_length(1)
@@ -177,3 +158,17 @@ def test_explode_azure_path():
     cont, rpath = blobxfer.util.explode_azure_path(p)
     assert cont == 'some'
     assert rpath == 'remote/path'
+
+
+def test_blob_is_snapshot():
+    a = '/cont/a?snapshot=2017-02-23T22:21:14.8121864Z'
+    assert blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot=abc'
+    assert not blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot='
+    assert not blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot=2017-02-23T22:21:14.8121864Z?snapshot='
+    assert not blobxfer.util.blob_is_snapshot(a)

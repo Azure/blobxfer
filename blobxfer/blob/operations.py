@@ -35,6 +35,7 @@ import azure.common
 import azure.storage.blob.models
 # local imports
 import blobxfer.models
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -50,6 +51,8 @@ def check_if_single_blob(client, container, prefix, timeout=None):
     :rtype: bool
     :return: if prefix in container is a single blob
     """
+    if blobxfer.util.blob_is_snapshot(prefix):
+        return True
     try:
         client.get_blob_properties(
             container_name=container, blob_name=prefix, timeout=timeout)
@@ -94,3 +97,7 @@ def list_blobs(client, container, prefix, mode, timeout=None):
             continue
         # auto or match, yield the blob
         yield blob
+
+
+def get_blob_range(client, container, blob_name, snapshot):
+    pass

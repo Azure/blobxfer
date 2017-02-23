@@ -38,6 +38,10 @@ try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
     import pathlib
+try:
+    import queue
+except ImportError:  # noqa
+    import Queue as queue
 import threading
 # non-stdlib imports
 import dateutil
@@ -73,6 +77,9 @@ class Downloader(object):
         self._md5_map = {}
         self._md5_offload = None
         self._md5_check_thread = None
+        self._download_queue = queue.Queue()
+        self._download_threads = []
+        self._download_terminate = False
         self._general_options = general_options
         self._creds = creds
         self._spec = spec
@@ -154,11 +161,11 @@ class Downloader(object):
         :param str filename: local filename
         :param bool md5_match: if MD5 matches
         """
+        with self._md5_meta_lock:
+            rfile = self._md5_map.pop(filename)
         if not md5_match:
             lpath = pathlib.Path(filename)
-            # TODO enqueue file for download
-        with self._md5_meta_lock:
-            self._md5_map.pop(filename)
+            self._add_to_download_queue(lpath, rfile)
 
     def _initialize_check_md5_downloads_thread(self):
         # type: (Downloader) -> None
@@ -173,11 +180,12 @@ class Downloader(object):
             cv = self._md5_offload.done_cv
             while True:
                 with self._md5_meta_lock:
-                    if (len(self._md5_map) == 0 and
-                            self._all_remote_files_processed):
+                    if (self._download_terminate or
+                            (len(self._md5_map) == 0 and
+                             self._all_remote_files_processed)):
                         break
                 cv.acquire()
-                while True:
+                while not self._download_terminate:
                     result = self._md5_offload.get_localfile_md5_done()
                     if result is None:
                         # use cv timeout due to possible non-wake while running
@@ -194,16 +202,69 @@ class Downloader(object):
         )
         self._md5_check_thread.start()
 
-    def start(self):
-        # type: (None) -> None
-        """Start Downloader"""
+    def _add_to_download_queue(self, lpath, rfile):
+        # type: (Downloader, pathlib.Path,
+        #        blobxfer.models.AzureStorageEntity) -> None
+        """Add remote file to download queue
+        :param Downloader self: this
+        :param pathlib.Path lpath: local path
+        :param blobxfer.models.AzureStorageEntity rfile: remote file
+        """
+        # prepare remote file for download
+        rfile.prepare_for_download(lpath, self._spec.options)
+        # add remote file to queue
+        self._download_queue.put(rfile)
+
+    def _initialize_download_threads(self):
+        # type: (Downloader) -> None
+        """Initialize download threads
+        :param Downloader self: this
+        """
+        for _ in range(self._general_options.concurrency.transfer_threads):
+            thr = threading.Thread(target=self._worker_thread_download)
+            self._download_threads.append(thr)
+            thr.start()
+
+    def _terminate_download_threads(self):
+        # type: (Downloader) -> None
+        """Terminate download threads
+        :param Downloader self: this
+        """
+        self._download_terminate = True
+        for thr in self._download_threads:
+            thr.join()
+
+    def _worker_thread_download(self):
+        # type: (Downloader) -> None
+        """Worker thread download
+        :param Downloader self: this
+        """
+        while True:
+            if self._download_terminate:
+                break
+            try:
+                rfile = self._download_queue.get(False, 1)
+            except queue.Empty:
+                continue
+            # TODO
+            # get next offset with respect to chunk size
+
+            print('<<', rfile.container, rfile.name, rfile.lmt, rfile.size,
+                  rfile.md5, rfile.mode, rfile.encryption_metadata)
+
+    def _run(self):
+        # type: (Downloader) -> None
+        """Execute Downloader"""
         # ensure destination path
         blobxfer.operations.ensure_local_destination(self._creds, self._spec)
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
         # initialize MD5 processes
-        self._md5_offload = blobxfer.md5.LocalFileMd5Offload()
+        self._md5_offload = blobxfer.md5.LocalFileMd5Offload(
+            num_workers=self._general_options.concurrency.md5_processes)
         self._initialize_check_md5_downloads_thread()
+        # initialize download threads
+        self._initialize_download_threads()
         # iterate through source paths to download
         for src in self._spec.sources:
             for rfile in src.files(
@@ -217,14 +278,24 @@ class Downloader(object):
                 elif action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)
                 elif action == DownloadAction.Download:
-                    # TODO add to download queue
-                    pass
-                # cond checks?
-                print(rfile.container, rfile.name, rfile.lmt, rfile.size,
-                      rfile.md5, rfile.mode, rfile.encryption_metadata)
-
+                    self._add_to_download_queue(lpath, rfile)
         # clean up processes and threads
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
         self._md5_check_thread.join()
+        # TODO wait for download threads
+
         self._md5_offload.finalize_md5_processes()
+
+    def start(self):
+        # type: (Downloader) -> None
+        """Start the Downloader"""
+        try:
+            self._run()
+        except KeyboardInterrupt:
+            logger.error(
+                'KeyboardInterrupt detected, force terminating '
+                'processes and threads (this may take a while)...')
+            self._terminate_download_threads()
+            self._md5_offload.finalize_md5_processes()
+            raise

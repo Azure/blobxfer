@@ -3,12 +3,30 @@
 
 # stdlib imports
 import time
+import uuid
 # non-stdlib imports
+import pytest
 # local imports
 import blobxfer.models as models
-import blobxfer.util as util
 # module under test
 import blobxfer.md5 as md5
+
+
+def test_compute_md5(tmpdir):
+    lpath = str(tmpdir.join('test.tmp'))
+    testdata = str(uuid.uuid4())
+    with open(lpath, 'wt') as f:
+        f.write(testdata)
+    md5_file = md5.compute_md5_for_file_asbase64(lpath)
+    md5_data = md5.compute_md5_for_data_asbase64(testdata.encode('utf8'))
+    assert md5_file == md5_data
+
+    md5_file_page = md5.compute_md5_for_file_asbase64(lpath, True)
+    assert md5_file != md5_file_page
+
+    # test non-existent file
+    with pytest.raises(IOError):
+        md5.compute_md5_for_file_asbase64(testdata)
 
 
 def test_done_cv():
@@ -37,7 +55,7 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
 
-    remote_md5 = util.compute_md5_for_file_asbase64(str(file))
+    remote_md5 = md5.compute_md5_for_file_asbase64(str(file))
 
     a = None
     try:
@@ -70,7 +88,7 @@ def test_from_add_to_done_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
 
-    remote_md5 = util.compute_md5_for_file_asbase64(str(file), True)
+    remote_md5 = md5.compute_md5_for_file_asbase64(str(file), True)
 
     a = None
     try:

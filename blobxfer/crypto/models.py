@@ -133,6 +133,26 @@ class EncryptionMetadata(object):
         self._symkey = None
         self._signkey = None
 
+    @property
+    def symmetric_key(self):
+        # type: (EncryptionMetadata) -> bytes
+        """Get symmetric key
+        :param EncryptionMetadata self: this
+        :rtype: bytes
+        :return: symmetric key
+        """
+        return self._symkey
+
+    @property
+    def signing_key(self):
+        # type: (EncryptionMetadata) -> bytes
+        """Get singing key
+        :param EncryptionMetadata self: this
+        :rtype: bytes
+        :return: signing key
+        """
+        return self._signkey
+
     @staticmethod
     def encryption_metadata_exists(md):
         # type: (dict) -> bool
@@ -283,4 +303,17 @@ class EncryptionMetadata(object):
                         blobname))
 
     def convert_to_json_with_mac(self):
+        # TODO
         pass
+
+    def initialize_hmac(self):
+        # type: (EncryptionMetadata) -> hmac.HMAC
+        """Initialize an hmac from a signing key if it exists
+        :param EncryptionMetadata self: this
+        :rtype: hmac.HMAC or None
+        :return: hmac
+        """
+        if self._signkey is not None:
+            return hmac.new(self._signkey, digestmod=hashlib.sha256)
+        else:
+            return None
