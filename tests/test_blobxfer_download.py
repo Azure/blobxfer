@@ -29,6 +29,7 @@ def test_check_download_conditions(tmpdir):
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=False,
@@ -52,6 +53,7 @@ def test_check_download_conditions(tmpdir):
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=True,
@@ -73,6 +75,7 @@ def test_check_download_conditions(tmpdir):
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=True,
@@ -94,6 +97,7 @@ def test_check_download_conditions(tmpdir):
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=True,
@@ -123,6 +127,7 @@ def test_check_download_conditions(tmpdir):
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=True,
@@ -236,6 +241,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d._md5_check_thread = mock.MagicMock()
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
+    d._spec.options.chunk_size_bytes = 1
     d._spec.options.mode = models.AzureStorageModes.Auto
     d._spec.options.overwrite = True
     d._spec.skip_on = mock.MagicMock()

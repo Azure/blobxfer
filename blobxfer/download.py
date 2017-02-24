@@ -47,6 +47,7 @@ import threading
 import dateutil
 # local imports
 import blobxfer.md5
+import blobxfer.models
 import blobxfer.operations
 import blobxfer.util
 
@@ -211,9 +212,10 @@ class Downloader(object):
         :param blobxfer.models.AzureStorageEntity rfile: remote file
         """
         # prepare remote file for download
-        rfile.prepare_for_download(lpath, self._spec.options)
+        dd = blobxfer.models.DownloadDescriptor(
+            lpath, rfile, self._spec.options)
         # add remote file to queue
-        self._download_queue.put(rfile)
+        self._download_queue.put(dd)
 
     def _initialize_download_threads(self):
         # type: (Downloader) -> None
@@ -243,12 +245,34 @@ class Downloader(object):
             if self._download_terminate:
                 break
             try:
-                rfile = self._download_queue.get(False, 1)
+                dd = self._download_queue.get(False, 1)
             except queue.Empty:
                 continue
-            # TODO
-            # get next offset with respect to chunk size
+            # get download offsets
 
+            # issue get range
+
+            # if encryption:
+            # 1. compute rolling hmac if present
+            #    - roll through any subsequent unchecked parts
+            # 2. decrypt chunk
+
+            # compute rolling md5 if present
+            #    - roll through any subsequent unchecked parts
+
+            # write data to disk
+
+            # if no integrity check could be performed due to current
+            # integrity offset mismatch, add to unchecked set
+
+            # check if last chunk to write
+            # 1. complete integrity checks
+            # 2. set file uid/gid
+            # 3. set file modes
+
+            # pickle dd to resume file
+
+            rfile = dd._ase
             print('<<', rfile.container, rfile.name, rfile.lmt, rfile.size,
                   rfile.md5, rfile.mode, rfile.encryption_metadata)
 

@@ -100,6 +100,7 @@ UploadOptions = collections.namedtuple(
 DownloadOptions = collections.namedtuple(
     'DownloadOptions', [
         'check_file_md5',
+        'chunk_size_bytes',
         'delete_extraneous_destination',
         'mode',
         'overwrite',
@@ -110,16 +111,24 @@ DownloadOptions = collections.namedtuple(
 )
 SyncCopyOptions = collections.namedtuple(
     'SyncCopyOptions', [
-        'exclude',
-        'include',
+        'chunk_size_bytes',
         'mode',
         'overwrite',
-        'skip_on',
     ]
 )
 LocalPath = collections.namedtuple(
     'LocalPath', [
-        'parent_path', 'relative_path'
+        'parent_path',
+        'relative_path',
+    ]
+)
+DownloadOffsets = collections.namedtuple(
+    'DownloadOffsets', [
+        'fd_start',
+        'num_bytes',
+        'range_end',
+        'range_start',
+        'unpad',
     ]
 )
 
@@ -749,58 +758,60 @@ class AzureStorageEntity(object):
         self._md5 = file.properties.content_settings.content_md5
         self._mode = AzureStorageModes.File
 
-    def prepare_for_download(self, lpath, options):
-        # type: (AzureStorageEntity, pathlib.Path, DownloadOptions) -> None
-        """Prepare entity for download
-        :param AzureStorageEntity self: this
-        :param pathlib.Path lpath: local path
-        :param DownloadOptions options: download options
-        """
-        if self._encryption is not None:
-            hmac = self._encryption.initialize_hmac()
-        else:
-            hmac = None
-        if hmac is None and options.check_file_md5:
-            md5 = blobxfer.md5.new_md5_hasher()
-        else:
-            md5 = None
-        self.download = DownloadDescriptor(lpath, hmac, md5)
-        self.download.allocate_disk_space(
-            self._size, self._encryption is not None)
-
 
 class DownloadDescriptor(object):
-    """DownloadDescriptor"""
-    def __init__(self, lpath, hmac, md5):
-        # type: (DownloadDescriptior, pathlib.Path, hmac.HMAC, md5.MD5) -> None
-        """Ctor for Download Descriptor
+    """Download Descriptor"""
+
+    _AES_BLOCKSIZE = blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES
+
+    def __init__(self, lpath, ase, options):
+        # type: (DownloadDescriptior, pathlib.Path, AzureStorageEntity,
+        #        DownloadOptions) -> None
+        """Ctor for DownloadDescriptor
         :param DownloadDescriptor self: this
         :param pathlib.Path lpath: local path
-        :param hmac.HMAC hmac: hmac
-        :param md5.MD5 md5: md5
+        :param AzureStorageEntity ase: Azure Storage Entity
+        :param DownloadOptions options: download options
         """
         self.final_path = lpath
         # create path holding the temporary file to download to
         _tmp = list(lpath.parts[:-1])
         _tmp.append(lpath.name + '.bxtmp')
         self.local_path = pathlib.Path(*_tmp)
-        self.hmac = hmac
-        self.md5 = md5
-        self.current_position = 0
+        self._ase = ase
+        self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
+        self.hmac = None
+        self.md5 = None
+        self.offset = 0
+        self.integrity_counter = 0
+        self.unchecked_chunks = set()
+        self._initialize_integrity_checkers(options)
+        self._allocate_disk_space()
 
-    def allocate_disk_space(self, size, encryption):
-        # type: (DownloadDescriptor, int, bool) -> None
-        """Perform file allocation (possibly sparse), if encrypted this may
-        be an underallocation
+    def _initialize_integrity_checkers(self, options):
+        # type: (DownloadDescriptor, DownloadOptions) -> None
+        """Initialize file integrity checkers
+        :param DownloadDescriptor self: this
+        :param DownloadOptions options: download options
+        """
+        if self._ase.encryption_metadata is not None:
+            self.hmac = self._ase.encryption_metadata.initialize_hmac()
+        if self.hmac is None and options.check_file_md5:
+            self.md5 = blobxfer.md5.new_md5_hasher()
+
+    def _allocate_disk_space(self):
+        # type: (DownloadDescriptor, int) -> None
+        """Perform file allocation (possibly sparse)
         :param DownloadDescriptor self: this
         :param int size: size
-        :param bool encryption: encryption enabled
         """
+        size = self._ase.size
         # compute size
         if size > 0:
-            if encryption:
-                allocatesize = size - \
-                    blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES
+            if self._ase.encryption_metadata is not None:
+                # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
+                allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
+                    self._AES_BLOCKSIZE
             else:
                 allocatesize = size
             if allocatesize < 0:
@@ -817,6 +828,47 @@ class DownloadDescriptor(object):
                 except AttributeError:
                     fd.seek(allocatesize - 1)
                     fd.write(b'\0')
+
+    def next_offsets(self):
+        # type: (DownloadDescriptor) -> DownloadOffsets
+        """Retrieve the next offsets
+        :param DownloadDescriptor self: this
+        :rtype: DownloadOffsets
+        :return: download offsets
+        """
+        if self.offset >= self._ase.size:
+            return None
+        if self.offset + self._chunk_size > self._ase.size:
+            chunk = self._ase.size - self.offset
+        else:
+            chunk = self._chunk_size
+        # on download, num_bytes must be offset by -1 as the x-ms-range
+        # header expects it that way. x -> y bytes means first bits of the
+        # (x+1)th byte to the last bits of the (y+1)th byte. for example,
+        # 0 -> 511 means byte 1 to byte 512
+        num_bytes = chunk - 1
+        fd_start = self.offset
+        range_start = self.offset
+        if self._ase.encryption_metadata is not None:
+            # ensure start is AES block size aligned
+            range_start = range_start - (range_start % self._AES_BLOCKSIZE) - \
+                self._AES_BLOCKSIZE
+            if range_start <= 0:
+                range_start = 0
+        range_end = self.offset + num_bytes
+        self.offset += chunk
+        if (self._ase.encryption_metadata is not None and
+                self.offset >= self._ase.size):
+            unpad = True
+        else:
+            unpad = False
+        return DownloadOffsets(
+            fd_start=fd_start,
+            num_bytes=num_bytes,
+            range_start=range_start,
+            range_end=range_end,
+            unpad=unpad,
+        )
 
 
 class AzureDestinationPaths(object):

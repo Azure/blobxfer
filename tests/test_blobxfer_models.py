@@ -279,6 +279,7 @@ def test_downloadspecification():
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=models.AzureStorageModes.Auto,
             overwrite=True,
@@ -341,45 +342,130 @@ def test_azurestorageentity():
     assert ase.mode == models.AzureStorageModes.File
 
 
-def test_azurestorageentity_prepare_for_download(tmpdir):
-    lp = pathlib.Path(str(tmpdir.join('a')))
-    opts = mock.MagicMock()
-    opts.check_file_md5 = True
-
-    ase = models.AzureStorageEntity('cont')
-    ase._size = 0
-    ase.prepare_for_download(lp, opts)
-
-    assert ase.download.hmac is None
-    assert ase.download.md5 is not None
-    assert ase.download.final_path == lp
-    assert ase.download.current_position == 0
-
-    ase._encryption = mock.MagicMock()
-    ase.prepare_for_download(lp, opts)
-
-    assert ase.download.hmac is not None
-    assert ase.download.md5 is None
-
-
 def test_downloaddescriptor(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
-    d = models.DownloadDescriptor(lp, None, None)
-    assert d.current_position == 0
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 1
+    ase = models.AzureStorageEntity('cont')
+    ase._size = 1024
+    ase._encryption = mock.MagicMock()
+    d = models.DownloadDescriptor(lp, ase, opts)
+
+    assert d.offset == 0
     assert d.final_path == lp
     assert str(d.local_path) == str(lp) + '.bxtmp'
-
-    d.allocate_disk_space(1024, True)
     assert d.local_path.stat().st_size == 1024 - 16
 
     d.local_path.unlink()
-    d.allocate_disk_space(1, True)
+    ase._size = 1
+    d._allocate_disk_space()
     assert d.local_path.stat().st_size == 0
 
     d.local_path.unlink()
-    d.allocate_disk_space(1024, False)
+    ase._encryption = None
+    ase._size = 1024
+    d._allocate_disk_space()
     assert d.local_path.stat().st_size == 1024
 
     # pre-existing file check
-    d.allocate_disk_space(0, False)
+    ase._size = 0
+    d._allocate_disk_space()
     assert d.local_path.stat().st_size == 0
+
+
+def test_downloaddescriptor_next_offsets(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 256
+    ase = models.AzureStorageEntity('cont')
+    ase._size = 128
+    d = models.DownloadDescriptor(lp, ase, opts)
+
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 127
+    assert offsets.range_start == 0
+    assert offsets.range_end == 127
+    assert not offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._size = 0
+    d = models.DownloadDescriptor(lp, ase, opts)
+    assert d.next_offsets() is None
+
+    ase._size = 1
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 0
+    assert offsets.range_start == 0
+    assert offsets.range_end == 0
+    assert not offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._size = 256
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 255
+    assert offsets.range_start == 0
+    assert offsets.range_end == 255
+    assert not offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._size = 256 + 16
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 255
+    assert offsets.range_start == 0
+    assert offsets.range_end == 255
+    assert not offsets.unpad
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 256
+    assert offsets.num_bytes == 15
+    assert offsets.range_start == 256
+    assert offsets.range_end == 256 + 15
+    assert not offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._encryption = mock.MagicMock()
+    ase._size = 128
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 127
+    assert offsets.range_start == 0
+    assert offsets.range_end == 127
+    assert offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._size = 256
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 255
+    assert offsets.range_start == 0
+    assert offsets.range_end == 255
+    assert offsets.unpad
+    assert d.next_offsets() is None
+
+    ase._size = 256 + 32  # 16 bytes over + padding
+    d = models.DownloadDescriptor(lp, ase, opts)
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 0
+    assert offsets.num_bytes == 255
+    assert offsets.range_start == 0
+    assert offsets.range_end == 255
+    assert not offsets.unpad
+    offsets = d.next_offsets()
+    assert offsets.fd_start == 256
+    assert offsets.num_bytes == 31
+    assert offsets.range_start == 256 - 16
+    assert offsets.range_end == 256 + 31
+    assert offsets.unpad
+    assert d.next_offsets() is None

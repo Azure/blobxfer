@@ -42,3 +42,10 @@ def test_rsa_encrypt_decrypt_keys():
     assert enckey is not None
     plainkey = ops.rsa_decrypt_base64_encoded_key(_RSAKEY, enckey)
     assert symkey == plainkey
+
+
+def test_pkcs7_padding():
+    buf = os.urandom(32)
+    pbuf = ops.pad_pkcs7(buf)
+    buf2 = ops.unpad_pkcs7(pbuf)
+    assert buf == buf2

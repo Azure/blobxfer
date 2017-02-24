@@ -117,6 +117,7 @@ def add_cli_options(
                 'exclude': cli_options['exclude'],
                 'options': {
                     'check_file_md5': cli_options['file_md5'],
+                    'chunk_size_bytes': cli_options['chunk_size_bytes'],
                     'delete_extraneous_destination': cli_options['delete'],
                     'mode': cli_options['mode'],
                     'overwrite': cli_options['overwrite'],
@@ -148,6 +149,7 @@ def add_cli_options(
                 'include': cli_options['include'],
                 'exclude': cli_options['exclude'],
                 'options': {
+                    'chunk_size_bytes': cli_options['chunk_size_bytes'],
                     'mode': cli_options['mode'],
                     'overwrite': cli_options['overwrite'],
                     'skip_on': {
@@ -279,6 +281,7 @@ def create_download_specifications(config):
         ds = blobxfer.models.DownloadSpecification(
             download_options=blobxfer.models.DownloadOptions(
                 check_file_md5=conf['options']['check_file_md5'],
+                chunk_size_bytes=conf['options']['chunk_size_bytes'],
                 delete_extraneous_destination=conf[
                     'options']['delete_extraneous_destination'],
                 mode=mode,

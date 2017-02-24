@@ -286,7 +286,7 @@ def _chunk_size_bytes_option(f):
         expose_value=False,
         type=int,
         default=4194304,
-        help='Chunk size in bytes [4194304]',
+        help='Block or chunk size in bytes [4194304]',
         callback=callback)(f)
 
 
@@ -580,6 +580,7 @@ def download_options(f):
     f = _exclude_option(f)
     f = _endpoint_option(f)
     f = _delete_option(f)
+    f = _chunk_size_bytes_option(f)
     f = _access_key_option(f)
     return f
 
@@ -596,6 +597,7 @@ def sync_copy_options(f):
     f = _include_option(f)
     f = _exclude_option(f)
     f = _endpoint_option(f)
+    f = _chunk_size_bytes_option(f)
     f = _access_key_option(f)
     return f
 

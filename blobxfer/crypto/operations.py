@@ -128,3 +128,29 @@ def rsa_encrypt_key_base64_encoded(rsaprivatekey, rsapublickey, plainkey):
             algorithm=cryptography.hazmat.primitives.hashes.SHA1(),
             label=None))
     return blobxfer.util.base64_encode_as_string(enckey)
+
+
+def pad_pkcs7(buf):
+    # type: (bytes) -> bytes
+    """Appends PKCS7 padding to an input buffer
+    :param bytes buf: buffer to add padding
+    :rtype: bytes
+    :return: buffer with PKCS7_PADDING
+    """
+    padder = cryptography.hazmat.primitives.padding.PKCS7(
+        cryptography.hazmat.primitives.ciphers.
+        algorithms.AES.block_size).padder()
+    return padder.update(buf) + padder.finalize()
+
+
+def unpad_pkcs7(buf):
+    # type: (bytes) -> bytes
+    """Removes PKCS7 padding a decrypted object
+    :param bytes buf: buffer to remove padding
+    :rtype: bytes
+    :return: buffer without PKCS7_PADDING
+    """
+    unpadder = cryptography.hazmat.primitives.padding.PKCS7(
+        cryptography.hazmat.primitives.ciphers.
+        algorithms.AES.block_size).unpadder()
+    return unpadder.update(buf) + unpadder.finalize()

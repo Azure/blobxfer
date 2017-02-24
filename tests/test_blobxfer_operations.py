@@ -20,6 +20,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     ds = blobxfer.models.DownloadSpecification(
         download_options=blobxfer.models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=blobxfer.models.AzureStorageModes.Auto,
             overwrite=True,
@@ -54,6 +55,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     ds = blobxfer.models.DownloadSpecification(
         download_options=blobxfer.models.DownloadOptions(
             check_file_md5=True,
+            chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=blobxfer.models.AzureStorageModes.File,
             overwrite=True,
