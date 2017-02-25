@@ -120,3 +120,17 @@ def test_list_files_directory(patched_cisf):
         i += 1
         assert file.name == 'name'
     assert i == 1
+
+
+def test_get_file_range():
+    ase = mock.MagicMock()
+    ret = mock.MagicMock()
+    ret.content = b'\0'
+    ase.client._get_file.return_value = ret
+    ase.container = 'cont'
+    ase.name = 'name'
+    offsets = mock.MagicMock()
+    offsets.start_range = 0
+    offsets.end_range = 1
+
+    assert ops.get_file_range(ase, offsets) == ret.content

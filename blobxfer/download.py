@@ -49,6 +49,8 @@ import dateutil
 import blobxfer.md5
 import blobxfer.models
 import blobxfer.operations
+import blobxfer.blob.operations
+import blobxfer.file.operations
 import blobxfer.util
 
 # create logger
@@ -74,12 +76,16 @@ class Downloader(object):
         :param blobxfer.models.DownloadSpecification spec: download spec
         """
         self._md5_meta_lock = threading.Lock()
+        self._download_lock = threading.Lock()
         self._all_remote_files_processed = False
         self._md5_map = {}
         self._md5_offload = None
         self._md5_check_thread = None
         self._download_queue = queue.Queue()
+        self._download_set = set()
         self._download_threads = []
+        self._download_count = 0
+        self._download_total_bytes = 0
         self._download_terminate = False
         self._general_options = general_options
         self._creds = creds
@@ -164,8 +170,11 @@ class Downloader(object):
         """
         with self._md5_meta_lock:
             rfile = self._md5_map.pop(filename)
-        if not md5_match:
-            lpath = pathlib.Path(filename)
+        lpath = pathlib.Path(filename)
+        if md5_match:
+            with self._download_lock:
+                self._download_set.remove(lpath)
+        else:
             self._add_to_download_queue(lpath, rfile)
 
     def _initialize_check_md5_downloads_thread(self):
@@ -185,12 +194,18 @@ class Downloader(object):
                             (len(self._md5_map) == 0 and
                              self._all_remote_files_processed)):
                         break
+                result = None
                 cv.acquire()
                 while not self._download_terminate:
                     result = self._md5_offload.get_localfile_md5_done()
                     if result is None:
                         # use cv timeout due to possible non-wake while running
                         cv.wait(1)
+                        # check for terminating conditions
+                        with self._md5_meta_lock:
+                            if (len(self._md5_map) == 0 and
+                                    self._all_remote_files_processed):
+                                break
                     else:
                         break
                 cv.release()
@@ -214,7 +229,7 @@ class Downloader(object):
         # prepare remote file for download
         dd = blobxfer.models.DownloadDescriptor(
             lpath, rfile, self._spec.options)
-        # add remote file to queue
+        # add download descriptor to queue
         self._download_queue.put(dd)
 
     def _initialize_download_threads(self):
@@ -222,17 +237,20 @@ class Downloader(object):
         """Initialize download threads
         :param Downloader self: this
         """
+        logger.debug('spawning {} transfer threads'.format(
+            self._general_options.concurrency.transfer_threads))
         for _ in range(self._general_options.concurrency.transfer_threads):
             thr = threading.Thread(target=self._worker_thread_download)
             self._download_threads.append(thr)
             thr.start()
 
-    def _terminate_download_threads(self):
-        # type: (Downloader) -> None
+    def _wait_for_download_threads(self, terminate):
+        # type: (Downloader, bool) -> None
         """Terminate download threads
         :param Downloader self: this
+        :param bool terminate: terminate threads
         """
-        self._download_terminate = True
+        self._download_terminate = terminate
         for thr in self._download_threads:
             thr.join()
 
@@ -244,37 +262,68 @@ class Downloader(object):
         while True:
             if self._download_terminate:
                 break
+            with self._download_lock:
+                if (self._all_remote_files_processed and
+                        len(self._download_set) == 0):
+                    break
             try:
                 dd = self._download_queue.get(False, 1)
             except queue.Empty:
                 continue
             # get download offsets
-
+            offsets = dd.next_offsets()
+            # check if all operations completed
+            if offsets is None and dd.outstanding_operations == 0:
+                # TODO
+                # 1. complete integrity checks
+                # 2. set file uid/gid
+                # 3. set file modes
+                # 4. move file to final path
+                with self._download_lock:
+                    self._download_set.remove(dd.final_path)
+                    self._download_count += 1
+                logger.info('download complete: {}/{} to {}'.format(
+                    dd.entity.container, dd.entity.name, dd.final_path))
+                continue
+            # re-enqueue for other threads to download
+            self._download_queue.put(dd)
+            if offsets is None:
+                continue
             # issue get range
-
-            # if encryption:
-            # 1. compute rolling hmac if present
-            #    - roll through any subsequent unchecked parts
-            # 2. decrypt chunk
-
-            # compute rolling md5 if present
-            #    - roll through any subsequent unchecked parts
+            if dd.entity.mode == blobxfer.models.AzureStorageModes.File:
+                chunk = blobxfer.file.operations.get_file_range(
+                    dd.entity, offsets, self._general_options.timeout_sec)
+            else:
+                chunk = blobxfer.blob.operations.get_blob_range(
+                    dd.entity, offsets, self._general_options.timeout_sec)
+            # accounting
+            with self._download_lock:
+                self._download_total_bytes += offsets.num_bytes
+            # decrypt if necessary
+            if dd.entity.is_encrypted:
+                # TODO via crypto pool
+                # 1. compute rolling hmac if present
+                #    - roll through any subsequent unchecked parts
+                # 2. decrypt chunk
+                pass
+            # compute rolling md5 via md5 pool
+            if dd.must_compute_md5:
+                # TODO
+                # - roll through any subsequent unchecked parts
+                pass
 
             # write data to disk
 
             # if no integrity check could be performed due to current
             # integrity offset mismatch, add to unchecked set
 
-            # check if last chunk to write
-            # 1. complete integrity checks
-            # 2. set file uid/gid
-            # 3. set file modes
+            dd.dec_outstanding_operations()
 
             # pickle dd to resume file
 
-            rfile = dd._ase
-            print('<<', rfile.container, rfile.name, rfile.lmt, rfile.size,
-                  rfile.md5, rfile.mode, rfile.encryption_metadata)
+#             rfile = dd._ase
+#             print('<<', rfile.container, rfile.name, rfile.lmt, rfile.size,
+#                   rfile.md5, rfile.mode, rfile.encryption_metadata)
 
     def _run(self):
         # type: (Downloader) -> None
@@ -290,26 +339,52 @@ class Downloader(object):
         # initialize download threads
         self._initialize_download_threads()
         # iterate through source paths to download
+        nfiles = 0
+        empty_files = 0
+        skipped_files = 0
+        total_size = 0
+        skipped_size = 0
         for src in self._spec.sources:
             for rfile in src.files(
                     self._creds, self._spec.options, self._general_options):
+                nfiles += 1
+                total_size += rfile.size
+                if rfile.size == 0:
+                    empty_files += 1
                 # form local path for remote file
                 lpath = pathlib.Path(self._spec.destination.path, rfile.name)
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 if action == DownloadAction.Skip:
+                    skipped_files += 1
+                    skipped_size += rfile.size
                     continue
-                elif action == DownloadAction.CheckMd5:
+                # add potential download to set
+                with self._download_lock:
+                    self._download_set.add(lpath)
+                # either MD5 check or download now
+                if action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)
                 elif action == DownloadAction.Download:
                     self._add_to_download_queue(lpath, rfile)
+        download_files = nfiles - skipped_files
+        download_size = total_size - skipped_size
         # clean up processes and threads
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
+        logger.debug(
+            ('{0} remote files processed, waiting for download completion '
+             'of {1:.4f} MiB').format(nfiles, download_size / 1048576))
         self._md5_check_thread.join()
-        # TODO wait for download threads
-
+        self._wait_for_download_threads(terminate=False)
         self._md5_offload.finalize_md5_processes()
+        if (self._download_count != download_files or
+                self._download_total_bytes != download_size):
+            raise RuntimeError(
+                'download mismatch: [count={}/{} bytes={}/{}]'.format(
+                    self._download_count, download_files,
+                    self._download_total_bytes, download_size))
+        logger.info('all files downloaded')
 
     def start(self):
         # type: (Downloader) -> None
@@ -320,6 +395,7 @@ class Downloader(object):
             logger.error(
                 'KeyboardInterrupt detected, force terminating '
                 'processes and threads (this may take a while)...')
-            self._terminate_download_threads()
+            self._wait_for_download_threads(terminate=True)
             self._md5_offload.finalize_md5_processes()
+            # TODO close resume file in finally?
             raise

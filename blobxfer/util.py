@@ -221,3 +221,17 @@ def blob_is_snapshot(url):
         except (ValueError, OverflowError):
             pass
     return False
+
+
+def parse_blob_snapshot_parameter(url):
+    # type: (str) -> str
+    """Retrieves the blob snapshot parameter from a url
+    :param url str: blob url
+    :rtype: str
+    :return: snapshot parameter
+    """
+    if blob_is_snapshot(url):
+        tmp = url.split('?snapshot=')
+        if len(tmp) > 1:
+            return tmp[-1]
+    return None

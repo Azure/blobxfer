@@ -92,7 +92,7 @@ def compute_md5_for_data_asbase64(data):
 
 class LocalFileMd5Offload(object):
     """LocalFileMd5Offload"""
-    def __init__(self, num_workers=None):
+    def __init__(self, num_workers):
         # type: (LocalFileMd5Offload, int) -> None
         """Ctor for Local File Md5 Offload
         :param LocalFileMd5Offload self: this
@@ -115,16 +115,14 @@ class LocalFileMd5Offload(object):
         """
         return self._done_cv
 
-    def _initialize_md5_processes(self, num_workers=None):
+    def _initialize_md5_processes(self, num_workers):
         # type: (LocalFileMd5Offload, int) -> None
         """Initialize MD5 checking processes for files for download
         :param LocalFileMd5Offload self: this
         :param int num_workers: number of worker processes
         """
-        if num_workers is None:
-            num_workers = multiprocessing.cpu_count() // 2 - 1
-        if num_workers < 1:
-            num_workers = 1
+        if num_workers is None or num_workers < 1:
+            raise ValueError('invalid num_workers: {}'.format(num_workers))
         for _ in range(num_workers):
             proc = multiprocessing.Process(
                 target=self._worker_compute_md5_localfile_process)

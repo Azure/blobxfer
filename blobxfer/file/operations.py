@@ -38,6 +38,7 @@ except ImportError:  # noqa
 import azure.common
 import azure.storage.file
 # local imports
+import blobxfer.retry
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -60,6 +61,8 @@ def create_client(storage_account):
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
+    # set retry policy
+    client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
 
 
@@ -145,3 +148,25 @@ def list_files(client, fileshare, prefix, timeout=None):
                 yield fsprop
             else:
                 dirs.append(fspath)
+
+
+def get_file_range(ase, offsets, timeout=None):
+    # type: (blobxfer.models.AzureStorageEntity,
+    #        blobxfer.models.DownloadOffsets, int) -> bytes
+    """Retrieve file range
+    :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
+    :param blobxfer.models.DownloadOffsets offsets: downlaod offsets
+    :param int timeout: timeout
+    :rtype: bytes
+    :return: content for file range
+    """
+    dir, fpath = parse_file_path(ase.name)
+    return ase.client._get_file(
+        share_name=ase.container,
+        directory_name=dir,
+        file_name=fpath,
+        start_range=offsets.range_start,
+        end_range=offsets.range_end,
+        validate_content=False,  # HTTPS takes care of integrity during xfer
+        timeout=timeout,
+    ).content

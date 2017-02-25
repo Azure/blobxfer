@@ -31,8 +31,9 @@ from builtins import (  # noqa
 # stdlib imports
 import logging
 # non-stdlib imports
-from azure.storage.blob import PageBlobService
+import azure.storage.blob
 # local imports
+import blobxfer.retry
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -46,13 +47,15 @@ def create_client(storage_account):
     :return: block blob service client
     """
     if storage_account.is_sas:
-        client = PageBlobService(
+        client = azure.storage.blob.PageBlobService(
             account_name=storage_account.name,
             sas_token=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
     else:
-        client = PageBlobService(
+        client = azure.storage.blob.PageBlobService(
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
+    # set retry policy
+    client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client

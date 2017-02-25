@@ -76,6 +76,13 @@ def list_blobs(client, container, prefix, mode, timeout=None):
     """
     if mode == blobxfer.models.AzureStorageModes.File:
         raise RuntimeError('cannot list Azure Files from blob client')
+    if blobxfer.util.blob_is_snapshot(prefix):
+        snapshot = blobxfer.util.parse_blob_snapshot_parameter(prefix)
+        blob = client.get_blob_properties(
+            container_name=container, blob_name=prefix, snapshot=snapshot,
+            timeout=timeout)
+        yield blob
+        return
     blobs = client.list_blobs(
         container_name=container,
         prefix=prefix,
@@ -99,5 +106,22 @@ def list_blobs(client, container, prefix, mode, timeout=None):
         yield blob
 
 
-def get_blob_range(client, container, blob_name, snapshot):
-    pass
+def get_blob_range(ase, offsets, timeout=None):
+    # type: (blobxfer.models.AzureStorageEntity,
+    #        blobxfer.models.DownloadOffsets, int) -> bytes
+    """Retrieve blob range
+    :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
+    :param blobxfer.models.DownloadOffsets offsets: downlaod offsets
+    :param int timeout: timeout
+    :rtype: bytes
+    :return: content for blob range
+    """
+    return ase.client._get_blob(
+        container_name=ase.container,
+        blob_name=ase.name,
+        snapshot=ase.snapshot,
+        start_range=offsets.range_start,
+        end_range=offsets.range_end,
+        validate_content=False,  # HTTPS takes care of integrity during xfer
+        timeout=timeout,
+    ).content

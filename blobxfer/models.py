@@ -34,11 +34,13 @@ import collections
 import enum
 import fnmatch
 import logging
+import math
 import os
 try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
     import pathlib
+import multiprocessing
 # non-stdlib imports
 # local imports
 from .api import (
@@ -146,11 +148,15 @@ class ConcurrencyOptions(object):
         self.md5_processes = md5_processes
         self.transfer_threads = transfer_threads
         if self.crypto_processes is None or self.crypto_processes < 1:
+            self.crypto_processes = multiprocessing.cpu_count() // 2 - 1
+        if self.crypto_processes < 1:
             self.crypto_processes = 1
         if self.md5_processes is None or self.md5_processes < 1:
+            self.md5_processes = multiprocessing.cpu_count() // 2
+        if self.md5_processes < 1:
             self.md5_processes = 1
         if self.transfer_threads is None or self.transfer_threads < 1:
-            self.transfer_threads = 1
+            self.transfer_threads = multiprocessing.cpu_count() * 2
 
 
 class GeneralOptions(object):
@@ -602,7 +608,7 @@ class AzureSourcePath(_BaseSourcePaths):
                 else:
                     ed = None
                 ase = AzureStorageEntity(cont, ed)
-                ase.populate_from_file(file)
+                ase.populate_from_file(sa, file)
                 yield ase
 
     def _populate_from_list_blobs(self, creds, options, general_options):
@@ -631,7 +637,7 @@ class AzureSourcePath(_BaseSourcePaths):
                 else:
                     ed = None
                 ase = AzureStorageEntity(cont, ed)
-                ase.populate_from_blob(blob)
+                ase.populate_from_blob(sa, blob)
                 yield ase
 
 
@@ -646,6 +652,7 @@ class AzureStorageEntity(object):
         :param blobxfer.crypto.models.EncryptionMetadata ed:
             encryption metadata
         """
+        self._client = None
         self._container = container
         self._name = None
         self._mode = None
@@ -656,6 +663,16 @@ class AzureStorageEntity(object):
         self._encryption = ed
         self._vio = None
         self.download = None
+
+    @property
+    def client(self):
+        # type: (AzureStorageEntity) -> object
+        """Associated storage client
+        :param AzureStorageEntity self: this
+        :rtype: object
+        :return: associated storage client
+        """
+        return self._client
 
     @property
     def container(self):
@@ -698,6 +715,16 @@ class AzureStorageEntity(object):
         return self._size
 
     @property
+    def snapshot(self):
+        # type: (AzureStorageEntity) -> str
+        """Entity snapshot
+        :param AzureStorageEntity self: this
+        :rtype: str
+        :return: snapshot of entity
+        """
+        return self._snapshot
+
+    @property
     def md5(self):
         # type: (AzureStorageEntity) -> str
         """Base64-encoded MD5
@@ -718,20 +745,32 @@ class AzureStorageEntity(object):
         return self._mode
 
     @property
+    def is_encrypted(self):
+        # type: (AzureStorageEntity) -> bool
+        """If data is encrypted
+        :param AzureStorageEntity self: this
+        :rtype: bool
+        :return: if encryption metadata is present
+        """
+        return self._encryption is not None
+
+    @property
     def encryption_metadata(self):
         # type: (AzureStorageEntity) ->
         #        blobxfer.crypto.models.EncryptionMetadata
-        """Entity mode (type)
+        """Entity metadata (type)
         :param AzureStorageEntity self: this
         :rtype: blobxfer.crypto.models.EncryptionMetadata
         :return: encryption metadata of entity
         """
         return self._encryption
 
-    def populate_from_blob(self, blob):
-        # type: (AzureStorageEntity, azure.storage.blob.models.Blob) -> None
+    def populate_from_blob(self, sa, blob):
+        # type: (AzureStorageEntity, AzureStorageAccount,
+        #        azure.storage.blob.models.Blob) -> None
         """Populate properties from Blob
         :param AzureStorageEntity self: this
+        :param AzureStorageAccount sa: storage account
         :param azure.storage.blob.models.Blob blob: blob to populate from
         """
         self._name = blob.name
@@ -741,22 +780,29 @@ class AzureStorageEntity(object):
         self._md5 = blob.properties.content_settings.content_md5
         if blob.properties.blob_type == BlobTypes.AppendBlob:
             self._mode = AzureStorageModes.Append
+            self._client = sa.append_blob_client
         elif blob.properties.blob_type == BlobTypes.BlockBlob:
             self._mode = AzureStorageModes.Block
+            self._client = sa.block_blob_client
         elif blob.properties.blob_type == BlobTypes.PageBlob:
             self._mode = AzureStorageModes.Page
+            self._client = sa.page_blob_client
 
-    def populate_from_file(self, file):
-        # type: (AzureStorageEntity, azure.storage.file.models.File) -> None
+    def populate_from_file(self, sa, file):
+        # type: (AzureStorageEntity, AzureStorageAccount,
+        #        azure.storage.file.models.File) -> None
         """Populate properties from File
         :param AzureStorageEntity self: this
+        :param AzureStorageAccount sa: storage account
         :param azure.storage.file.models.File file: file to populate from
         """
         self._name = file.name
+        self._snapshot = None
         self._lmt = file.properties.last_modified
         self._size = file.properties.content_length
         self._md5 = file.properties.content_settings.content_md5
         self._mode = AzureStorageModes.File
+        self._client = sa.file_client
 
 
 class DownloadDescriptor(object):
@@ -778,15 +824,45 @@ class DownloadDescriptor(object):
         _tmp = list(lpath.parts[:-1])
         _tmp.append(lpath.name + '.bxtmp')
         self.local_path = pathlib.Path(*_tmp)
+        self._meta_lock = multiprocessing.Lock()
         self._ase = ase
+        # calculate the total number of ops required for transfer
         self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
+        try:
+            self._total_chunks = int(
+                math.ceil(self._ase.size / self._chunk_size))
+        except ZeroDivisionError:
+            self._total_chunks = 0
         self.hmac = None
         self.md5 = None
         self.offset = 0
         self.integrity_counter = 0
         self.unchecked_chunks = set()
+        self._outstanding_ops = self._total_chunks
+        self._completed_ops = 0
+        # initialize checkers and allocate space
         self._initialize_integrity_checkers(options)
         self._allocate_disk_space()
+
+    @property
+    def entity(self):
+        # type: (DownloadDescriptor) -> AzureStorageEntity
+        """Get linked AzureStorageEntity
+        :param DownloadDescriptor self: this
+        :rtype: AzureStorageEntity
+        :return: AzureStorageEntity
+        """
+        return self._ase
+
+    @property
+    def must_compute_md5(self):
+        # type: (DownloadDescriptor) -> bool
+        """Check if MD5 must be computed
+        :param DownloadDescriptor self: this
+        :rtype: bool
+        :return: if MD5 must be computed
+        """
+        return self.md5 is not None
 
     def _initialize_integrity_checkers(self, options):
         # type: (DownloadDescriptor, DownloadOptions) -> None
@@ -794,7 +870,7 @@ class DownloadDescriptor(object):
         :param DownloadDescriptor self: this
         :param DownloadOptions options: download options
         """
-        if self._ase.encryption_metadata is not None:
+        if self._ase.is_encrypted:
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
         if self.hmac is None and options.check_file_md5:
             self.md5 = blobxfer.md5.new_md5_hasher()
@@ -808,7 +884,7 @@ class DownloadDescriptor(object):
         size = self._ase.size
         # compute size
         if size > 0:
-            if self._ase.encryption_metadata is not None:
+            if self._ase.is_encrypted:
                 # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
                 allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
                     self._AES_BLOCKSIZE
@@ -849,7 +925,7 @@ class DownloadDescriptor(object):
         num_bytes = chunk - 1
         fd_start = self.offset
         range_start = self.offset
-        if self._ase.encryption_metadata is not None:
+        if self._ase.is_encrypted:
             # ensure start is AES block size aligned
             range_start = range_start - (range_start % self._AES_BLOCKSIZE) - \
                 self._AES_BLOCKSIZE
@@ -857,18 +933,32 @@ class DownloadDescriptor(object):
                 range_start = 0
         range_end = self.offset + num_bytes
         self.offset += chunk
-        if (self._ase.encryption_metadata is not None and
-                self.offset >= self._ase.size):
+        if self._ase.is_encrypted and self.offset >= self._ase.size:
             unpad = True
         else:
             unpad = False
         return DownloadOffsets(
             fd_start=fd_start,
-            num_bytes=num_bytes,
+            num_bytes=chunk,
             range_start=range_start,
             range_end=range_end,
             unpad=unpad,
         )
+
+    @property
+    def outstanding_operations(self):
+        with self._meta_lock:
+            return self._outstanding_ops
+
+    @property
+    def completed_operations(self):
+        with self._meta_lock:
+            return self._completed_ops
+
+    def dec_outstanding_operations(self):
+        with self._meta_lock:
+            self._outstanding_ops -= 1
+            self._completed_ops += 1
 
 
 class AzureDestinationPaths(object):

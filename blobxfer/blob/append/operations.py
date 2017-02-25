@@ -31,8 +31,9 @@ from builtins import (  # noqa
 # stdlib imports
 import logging
 # non-stdlib imports
-from azure.storage.blob import AppendBlobService
+import azure.storage.blob
 # local imports
+import blobxfer.retry
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -46,24 +47,15 @@ def create_client(storage_account):
     :return: append blob service client
     """
     if storage_account.is_sas:
-        client = AppendBlobService(
+        client = azure.storage.blob.AppendBlobService(
             account_name=storage_account.name,
             sas_token=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
     else:
-        client = AppendBlobService(
+        client = azure.storage.blob.AppendBlobService(
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
+    # set retry policy
+    client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
-
-
-def list_blobs(client, container, prefix):
-    # type: (azure.storage.blob.AppendBlobService, str, str) -> list
-    """List append blobs in path
-    :param AppendBlobService client: append blob client
-    :param str container: container
-    :param str prefix: path prefix
-    """
-
-    pass

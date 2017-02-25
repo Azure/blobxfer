@@ -172,3 +172,12 @@ def test_blob_is_snapshot():
 
     a = '/cont/a?snapshot=2017-02-23T22:21:14.8121864Z?snapshot='
     assert not blobxfer.util.blob_is_snapshot(a)
+
+
+def test_parse_blob_snapshot_parameter():
+    param = '2017-02-23T22:21:14.8121864Z'
+    a = '/cont/a?snapshot=' + param
+    assert blobxfer.util.parse_blob_snapshot_parameter(a) == param
+
+    a = '/cont/a?snapshot='
+    assert blobxfer.util.parse_blob_snapshot_parameter(a) is None

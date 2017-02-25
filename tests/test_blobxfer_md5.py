@@ -32,7 +32,7 @@ def test_compute_md5(tmpdir):
 def test_done_cv():
     a = None
     try:
-        a = md5.LocalFileMd5Offload()
+        a = md5.LocalFileMd5Offload(num_workers=1)
         assert a.done_cv == a._done_cv
     finally:
         if a:
@@ -40,9 +40,12 @@ def test_done_cv():
 
 
 def test_finalize_md5_processes():
+    with pytest.raises(ValueError):
+        md5.LocalFileMd5Offload(num_workers=0)
+
     a = None
     try:
-        a = md5.LocalFileMd5Offload(num_workers=0)
+        a = md5.LocalFileMd5Offload(num_workers=1)
     finally:
         if a:
             a.finalize_md5_processes()
