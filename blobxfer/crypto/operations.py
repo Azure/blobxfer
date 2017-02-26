@@ -31,7 +31,13 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import base64
+import enum
 import logging
+import os
+try:
+    import queue
+except ImportError:  # noqa
+    import Queue as queue
 # non-stdlib imports
 import cryptography.hazmat.backends
 import cryptography.hazmat.primitives.asymmetric.padding
@@ -44,7 +50,13 @@ import cryptography.hazmat.primitives.hashes
 import cryptography.hazmat.primitives.padding
 import cryptography.hazmat.primitives.serialization
 # local imports
-import blobxfer.util
+import blobxfer.offload
+
+# create logger
+logger = logging.getLogger(__name__)
+
+# encryption constants
+_AES256_KEYLENGTH_BYTES = 32
 
 
 def load_rsa_private_key_file(rsakeyfile, passphrase):
@@ -130,7 +142,7 @@ def rsa_encrypt_key_base64_encoded(rsaprivatekey, rsapublickey, plainkey):
     return blobxfer.util.base64_encode_as_string(enckey)
 
 
-def pad_pkcs7(buf):
+def pkcs7_pad(buf):
     # type: (bytes) -> bytes
     """Appends PKCS7 padding to an input buffer
     :param bytes buf: buffer to add padding
@@ -143,7 +155,7 @@ def pad_pkcs7(buf):
     return padder.update(buf) + padder.finalize()
 
 
-def unpad_pkcs7(buf):
+def pkcs7_unpad(buf):
     # type: (bytes) -> bytes
     """Removes PKCS7 padding a decrypted object
     :param bytes buf: buffer to remove padding
@@ -154,3 +166,107 @@ def unpad_pkcs7(buf):
         cryptography.hazmat.primitives.ciphers.
         algorithms.AES.block_size).unpadder()
     return unpadder.update(buf) + unpadder.finalize()
+
+
+def aes256_generate_random_key():
+    # type: (None) -> bytes
+    """Generate random AES256 key
+    :rtype: bytes
+    :return: random key
+    """
+    return os.urandom(_AES256_KEYLENGTH_BYTES)
+
+
+def aes_cbc_decrypt_data(symkey, iv, encdata, unpad):
+    # type: (bytes, bytes, bytes, bool) -> bytes
+    """Decrypt data using AES CBC
+    :param bytes symkey: symmetric key
+    :param bytes iv: initialization vector
+    :param bytes encdata: data to decrypt
+    :param bool unpad: unpad data
+    :rtype: bytes
+    :return: decrypted data
+    """
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        cryptography.hazmat.primitives.ciphers.algorithms.AES(symkey),
+        cryptography.hazmat.primitives.ciphers.modes.CBC(iv),
+        backend=cryptography.hazmat.backends.default_backend()).decryptor()
+    decrypted = cipher.update(encdata) + cipher.finalize()
+    if unpad:
+        return pkcs7_unpad(decrypted)
+    else:
+        return decrypted
+
+
+def aes_cbc_encrypt_data(symkey, iv, data, pad):
+    # type: (bytes, bytes, bytes, bool) -> bytes
+    """Encrypt data using AES CBC
+    :param bytes symkey: symmetric key
+    :param bytes iv: initialization vector
+    :param bytes data: data to encrypt
+    :param bool pad: pad data
+    :rtype: bytes
+    :return: encrypted data
+    """
+    cipher = cryptography.hazmat.primitives.ciphers.Cipher(
+        cryptography.hazmat.primitives.ciphers.algorithms.AES(symkey),
+        cryptography.hazmat.primitives.ciphers.modes.CBC(iv),
+        backend=cryptography.hazmat.backends.default_backend()).encryptor()
+    if pad:
+        return cipher.update(pkcs7_pad(data)) + cipher.finalize()
+    else:
+        return cipher.update(data) + cipher.finalize()
+
+
+class CryptoAction(enum.Enum):
+    Encrypt = 1
+    Decrypt = 2
+
+
+class CryptoOffload(blobxfer.offload._MultiprocessOffload):
+    def __init__(self, num_workers):
+        # type: (CryptoOffload, int) -> None
+        """Ctor for Crypto Offload
+        :param CryptoOffload self: this
+        :param int num_workers: number of worker processes
+        """
+        super(CryptoOffload, self).__init__(num_workers, 'Crypto')
+
+    def _worker_process(self):
+        # type: (CryptoOffload) -> None
+        """Crypto worker
+        :param CryptoOffload self: this
+        """
+        while not self.terminated:
+            try:
+                inst = self._task_queue.get(True, 1)
+            except queue.Empty:
+                continue
+            if inst[0] == CryptoAction.Encrypt:
+                # TODO on upload
+                raise NotImplementedError()
+            elif inst[0] == CryptoAction.Decrypt:
+                final_path, offsets, symkey, iv, encdata = \
+                    inst[1], inst[2], inst[3], inst[4], inst[5]
+                data = aes_cbc_decrypt_data(symkey, iv, encdata, offsets.unpad)
+            self._done_cv.acquire()
+            self._done_queue.put((final_path, offsets, data))
+            self._done_cv.notify()
+            self._done_cv.release()
+
+    def add_decrypt_chunk(
+            self, final_path, offsets, symkey, iv, encdata):
+        # type: (CryptoOffload, str, blobxfer.models.DownloadOffsets, bytes,
+        #        bytes, bytes) -> None
+        """Add a chunk to decrypt
+        :param CryptoOffload self: this
+        :param str final_path: final path
+        :param blobxfer.models.DownloadOffsets offsets: offsets
+        :param bytes symkey: symmetric key
+        :param bytes iv: initialization vector
+        :param bytes encdata: encrypted data
+        """
+        self._task_queue.put(
+            (CryptoAction.Decrypt, final_path, offsets, symkey, iv,
+             encdata)
+        )

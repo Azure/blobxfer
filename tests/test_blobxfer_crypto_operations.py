@@ -46,6 +46,42 @@ def test_rsa_encrypt_decrypt_keys():
 
 def test_pkcs7_padding():
     buf = os.urandom(32)
-    pbuf = ops.pad_pkcs7(buf)
-    buf2 = ops.unpad_pkcs7(pbuf)
+    pbuf = ops.pkcs7_pad(buf)
+    buf2 = ops.pkcs7_unpad(pbuf)
     assert buf == buf2
+
+
+def test_aes_cbc_encryption():
+    enckey = ops.aes256_generate_random_key()
+    assert len(enckey) == ops._AES256_KEYLENGTH_BYTES
+
+    # test random binary data, unaligned
+    iv = os.urandom(16)
+    plaindata = os.urandom(31)
+    encdata = ops.aes_cbc_encrypt_data(enckey, iv, plaindata, True)
+    assert encdata != plaindata
+    decdata = ops.aes_cbc_decrypt_data(enckey, iv, encdata, True)
+    assert decdata == plaindata
+
+    # test random binary data aligned on boundary
+    plaindata = os.urandom(32)
+    encdata = ops.aes_cbc_encrypt_data(enckey, iv, plaindata, True)
+    assert encdata != plaindata
+    decdata = ops.aes_cbc_decrypt_data(enckey, iv, encdata, True)
+    assert decdata == plaindata
+
+    # test "text" data
+    plaintext = 'attack at dawn!'
+    plaindata = plaintext.encode('utf8')
+    encdata = ops.aes_cbc_encrypt_data(enckey, iv, plaindata, True)
+    assert encdata != plaindata
+    decdata = ops.aes_cbc_decrypt_data(enckey, iv, encdata, True)
+    assert decdata == plaindata
+    assert plaindata.decode('utf8') == plaintext
+
+    # test unpadded
+    plaindata = os.urandom(32)
+    encdata = ops.aes_cbc_encrypt_data(enckey, iv, plaindata, False)
+    assert encdata != plaindata
+    decdata = ops.aes_cbc_decrypt_data(enckey, iv, encdata, False)
+    assert decdata == plaindata

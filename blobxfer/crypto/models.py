@@ -35,20 +35,13 @@ import collections
 import hashlib
 import hmac
 import json
-import logging
 # non-stdlib imports
 # local imports
 import blobxfer.crypto.operations
 import blobxfer.util
 
-
 # encryption constants
-_AES256_KEYLENGTH_BYTES = 32
 _AES256_BLOCKSIZE_BYTES = 16
-_HMACSHA256_DIGESTSIZE_BYTES = 32
-_AES256CBC_HMACSHA256_OVERHEAD_BYTES = (
-    _AES256_BLOCKSIZE_BYTES + _HMACSHA256_DIGESTSIZE_BYTES
-)
 
 # named tuples
 EncryptionBlobxferExtensions = collections.namedtuple(
@@ -191,8 +184,8 @@ class EncryptionMetadata(object):
             )
         except KeyError:
             pass
-        self.content_encryption_iv = ed[
-            EncryptionMetadata._JSON_KEY_CONTENT_IV]
+        self.content_encryption_iv = base64.b64decode(
+            ed[EncryptionMetadata._JSON_KEY_CONTENT_IV])
         self.encryption_agent = EncryptionAgent(
             encryption_algorithm=ed[
                 EncryptionMetadata._JSON_KEY_ENCRYPTION_AGENT][

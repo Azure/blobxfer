@@ -4,7 +4,6 @@
 # stdlib imports
 # non-stdlib imports
 import azure.storage
-import pytest
 # local imports
 import blobxfer.models as models
 # module under test

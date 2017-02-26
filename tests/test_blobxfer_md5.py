@@ -36,7 +36,7 @@ def test_done_cv():
         assert a.done_cv == a._done_cv
     finally:
         if a:
-            a.finalize_md5_processes()
+            a.finalize_processes()
 
 
 def test_finalize_md5_processes():
@@ -48,9 +48,9 @@ def test_finalize_md5_processes():
         a = md5.LocalFileMd5Offload(num_workers=1)
     finally:
         if a:
-            a.finalize_md5_processes()
+            a.finalize_processes()
 
-    for proc in a._md5_procs:
+    for proc in a._procs:
         assert not proc.is_alive()
 
 
@@ -63,7 +63,7 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
     a = None
     try:
         a = md5.LocalFileMd5Offload(num_workers=1)
-        result = a.get_localfile_md5_done()
+        result = a.pop_done_queue()
         assert result is None
 
         a.add_localfile_for_md5_check(
@@ -71,7 +71,7 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
         i = 33
         checked = False
         while i > 0:
-            result = a.get_localfile_md5_done()
+            result = a.pop_done_queue()
             if result is None:
                 time.sleep(0.3)
                 i -= 1
@@ -84,7 +84,7 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
         assert checked
     finally:
         if a:
-            a.finalize_md5_processes()
+            a.finalize_processes()
 
 
 def test_from_add_to_done_pagealigned(tmpdir):
@@ -96,7 +96,7 @@ def test_from_add_to_done_pagealigned(tmpdir):
     a = None
     try:
         a = md5.LocalFileMd5Offload(num_workers=1)
-        result = a.get_localfile_md5_done()
+        result = a.pop_done_queue()
         assert result is None
 
         a.add_localfile_for_md5_check(
@@ -104,7 +104,7 @@ def test_from_add_to_done_pagealigned(tmpdir):
         i = 33
         checked = False
         while i > 0:
-            result = a.get_localfile_md5_done()
+            result = a.pop_done_queue()
             if result is None:
                 time.sleep(0.3)
                 i -= 1
@@ -117,4 +117,4 @@ def test_from_add_to_done_pagealigned(tmpdir):
         assert checked
     finally:
         if a:
-            a.finalize_md5_processes()
+            a.finalize_processes()

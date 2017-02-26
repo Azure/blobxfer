@@ -41,6 +41,8 @@ try:
 except ImportError:  # noqa
     import pathlib
 import multiprocessing
+import tempfile
+import threading
 # non-stdlib imports
 # local imports
 from .api import (
@@ -53,7 +55,6 @@ from azure.storage.blob.models import _BlobTypes as BlobTypes
 import blobxfer.blob.operations
 import blobxfer.file.operations
 import blobxfer.crypto.models
-import blobxfer.md5
 import blobxfer.util
 
 # create logger
@@ -126,11 +127,20 @@ LocalPath = collections.namedtuple(
 )
 DownloadOffsets = collections.namedtuple(
     'DownloadOffsets', [
+        'chunk_num',
         'fd_start',
         'num_bytes',
         'range_end',
         'range_start',
         'unpad',
+    ]
+)
+UncheckedChunk = collections.namedtuple(
+    'UncheckedChunk', [
+        'data_len',
+        'fd_start',
+        'file_path',
+        'temp',
     ]
 )
 
@@ -147,16 +157,16 @@ class ConcurrencyOptions(object):
         self.crypto_processes = crypto_processes
         self.md5_processes = md5_processes
         self.transfer_threads = transfer_threads
+        # allow crypto processes to be zero (which will inline crypto
+        # routines with main process)
         if self.crypto_processes is None or self.crypto_processes < 1:
-            self.crypto_processes = multiprocessing.cpu_count() // 2 - 1
-        if self.crypto_processes < 1:
-            self.crypto_processes = 1
+            self.crypto_processes = 0
         if self.md5_processes is None or self.md5_processes < 1:
             self.md5_processes = multiprocessing.cpu_count() // 2
         if self.md5_processes < 1:
             self.md5_processes = 1
         if self.transfer_threads is None or self.transfer_threads < 1:
-            self.transfer_threads = multiprocessing.cpu_count() * 2
+            self.transfer_threads = multiprocessing.cpu_count() * 3
 
 
 class GeneralOptions(object):
@@ -824,7 +834,8 @@ class DownloadDescriptor(object):
         _tmp = list(lpath.parts[:-1])
         _tmp.append(lpath.name + '.bxtmp')
         self.local_path = pathlib.Path(*_tmp)
-        self._meta_lock = multiprocessing.Lock()
+        self._meta_lock = threading.Lock()
+        self._hasher_lock = threading.Lock()
         self._ase = ase
         # calculate the total number of ops required for transfer
         self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
@@ -835,9 +846,10 @@ class DownloadDescriptor(object):
             self._total_chunks = 0
         self.hmac = None
         self.md5 = None
-        self.offset = 0
-        self.integrity_counter = 0
-        self.unchecked_chunks = set()
+        self._offset = 0
+        self._chunk_num = 0
+        self._next_integrity_chunk = 0
+        self._unchecked_chunks = {}
         self._outstanding_ops = self._total_chunks
         self._completed_ops = 0
         # initialize checkers and allocate space
@@ -871,9 +883,15 @@ class DownloadDescriptor(object):
         :param DownloadOptions options: download options
         """
         if self._ase.is_encrypted:
+            # ensure symmetric key exists
+            if blobxfer.util.is_none_or_empty(
+                    self._ase.encryption_metadata.symmetric_key):
+                raise RuntimeError(
+                    'symmetric key is invalid: provide RSA private key '
+                    'or metadata corrupt')
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
         if self.hmac is None and options.check_file_md5:
-            self.md5 = blobxfer.md5.new_md5_hasher()
+            self.md5 = blobxfer.util.new_md5_hasher()
 
     def _allocate_disk_space(self):
         # type: (DownloadDescriptor, int) -> None
@@ -912,48 +930,182 @@ class DownloadDescriptor(object):
         :rtype: DownloadOffsets
         :return: download offsets
         """
-        if self.offset >= self._ase.size:
-            return None
-        if self.offset + self._chunk_size > self._ase.size:
-            chunk = self._ase.size - self.offset
+        with self._meta_lock:
+            if self._offset >= self._ase.size:
+                return None
+            if self._offset + self._chunk_size > self._ase.size:
+                chunk = self._ase.size - self._offset
+            else:
+                chunk = self._chunk_size
+            # on download, num_bytes must be offset by -1 as the x-ms-range
+            # header expects it that way. x -> y bytes means first bits of the
+            # (x+1)th byte to the last bits of the (y+1)th byte. for example,
+            # 0 -> 511 means byte 1 to byte 512
+            num_bytes = chunk - 1
+            chunk_num = self._chunk_num
+            fd_start = self._offset
+            range_start = self._offset
+            if self._ase.is_encrypted:
+                # ensure start is AES block size aligned
+                range_start = range_start - \
+                    (range_start % self._AES_BLOCKSIZE) - \
+                    self._AES_BLOCKSIZE
+                if range_start <= 0:
+                    range_start = 0
+            range_end = self._offset + num_bytes
+            self._offset += chunk
+            self._chunk_num += 1
+            if self._ase.is_encrypted and self._offset >= self._ase.size:
+                unpad = True
+            else:
+                unpad = False
+            return DownloadOffsets(
+                chunk_num=chunk_num,
+                fd_start=fd_start,
+                num_bytes=chunk,
+                range_start=range_start,
+                range_end=range_end,
+                unpad=unpad,
+            )
+
+    def _postpone_integrity_check(self, offsets, data):
+        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        """Postpone integrity check for chunk
+        :param DownloadDescriptor self: this
+        :param DownloadOffsets offsets: download offsets
+        :param bytes data: data
+        """
+        if self.must_compute_md5:
+            with self.local_path.open('r+b') as fd:
+                fd.seek(offsets.fd_start, 0)
+                fd.write(data)
+            unchecked = UncheckedChunk(
+                data_len=len(data),
+                fd_start=offsets.fd_start,
+                file_path=self.local_path,
+                temp=False,
+            )
         else:
-            chunk = self._chunk_size
-        # on download, num_bytes must be offset by -1 as the x-ms-range
-        # header expects it that way. x -> y bytes means first bits of the
-        # (x+1)th byte to the last bits of the (y+1)th byte. for example,
-        # 0 -> 511 means byte 1 to byte 512
-        num_bytes = chunk - 1
-        fd_start = self.offset
-        range_start = self.offset
-        if self._ase.is_encrypted:
-            # ensure start is AES block size aligned
-            range_start = range_start - (range_start % self._AES_BLOCKSIZE) - \
-                self._AES_BLOCKSIZE
-            if range_start <= 0:
-                range_start = 0
-        range_end = self.offset + num_bytes
-        self.offset += chunk
-        if self._ase.is_encrypted and self.offset >= self._ase.size:
-            unpad = True
+            fname = None
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as fd:
+                fname = fd.name
+                fd.write(data)
+            unchecked = UncheckedChunk(
+                data_len=len(data),
+                fd_start=0,
+                file_path=pathlib.Path(fname),
+                temp=True,
+            )
+        with self._meta_lock:
+            self._unchecked_chunks[offsets.chunk_num] = unchecked
+
+    def perform_chunked_integrity_check(self, offsets, data):
+        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        """Hash data against stored MD5 hasher safely
+        :param DownloadDescriptor self: this
+        :param DownloadOffsets offsets: download offsets
+        :param bytes data: data
+        """
+        self_check = False
+        hasher = self.hmac or self.md5
+        # iterate from next chunk to be checked
+        while True:
+            ucc = None
+            with self._meta_lock:
+                chunk_num = self._next_integrity_chunk
+                # check if the next chunk is ready
+                if chunk_num in self._unchecked_chunks:
+                    ucc = self._unchecked_chunks.pop(chunk_num)
+                elif chunk_num != offsets.chunk_num:
+                    break
+            # prepare data for hashing
+            if ucc is None:
+                chunk = data
+                self_check = True
+            else:
+                with ucc.file_path.open('rb') as fd:
+                    fd.seek(ucc.fd_start, 0)
+                    chunk = fd.read(ucc.data_len)
+                if ucc.temp:
+                    ucc.file_path.unlink()
+            # hash data and set next integrity chunk
+            with self._hasher_lock:
+                hasher.update(chunk)
+            with self._meta_lock:
+                self._next_integrity_chunk += 1
+        # store data that hasn't been checked
+        if not self_check:
+            self._postpone_integrity_check(offsets, data)
+
+    def write_data(self, offsets, data):
+        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        """Postpone integrity check for chunk
+        :param DownloadDescriptor self: this
+        :param DownloadOffsets offsets: download offsets
+        :param bytes data: data
+        """
+        with self.local_path.open('r+b') as fd:
+            fd.seek(offsets.fd_start, 0)
+            fd.write(data)
+
+    def finalize_file(self):
+        # type: (DownloadDescriptor) -> Tuple[bool, str]
+        """Finalize file download
+        :param DownloadDescriptor self: this
+        :rtype: tuple
+        :return (if integrity check passed or not, message)
+        """
+        # check final file integrity
+        check = False
+        msg = None
+        if self.hmac is not None:
+            mac = self._ase.encryption_metadata.encryption_authentication.\
+                message_authentication_code
+            digest = blobxfer.util.base64_encode_as_string(self.hmac.digest())
+            if digest == mac:
+                check = True
+            msg = '{}: {}, {} {} <L..R> {}'.format(
+                self._ase.encryption_metadata.encryption_authentication.
+                algorithm,
+                'OK' if check else 'MISMATCH',
+                self._ase.name,
+                digest,
+                mac,
+            )
+        elif self.md5 is not None:
+            digest = blobxfer.util.base64_encode_as_string(self.md5.digest())
+            if digest == self._ase.md5:
+                check = True
+            msg = 'MD5: {}, {} {} <L..R> {}'.format(
+                'OK' if check else 'MISMATCH',
+                self._ase.name,
+                digest,
+                self._ase.md5,
+            )
         else:
-            unpad = False
-        return DownloadOffsets(
-            fd_start=fd_start,
-            num_bytes=chunk,
-            range_start=range_start,
-            range_end=range_end,
-            unpad=unpad,
-        )
+            check = True
+            msg = 'MD5: SKIPPED, {} None <L..R> {}'.format(
+                self._ase.name,
+                self._ase.md5
+            )
+        # cleanup if download failed
+        if not check:
+            logger.error(msg)
+            # delete temp download file
+            self.local_path.unlink()
+            return
+        logger.debug(msg)
+
+        # TODO set file uid/gid and mode
+
+        # move temp download file to final path
+        self.local_path.rename(self.final_path)
 
     @property
-    def outstanding_operations(self):
+    def all_operations_completed(self):
         with self._meta_lock:
-            return self._outstanding_ops
-
-    @property
-    def completed_operations(self):
-        with self._meta_lock:
-            return self._completed_ops
+            return (self._outstanding_ops == 0 and
+                    len(self._unchecked_chunks) == 0)
 
     def dec_outstanding_operations(self):
         with self._meta_lock:

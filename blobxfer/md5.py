@@ -30,8 +30,6 @@ from builtins import (  # noqa
 )
 # stdlib imports
 import logging
-import hashlib
-import multiprocessing
 try:
     import queue
 except ImportError:  # noqa
@@ -39,19 +37,12 @@ except ImportError:  # noqa
 # non-stdlib imports
 # local imports
 import blobxfer.download
+import blobxfer.models
+import blobxfer.offload
 import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
-
-
-def new_md5_hasher():
-    # type: (None) -> md5.MD5
-    """Create a new MD5 hasher
-    :rtype: md5.MD5
-    :return: new MD5 hasher
-    """
-    return hashlib.md5()
 
 
 def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
@@ -63,7 +54,7 @@ def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
     :rtype: str
     :return: MD5 for file encoded as Base64
     """
-    hasher = new_md5_hasher()
+    hasher = blobxfer.util.new_md5_hasher()
     with open(filename, 'rb') as filedesc:
         while True:
             buf = filedesc.read(blocksize)
@@ -85,12 +76,12 @@ def compute_md5_for_data_asbase64(data):
     :rtype: str
     :return: MD5 for data
     """
-    hasher = new_md5_hasher()
+    hasher = blobxfer.util.new_md5_hasher()
     hasher.update(data)
     return blobxfer.util.base64_encode_as_string(hasher.digest())
 
 
-class LocalFileMd5Offload(object):
+class LocalFileMd5Offload(blobxfer.offload._MultiprocessOffload):
     """LocalFileMd5Offload"""
     def __init__(self, num_workers):
         # type: (LocalFileMd5Offload, int) -> None
@@ -98,52 +89,14 @@ class LocalFileMd5Offload(object):
         :param LocalFileMd5Offload self: this
         :param int num_workers: number of worker processes
         """
-        self._task_queue = multiprocessing.Queue()
-        self._done_queue = multiprocessing.Queue()
-        self._done_cv = multiprocessing.Condition()
-        self._term_signal = multiprocessing.Value('i', 0)
-        self._md5_procs = []
-        self._initialize_md5_processes(num_workers)
+        super(LocalFileMd5Offload, self).__init__(num_workers, 'MD5')
 
-    @property
-    def done_cv(self):
-        # type: (LocalFileMd5Offload) -> multiprocessing.Condition
-        """Get Download Done condition variable
-        :param LocalFileMd5Offload self: this
-        :rtype: multiprocessing.Condition
-        :return: cv for download done
-        """
-        return self._done_cv
-
-    def _initialize_md5_processes(self, num_workers):
-        # type: (LocalFileMd5Offload, int) -> None
-        """Initialize MD5 checking processes for files for download
-        :param LocalFileMd5Offload self: this
-        :param int num_workers: number of worker processes
-        """
-        if num_workers is None or num_workers < 1:
-            raise ValueError('invalid num_workers: {}'.format(num_workers))
-        for _ in range(num_workers):
-            proc = multiprocessing.Process(
-                target=self._worker_compute_md5_localfile_process)
-            proc.start()
-            self._md5_procs.append(proc)
-
-    def finalize_md5_processes(self):
-        # type: (LocalFileMd5Offload) -> None
-        """Finalize MD5 checking processes for files for download
-        :param LocalFileMd5Offload self: this
-        """
-        self._term_signal.value = 1
-        for proc in self._md5_procs:
-            proc.join()
-
-    def _worker_compute_md5_localfile_process(self):
+    def _worker_process(self):
         # type: (LocalFileMd5Offload) -> None
         """Compute MD5 for local file
         :param LocalFileMd5Offload self: this
         """
-        while self._term_signal.value == 0:
+        while not self.terminated:
             try:
                 filename, remote_md5, pagealign = self._task_queue.get(True, 1)
             except queue.Empty:
@@ -153,31 +106,17 @@ class LocalFileMd5Offload(object):
                 md5, remote_md5, filename))
             self._done_cv.acquire()
             self._done_queue.put((filename, md5 == remote_md5))
-            self.done_cv.notify()
-            self.done_cv.release()
-
-    def get_localfile_md5_done(self):
-        # type: (LocalFileMd5Offload) -> Tuple[str, bool]
-        """Get from done queue of local files with MD5 completed
-        :param LocalFileMd5Offload self: this
-        :rtype: tuple or None
-        :return: (local file path, md5 match)
-        """
-        try:
-            return self._done_queue.get_nowait()
-        except queue.Empty:
-            return None
+            self._done_cv.notify()
+            self._done_cv.release()
 
     def add_localfile_for_md5_check(self, filename, remote_md5, mode):
         # type: (LocalFileMd5Offload, str, str,
-        #        blobxfer.models.AzureStorageModes) -> bool
-        """Check an MD5 for a file for download
+        #        blobxfer.models.AzureStorageModes) -> None
+        """Add a local file to MD5 check queue
         :param LocalFileMd5Offload self: this
         :param str filename: file to compute MD5 for
         :param str remote_md5: remote MD5 to compare against
         :param blobxfer.models.AzureStorageModes mode: mode
-        :rtype: bool
-        :return: MD5 match comparison
         """
         if mode == blobxfer.models.AzureStorageModes.Page:
             pagealign = True

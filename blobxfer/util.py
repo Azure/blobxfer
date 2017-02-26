@@ -32,6 +32,7 @@ from builtins import (  # noqa
 import base64
 import copy
 import dateutil
+import hashlib
 import logging
 import logging.handlers
 import mimetypes
@@ -162,6 +163,15 @@ def base64_decode_string(string):
     :return: decoded string
     """
     return base64.b64decode(string)
+
+
+def new_md5_hasher():
+    # type: (None) -> md5.MD5
+    """Create a new MD5 hasher
+    :rtype: md5.MD5
+    :return: new MD5 hasher
+    """
+    return hashlib.md5()
 
 
 def page_align_content_length(length):

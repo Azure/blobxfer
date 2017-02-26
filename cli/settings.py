@@ -265,9 +265,9 @@ def create_download_specifications(config):
         elif confmode == 'block':
             mode = blobxfer.models.AzureStorageModes.Block
         elif confmode == 'file':
-            mode == blobxfer.models.AzureStorageModes.File
+            mode = blobxfer.models.AzureStorageModes.File
         elif confmode == 'page':
-            mode == blobxfer.models.AzureStorageModes.Page
+            mode = blobxfer.models.AzureStorageModes.Page
         else:
             raise ValueError('unknown mode: {}'.format(confmode))
         # load RSA private key PEM file if specified

@@ -25,9 +25,9 @@ def test_concurrency_options(patched_cc):
         transfer_threads=-2,
     )
 
-    assert a.crypto_processes == 1
+    assert a.crypto_processes == 0
     assert a.md5_processes == 1
-    assert a.transfer_threads == 2
+    assert a.transfer_threads == 3
 
 
 def test_general_options():
@@ -359,12 +359,16 @@ def test_downloaddescriptor(tmpdir):
     ase = models.AzureStorageEntity('cont')
     ase._size = 1024
     ase._encryption = mock.MagicMock()
+    with pytest.raises(RuntimeError):
+        d = models.DownloadDescriptor(lp, ase, opts)
+
+    ase._encryption.symmetric_key = b'123'
     d = models.DownloadDescriptor(lp, ase, opts)
 
     assert d.entity == ase
     assert not d.must_compute_md5
     assert d._total_chunks == 64
-    assert d.offset == 0
+    assert d._offset == 0
     assert d.final_path == lp
     assert str(d.local_path) == str(lp) + '.bxtmp'
     assert d.local_path.stat().st_size == 1024 - 16
@@ -400,6 +404,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
 
     offsets = d.next_offsets()
     assert d._total_chunks == 1
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 128
     assert offsets.range_start == 0
@@ -416,6 +421,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 1
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 1
     assert offsets.range_start == 0
@@ -427,6 +433,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 1
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 256
     assert offsets.range_start == 0
@@ -438,12 +445,14 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 2
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 256
     assert offsets.range_start == 0
     assert offsets.range_end == 255
     assert not offsets.unpad
     offsets = d.next_offsets()
+    assert offsets.chunk_num == 1
     assert offsets.fd_start == 256
     assert offsets.num_bytes == 16
     assert offsets.range_start == 256
@@ -452,10 +461,12 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() is None
 
     ase._encryption = mock.MagicMock()
+    ase._encryption.symmetric_key = b'123'
     ase._size = 128
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 1
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 128
     assert offsets.range_start == 0
@@ -467,6 +478,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 1
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 256
     assert offsets.range_start == 0
@@ -478,12 +490,14 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     d = models.DownloadDescriptor(lp, ase, opts)
     offsets = d.next_offsets()
     assert d._total_chunks == 2
+    assert offsets.chunk_num == 0
     assert offsets.fd_start == 0
     assert offsets.num_bytes == 256
     assert offsets.range_start == 0
     assert offsets.range_end == 255
     assert not offsets.unpad
     offsets = d.next_offsets()
+    assert offsets.chunk_num == 1
     assert offsets.fd_start == 256
     assert offsets.num_bytes == 32
     assert offsets.range_start == 256 - 16

@@ -197,27 +197,18 @@ def test_post_md5_skip_on_check():
     assert d._add_to_download_queue.call_count == 1
 
 
-def test_initialize_check_md5_downloads_thread():
+def test_check_for_downloads_from_md5():
     lpath = 'lpath'
     d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._md5_map[lpath] = mock.MagicMock()
     d._download_set.add(pathlib.Path(lpath))
     d._md5_offload = mock.MagicMock()
     d._md5_offload.done_cv = multiprocessing.Condition()
-    d._md5_offload.get_localfile_md5_done = mock.MagicMock()
-    d._md5_offload.get_localfile_md5_done.side_effect = [None, (lpath, False)]
+    d._md5_offload.pop_done_queue.side_effect = [None, (lpath, False)]
     d._add_to_download_queue = mock.MagicMock()
 
-    d._initialize_check_md5_downloads_thread()
-    while len(d._md5_map) > 0:
-        d._md5_offload.done_cv.acquire()
-        d._md5_offload.done_cv.notify()
-        d._md5_offload.done_cv.release()
-    d._all_remote_files_processed = True
-    d._md5_offload.done_cv.acquire()
-    d._md5_offload.done_cv.notify()
-    d._md5_offload.done_cv.release()
-    d._md5_check_thread.join()
+    with pytest.raises(StopIteration):
+        d._check_for_downloads_from_md5()
 
     assert d._add_to_download_queue.call_count == 1
 
@@ -237,14 +228,15 @@ def test_initialize_and_terminate_download_threads():
         assert not thr.is_alive()
 
 
+@mock.patch('time.clock')
 @mock.patch('blobxfer.md5.LocalFileMd5Offload')
 @mock.patch('blobxfer.blob.operations.list_blobs')
 @mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
-def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
+def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
-    d._initialize_check_md5_downloads_thread = mock.MagicMock()
     d._initialize_download_threads = mock.MagicMock()
-    d._md5_check_thread = mock.MagicMock()
+    patched_lfmo._check_thread = mock.MagicMock()
+    d._general_options.concurrency.crypto_processes = 0
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
     d._spec.options.chunk_size_bytes = 1
@@ -270,12 +262,14 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
 
     d._check_download_conditions = mock.MagicMock()
     d._check_download_conditions.return_value = dl.DownloadAction.Skip
+    patched_tc.side_effect = [1, 2]
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 0
 
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = dl.DownloadAction.CheckMd5
+    patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
     assert d._pre_md5_skip_on_check.call_count == 1
@@ -284,6 +278,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = dl.DownloadAction.Download
+    patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
     assert d._download_queue.qsize() == 1
