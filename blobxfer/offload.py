@@ -43,10 +43,11 @@ logger = logging.getLogger(__name__)
 
 
 class _MultiprocessOffload(object):
-    def __init__(self, num_workers, description=None):
-        # type: (_MultiprocessOffload, int, str) -> None
+    def __init__(self, target, num_workers, description=None):
+        # type: (_MultiprocessOffload, function, int, str) -> None
         """Ctor for Crypto Offload
         :param _MultiprocessOffload self: this
+        :param function target: target function for process
         :param int num_workers: number of worker processes
         :param str description: description
         """
@@ -56,7 +57,7 @@ class _MultiprocessOffload(object):
         self._term_signal = multiprocessing.Value('i', 0)
         self._procs = []
         self._check_thread = None
-        self._initialize_processes(num_workers, description)
+        self._initialize_processes(target, num_workers, description)
 
     @property
     def done_cv(self):
@@ -78,10 +79,11 @@ class _MultiprocessOffload(object):
         """
         return self._term_signal.value == 1
 
-    def _initialize_processes(self, num_workers, description):
-        # type: (_MultiprocessOffload, int, str) -> None
+    def _initialize_processes(self, target, num_workers, description):
+        # type: (_MultiprocessOffload, function, int, str) -> None
         """Initialize processes
         :param _MultiprocessOffload self: this
+        :param function target: target function for process
         :param int num_workers: number of worker processes
         :param str description: description
         """
@@ -90,7 +92,7 @@ class _MultiprocessOffload(object):
         logger.debug('initializing {}{} processes'.format(
             num_workers, ' ' + description if not None else ''))
         for _ in range(num_workers):
-            proc = multiprocessing.Process(target=self._worker_process)
+            proc = multiprocessing.Process(target=target)
             proc.start()
             self._procs.append(proc)
 
@@ -118,10 +120,10 @@ class _MultiprocessOffload(object):
             return None
 
     def initialize_check_thread(self, check_func):
-        # type: (_MultiprocessOffload, object) -> None
+        # type: (_MultiprocessOffload, function) -> None
         """Initialize the crypto done queue check thread
         :param Downloader self: this
-        :param object check_func: check function
+        :param function check_func: check function
         """
         self._check_thread = threading.Thread(target=check_func)
         self._check_thread.start()

@@ -152,10 +152,10 @@ def list_files(client, fileshare, prefix, timeout=None):
 
 def get_file_range(ase, offsets, timeout=None):
     # type: (blobxfer.models.AzureStorageEntity,
-    #        blobxfer.models.DownloadOffsets, int) -> bytes
+    #        blobxfer.download.models.DownloadOffsets, int) -> bytes
     """Retrieve file range
     :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
-    :param blobxfer.models.DownloadOffsets offsets: downlaod offsets
+    :param blobxfer.download.models.DownloadOffsets offsets: download offsets
     :param int timeout: timeout
     :rtype: bytes
     :return: content for file range

@@ -49,8 +49,8 @@ import dateutil
 # local imports
 import blobxfer.crypto.models
 import blobxfer.crypto.operations
+import blobxfer.download.models
 import blobxfer.md5
-import blobxfer.models
 import blobxfer.operations
 import blobxfer.blob.operations
 import blobxfer.file.operations
@@ -255,7 +255,7 @@ class Downloader(object):
         :param blobxfer.models.AzureStorageEntity rfile: remote file
         """
         # prepare remote file for download
-        dd = blobxfer.models.DownloadDescriptor(
+        dd = blobxfer.download.models.DownloadDescriptor(
             lpath, rfile, self._spec.options)
         if dd.entity.is_encrypted:
             with self._download_lock:
@@ -362,13 +362,14 @@ class Downloader(object):
             self._complete_chunk_download(offsets, data, dd)
 
     def _complete_chunk_download(self, offsets, data, dd):
-        # type: (Downloader, blobxfer.models.DownloadOffsets, bytes,
-        #        blobxfer.models.DownloadDescriptor) -> None
+        # type: (Downloader, blobxfer.download.models.DownloadOffsets, bytes,
+        #        blobxfer.models.download.DownloadDescriptor) -> None
         """Complete chunk download
         :param Downloader self: this
-        :param blobxfer.models.DownloadOffsets offsets: offsets
+        :param blobxfer.download.models.DownloadOffsets offsets: offsets
         :param bytes data: data
-        :param blobxfer.models.DownloadDescriptor dd: download descriptor
+        :param blobxfer.models.download.DownloadDescriptor dd:
+            download descriptor
         """
         # write data to disk
         dd.write_data(offsets, data)

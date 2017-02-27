@@ -230,7 +230,8 @@ class CryptoOffload(blobxfer.offload._MultiprocessOffload):
         :param CryptoOffload self: this
         :param int num_workers: number of worker processes
         """
-        super(CryptoOffload, self).__init__(num_workers, 'Crypto')
+        super(CryptoOffload, self).__init__(
+            self._worker_process, num_workers, 'Crypto')
 
     def _worker_process(self):
         # type: (CryptoOffload) -> None
@@ -256,12 +257,12 @@ class CryptoOffload(blobxfer.offload._MultiprocessOffload):
 
     def add_decrypt_chunk(
             self, final_path, offsets, symkey, iv, encdata):
-        # type: (CryptoOffload, str, blobxfer.models.DownloadOffsets, bytes,
-        #        bytes, bytes) -> None
+        # type: (CryptoOffload, str, blobxfer.download.models.DownloadOffsets,
+        #        bytes, bytes, bytes) -> None
         """Add a chunk to decrypt
         :param CryptoOffload self: this
         :param str final_path: final path
-        :param blobxfer.models.DownloadOffsets offsets: offsets
+        :param blobxfer.download.models.DownloadOffsets offsets: offsets
         :param bytes symkey: symmetric key
         :param bytes iv: initialization vector
         :param bytes encdata: encrypted data

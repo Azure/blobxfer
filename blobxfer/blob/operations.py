@@ -108,10 +108,10 @@ def list_blobs(client, container, prefix, mode, timeout=None):
 
 def get_blob_range(ase, offsets, timeout=None):
     # type: (blobxfer.models.AzureStorageEntity,
-    #        blobxfer.models.DownloadOffsets, int) -> bytes
+    #        blobxfer.download.models.DownloadOffsets, int) -> bytes
     """Retrieve blob range
     :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
-    :param blobxfer.models.DownloadOffsets offsets: downlaod offsets
+    :param blobxfer.download.models.DownloadOffsets offsets: download offsets
     :param int timeout: timeout
     :rtype: bytes
     :return: content for blob range

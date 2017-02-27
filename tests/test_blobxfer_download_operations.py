@@ -1,5 +1,5 @@
 # coding=utf-8
-"""Tests for download"""
+"""Tests for download operations"""
 
 # stdlib imports
 import datetime
@@ -17,7 +17,7 @@ import pytest
 import blobxfer.models as models
 import blobxfer.util as util
 # module under test
-import blobxfer.download as dl
+import blobxfer.download.operations as ops
 
 
 def test_check_download_conditions(tmpdir):
@@ -44,11 +44,11 @@ def test_check_download_conditions(tmpdir):
         ),
         local_destination_path=models.LocalDestinationPath('dest'),
     )
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     result = d._check_download_conditions(nep, mock.MagicMock())
-    assert result == dl.DownloadAction.Download
+    assert result == ops.DownloadAction.Download
     result = d._check_download_conditions(ep, mock.MagicMock())
-    assert result == dl.DownloadAction.Skip
+    assert result == ops.DownloadAction.Skip
 
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
@@ -68,9 +68,9 @@ def test_check_download_conditions(tmpdir):
         ),
         local_destination_path=models.LocalDestinationPath('dest'),
     )
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     result = d._check_download_conditions(ep, mock.MagicMock())
-    assert result == dl.DownloadAction.CheckMd5
+    assert result == ops.DownloadAction.CheckMd5
 
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
@@ -90,9 +90,9 @@ def test_check_download_conditions(tmpdir):
         ),
         local_destination_path=models.LocalDestinationPath('dest'),
     )
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     result = d._check_download_conditions(ep, mock.MagicMock())
-    assert result == dl.DownloadAction.Download
+    assert result == ops.DownloadAction.Download
 
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
@@ -112,17 +112,17 @@ def test_check_download_conditions(tmpdir):
         ),
         local_destination_path=models.LocalDestinationPath('dest'),
     )
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     rfile = models.AzureStorageEntity('cont')
     rfile._size = util.page_align_content_length(ep.stat().st_size)
     rfile._mode = models.AzureStorageModes.Page
     result = d._check_download_conditions(ep, rfile)
-    assert result == dl.DownloadAction.Skip
+    assert result == ops.DownloadAction.Skip
 
     rfile._size = ep.stat().st_size
     rfile._mode = models.AzureStorageModes.Page
     result = d._check_download_conditions(ep, rfile)
-    assert result == dl.DownloadAction.Download
+    assert result == ops.DownloadAction.Download
 
     ds = models.DownloadSpecification(
         download_options=models.DownloadOptions(
@@ -142,21 +142,21 @@ def test_check_download_conditions(tmpdir):
         ),
         local_destination_path=models.LocalDestinationPath('dest'),
     )
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     rfile = models.AzureStorageEntity('cont')
     rfile._lmt = datetime.datetime.now(dateutil.tz.tzutc()) + \
         datetime.timedelta(days=1)
     result = d._check_download_conditions(ep, rfile)
-    assert result == dl.DownloadAction.Download
+    assert result == ops.DownloadAction.Download
 
     rfile._lmt = datetime.datetime.now(dateutil.tz.tzutc()) - \
         datetime.timedelta(days=1)
     result = d._check_download_conditions(ep, rfile)
-    assert result == dl.DownloadAction.Skip
+    assert result == ops.DownloadAction.Skip
 
 
 def test_pre_md5_skip_on_check():
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._md5_offload = mock.MagicMock()
 
     rfile = models.AzureStorageEntity('cont')
@@ -177,7 +177,7 @@ def test_pre_md5_skip_on_check():
 
 
 def test_post_md5_skip_on_check():
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._md5_offload = mock.MagicMock()
 
     lpath = 'lpath'
@@ -199,7 +199,7 @@ def test_post_md5_skip_on_check():
 
 def test_check_for_downloads_from_md5():
     lpath = 'lpath'
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._md5_map[lpath] = mock.MagicMock()
     d._download_set.add(pathlib.Path(lpath))
     d._md5_offload = mock.MagicMock()
@@ -209,14 +209,19 @@ def test_check_for_downloads_from_md5():
 
     with pytest.raises(StopIteration):
         d._check_for_downloads_from_md5()
-
     assert d._add_to_download_queue.call_count == 1
+
+    d._add_to_download_queue = mock.MagicMock()
+    d._all_remote_files_processed = False
+    d._download_terminate = True
+    d._check_for_downloads_from_md5()
+    assert d._add_to_download_queue.call_count == 0
 
 
 def test_initialize_and_terminate_download_threads():
     opts = mock.MagicMock()
     opts.concurrency.transfer_threads = 2
-    d = dl.Downloader(opts, mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(opts, mock.MagicMock(), mock.MagicMock())
     d._worker_thread_download = mock.MagicMock()
 
     d._initialize_download_threads()
@@ -233,7 +238,7 @@ def test_initialize_and_terminate_download_threads():
 @mock.patch('blobxfer.blob.operations.list_blobs')
 @mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
 def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._initialize_download_threads = mock.MagicMock()
     patched_lfmo._check_thread = mock.MagicMock()
     d._general_options.concurrency.crypto_processes = 0
@@ -261,14 +266,14 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d._pre_md5_skip_on_check = mock.MagicMock()
 
     d._check_download_conditions = mock.MagicMock()
-    d._check_download_conditions.return_value = dl.DownloadAction.Skip
+    d._check_download_conditions.return_value = ops.DownloadAction.Skip
     patched_tc.side_effect = [1, 2]
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 0
 
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
-    d._check_download_conditions.return_value = dl.DownloadAction.CheckMd5
+    d._check_download_conditions.return_value = ops.DownloadAction.CheckMd5
     patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
@@ -277,7 +282,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     b.properties.content_length = 0
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
-    d._check_download_conditions.return_value = dl.DownloadAction.Download
+    d._check_download_conditions.return_value = ops.DownloadAction.Download
     patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
@@ -285,7 +290,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
 
 
 def test_start_keyboard_interrupt():
-    d = dl.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._run = mock.MagicMock(side_effect=KeyboardInterrupt)
     d._wait_for_download_threads = mock.MagicMock()
     d._md5_offload = mock.MagicMock()

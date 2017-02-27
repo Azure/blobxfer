@@ -45,6 +45,6 @@ from .file.operations import (  # noqa
     create_client as create_file_client
 )
 
-from .download import (  # noqa
+from .download.operations import (  # noqa
     Downloader
 )

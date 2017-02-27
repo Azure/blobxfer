@@ -2,11 +2,13 @@
 """Tests for crypto operations"""
 
 # stdlib imports
-from mock import patch
+import mock
 import os
+import time
 # non-stdlib imports
 import cryptography.hazmat.primitives.asymmetric.rsa
 # local imports
+import blobxfer.download.models
 # module under test
 import blobxfer.crypto.operations as ops
 
@@ -16,7 +18,8 @@ _RSAKEY = cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key(
         backend=cryptography.hazmat.backends.default_backend())
 
 
-@patch('cryptography.hazmat.primitives.serialization.load_pem_private_key')
+@mock.patch(
+    'cryptography.hazmat.primitives.serialization.load_pem_private_key')
 def test_load_rsa_private_key_file(patched_load, tmpdir):
     keyfile = tmpdir.join('keyfile')
     keyfile.write('a')
@@ -26,7 +29,7 @@ def test_load_rsa_private_key_file(patched_load, tmpdir):
     assert rv == _RSAKEY
 
 
-@patch('cryptography.hazmat.primitives.serialization.load_pem_public_key')
+@mock.patch('cryptography.hazmat.primitives.serialization.load_pem_public_key')
 def test_load_rsa_public_key_file(patched_load, tmpdir):
     keyfile = tmpdir.join('keyfile')
     keyfile.write('b')
@@ -85,3 +88,37 @@ def test_aes_cbc_encryption():
     assert encdata != plaindata
     decdata = ops.aes_cbc_decrypt_data(enckey, iv, encdata, False)
     assert decdata == plaindata
+
+
+def test_cryptooffload_decrypt():
+    a = None
+    try:
+        a = ops.CryptoOffload(1)
+        offsets = blobxfer.download.models.DownloadOffsets(
+            chunk_num=0,
+            fd_start=1,
+            num_bytes=2,
+            range_end=3,
+            range_start=4,
+            unpad=False,
+        )
+        a.add_decrypt_chunk(
+            'fp', offsets, ops.aes256_generate_random_key(), os.urandom(16),
+            os.urandom(16))
+        i = 33
+        checked = False
+        while i > 0:
+            result = a.pop_done_queue()
+            if result is None:
+                time.sleep(0.3)
+                i -= 1
+                continue
+            assert len(result) == 3
+            assert result[0] == 'fp'
+            assert result[1] == offsets
+            checked = True
+            break
+        assert checked
+    finally:
+        if a is not None:
+            a.finalize_processes()
