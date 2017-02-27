@@ -96,6 +96,34 @@ class Downloader(object):
         self._creds = creds
         self._spec = spec
 
+    @property
+    def termination_check(self):
+        # type: (Downloader) -> bool
+        """Check if terminated
+        :param Downloader self: this
+        :rtype: bool
+        :return: if terminated
+        """
+        with self._download_lock:
+            return (self._download_terminate or
+                    (self._all_remote_files_processed and
+                     len(self._download_set) == 0))
+
+    @property
+    def termination_check_md5(self):
+        # type: (Downloader) -> bool
+        """Check if terminated from MD5 context
+        :param Downloader self: this
+        :rtype: bool
+        :return: if terminated from MD5 context
+        """
+        with self._md5_meta_lock:
+            with self._download_lock:
+                return (self._download_terminate or
+                        (self._all_remote_files_processed and
+                         len(self._md5_map) == 0 and
+                         len(self._download_set) == 0))
+
     def _check_download_conditions(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
         #        blobxfer.models.AzureStorageEntity) -> DownloadAction
@@ -188,26 +216,17 @@ class Downloader(object):
         :param Downloader self: this
         """
         cv = self._md5_offload.done_cv
-        while True:
-            with self._md5_meta_lock:
-                if (self._download_terminate or
-                        (self._all_remote_files_processed and
-                         len(self._md5_map) == 0 and
-                         len(self._download_set) == 0)):
-                    break
+        while not self.termination_check_md5:
             result = None
             cv.acquire()
-            while not self._download_terminate:
+            while True:
                 result = self._md5_offload.pop_done_queue()
                 if result is None:
                     # use cv timeout due to possible non-wake while running
                     cv.wait(1)
                     # check for terminating conditions
-                    with self._md5_meta_lock:
-                        if (self._all_remote_files_processed and
-                                len(self._md5_map) == 0 and
-                                len(self._download_set) == 0):
-                            break
+                    if self.termination_check_md5:
+                        break
                 else:
                     break
             cv.release()
@@ -220,24 +239,17 @@ class Downloader(object):
         :param Downloader self: this
         """
         cv = self._crypto_offload.done_cv
-        while True:
-            with self._download_lock:
-                if (self._download_terminate or
-                        (self._all_remote_files_processed and
-                         len(self._download_set) == 0)):
-                    break
+        while not self.termination_check:
             result = None
             cv.acquire()
-            while not self._download_terminate:
+            while True:
                 result = self._crypto_offload.pop_done_queue()
                 if result is None:
                     # use cv timeout due to possible non-wake while running
                     cv.wait(1)
                     # check for terminating conditions
-                    with self._download_lock:
-                        if (self._all_remote_files_processed and
-                                len(self._download_set) == 0):
-                            break
+                    if self.termination_check:
+                        break
                 else:
                     break
             cv.release()
@@ -291,13 +303,7 @@ class Downloader(object):
         """Worker thread download
         :param Downloader self: this
         """
-        while True:
-            if self._download_terminate:
-                break
-            with self._download_lock:
-                if (self._all_remote_files_processed and
-                        len(self._download_set) == 0):
-                    break
+        while not self.termination_check:
             try:
                 dd = self._download_queue.get(False, 1)
             except queue.Empty:
