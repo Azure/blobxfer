@@ -481,6 +481,7 @@ def test_worker_thread_download(
 @mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
 def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     d._initialize_download_threads = mock.MagicMock()
     patched_lfmo._check_thread = mock.MagicMock()
     d._general_options.concurrency.crypto_processes = 1

@@ -39,6 +39,7 @@ import azure.common
 import azure.storage.file
 # local imports
 import blobxfer.retry
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -96,8 +97,10 @@ def check_if_single_file(client, fileshare, prefix, timeout=None):
     :rtype: tuple
     :return: (if prefix in fileshare is a single file, file)
     """
-    dirname, fname = parse_file_path(prefix)
     file = None
+    if blobxfer.util.is_none_or_empty(prefix):
+        return (False, file)
+    dirname, fname = parse_file_path(prefix)
     try:
         file = client.get_file_properties(
             share_name=fileshare,
@@ -136,13 +139,13 @@ def list_files(client, fileshare, prefix, timeout=None):
             timeout=timeout,
         )
         for file in files:
-            fspath = str(pathlib.Path(
-                dir if dir is not None else '' / file.name))
-            if isinstance(file, azure.storage.file.File):
+            fspath = str(
+                pathlib.Path(dir if dir is not None else '') / file.name)
+            if type(file) == azure.storage.file.models.File:
                 fsprop = client.get_file_properties(
                     share_name=fileshare,
-                    directory_name=dir,
-                    file_name=file.name,
+                    directory_name=None,
+                    file_name=fspath,
                     timeout=timeout,
                 )
                 yield fsprop

@@ -43,7 +43,6 @@ try:
 except ImportError:  # noqa
     import Queue as queue
 import threading
-import time
 # non-stdlib imports
 import dateutil
 # local imports
@@ -78,7 +77,6 @@ class Downloader(object):
         :param blobxfer.models.AzureStorageCredentials creds: creds
         :param blobxfer.models.DownloadSpecification spec: download spec
         """
-        self._time_start = None
         self._all_remote_files_processed = False
         self._crypto_offload = None
         self._md5_meta_lock = threading.Lock()
@@ -87,6 +85,7 @@ class Downloader(object):
         self._download_lock = threading.Lock()
         self._download_queue = queue.Queue()
         self._download_set = set()
+        self._download_start = None
         self._download_threads = []
         self._download_count = 0
         self._download_total_bytes = 0
@@ -274,6 +273,11 @@ class Downloader(object):
                 self._dd_map[str(dd.final_path)] = dd
         # add download descriptor to queue
         self._download_queue.put(dd)
+        if self._download_start is None:
+            with self._download_lock:
+                if self._download_start is None:
+                    self._download_start = datetime.datetime.now(
+                        tz=dateutil.tz.tzlocal())
 
     def _initialize_download_threads(self):
         # type: (Downloader) -> None
@@ -386,6 +390,8 @@ class Downloader(object):
     def _run(self):
         # type: (Downloader) -> None
         """Execute Downloader"""
+        start_time = datetime.datetime.now(tz=dateutil.tz.tzlocal())
+        logger.info('script start time: {0}'.format(start_time))
         # ensure destination path
         blobxfer.operations.ensure_local_destination(self._creds, self._spec)
         logger.info('downloading blobs/files to local path: {}'.format(
@@ -409,7 +415,6 @@ class Downloader(object):
         skipped_files = 0
         total_size = 0
         skipped_size = 0
-        self._time_start = time.clock()
         for src in self._spec.sources:
             for rfile in src.files(
                     self._creds, self._spec.options, self._general_options):
@@ -443,16 +448,21 @@ class Downloader(object):
             ('{0} remote files processed, waiting for download completion '
              'of {1:.4f} MiB').format(nfiles, download_size_mib))
         self._wait_for_download_threads(terminate=False)
-        end = time.clock()
-        runtime = end - self._time_start
+        end_time = datetime.datetime.now(tz=dateutil.tz.tzlocal())
         if (self._download_count != download_files or
                 self._download_total_bytes != download_size):
             raise RuntimeError(
                 'download mismatch: [count={}/{} bytes={}/{}]'.format(
                     self._download_count, download_files,
                     self._download_total_bytes, download_size))
-        logger.info('all files downloaded: {0:.3f} sec {1:.4f} Mbps'.format(
-            runtime, download_size_mib * 8 / runtime))
+        if self._download_start is not None:
+            dltime = (end_time - self._download_start).total_seconds()
+            logger.info(
+                ('elapsed download + verify time and throughput: {0:.3f} sec, '
+                 '{1:.4f} Mbps').format(
+                     dltime, download_size_mib * 8 / dltime))
+        logger.info('script end time: {0} (elapsed: {1:.3f} sec)'.format(
+            end_time, (end_time - start_time).total_seconds()))
 
     def start(self):
         # type: (Downloader) -> None

@@ -69,6 +69,9 @@ def test_check_if_single_file():
     result = ops.check_if_single_file(client, 'a', 'b/c')
     assert result[0]
 
+    result = ops.check_if_single_file(client, 'a', '')
+    assert not result[0]
+
     client = mock.MagicMock()
     client.get_file_properties = mock.MagicMock()
     client.get_file_properties.side_effect = \
@@ -95,11 +98,9 @@ def test_list_files_single_file():
     return_value=(False, None)
 )
 def test_list_files_directory(patched_cisf):
-    client = mock.MagicMock()
-    client.list_directories_and_files = mock.MagicMock()
     _file = azure.storage.file.models.File(name='name')
+    client = mock.MagicMock()
     client.list_directories_and_files.return_value = [_file]
-    client.get_file_properties = mock.MagicMock()
     client.get_file_properties.return_value = _file
 
     i = 0
@@ -108,17 +109,18 @@ def test_list_files_directory(patched_cisf):
         assert file.name == 'name'
     assert i == 1
 
+    print('test')
+    _dir = azure.storage.file.models.Directory(name='dirname')
+    _file = azure.storage.file.models.File(name='dirname/name')
     client = mock.MagicMock()
-    client.list_directories_and_files = mock.MagicMock()
-    _file = azure.storage.file.models.File(name='name')
-    client.list_directories_and_files.side_effect = [['dir'], [file]]
-    client.get_file_properties = mock.MagicMock()
-    client.get_file_properties.return_value = _file
+    client.list_directories_and_files.side_effect = [[_dir, _file]]
+    client.get_file_properties.side_effect = [_file]
 
     i = 0
-    for file in ops.list_files(client, 'dir', ''):
+    for file in ops.list_files(client, '', ''):
         i += 1
-        assert file.name == 'name'
+        assert file.name == _file.name
+        assert type(file) == azure.storage.file.models.File
     assert i == 1
 
 

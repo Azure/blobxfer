@@ -337,7 +337,7 @@ def _file_attributes(f):
     return click.option(
         '--file-attributes',
         expose_value=False,
-        is_flag=True,
+        is_flag=False,
         help='Store or restore file attributes [False]',
         callback=callback)(f)
 
@@ -350,7 +350,7 @@ def _file_md5_option(f):
     return click.option(
         '--file-md5/--no-file-md5',
         expose_value=False,
-        default=True,
+        default=False,
         help='Compute file MD5 [True]',
         callback=callback)(f)
 
