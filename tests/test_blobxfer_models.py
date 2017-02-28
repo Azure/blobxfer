@@ -38,6 +38,7 @@ def test_general_options():
             transfer_threads=3,
         ),
         progress_bar=False,
+        resume_file='abc',
         timeout_sec=1,
         verbose=True,
     )
@@ -46,6 +47,27 @@ def test_general_options():
     assert a.concurrency.md5_processes == 2
     assert a.concurrency.transfer_threads == 3
     assert not a.progress_bar
+    assert a.resume_file == pathlib.Path('abc')
+    assert a.timeout_sec == 1
+    assert a.verbose
+
+    a = models.GeneralOptions(
+        concurrency=models.ConcurrencyOptions(
+            crypto_processes=1,
+            md5_processes=2,
+            transfer_threads=3,
+        ),
+        progress_bar=False,
+        resume_file=None,
+        timeout_sec=1,
+        verbose=True,
+    )
+
+    assert a.concurrency.crypto_processes == 1
+    assert a.concurrency.md5_processes == 2
+    assert a.concurrency.transfer_threads == 3
+    assert not a.progress_bar
+    assert a.resume_file is None
     assert a.timeout_sec == 1
     assert a.verbose
 

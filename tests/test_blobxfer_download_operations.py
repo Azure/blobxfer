@@ -475,12 +475,58 @@ def test_worker_thread_download(
         assert dd.perform_chunked_integrity_check.call_count == 1
 
 
+def test_cleanup_temporary_files(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 16
+    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase._size = 16
+    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd.cleanup_all_temporary_files = mock.MagicMock()
+    dd.cleanup_all_temporary_files.side_effect = Exception
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.resume_file = pathlib.Path('abc')
+    d._dd_map[0] = dd
+    d._cleanup_temporary_files()
+    assert dd.local_path.exists()
+
+    lp = pathlib.Path(str(tmpdir.join('b')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 16
+    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase._size = 16
+    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.resume_file = None
+    d._dd_map[0] = dd
+    d._cleanup_temporary_files()
+    assert not dd.local_path.exists()
+
+    lp = pathlib.Path(str(tmpdir.join('c')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 16
+    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase._size = 16
+    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd.cleanup_all_temporary_files = mock.MagicMock()
+    dd.cleanup_all_temporary_files.side_effect = Exception
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.resume_file = None
+    d._dd_map[0] = dd
+    d._cleanup_temporary_files()
+    assert dd.local_path.exists()
+
+
 @mock.patch('time.clock')
 @mock.patch('blobxfer.md5.LocalFileMd5Offload')
 @mock.patch('blobxfer.blob.operations.list_blobs')
 @mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
 def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._cleanup_temporary_files = mock.MagicMock()
     d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     d._initialize_download_threads = mock.MagicMock()
     patched_lfmo._check_thread = mock.MagicMock()
@@ -536,8 +582,10 @@ def test_start_keyboard_interrupt():
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._run = mock.MagicMock(side_effect=KeyboardInterrupt)
     d._wait_for_download_threads = mock.MagicMock()
+    d._cleanup_temporary_files = mock.MagicMock()
     d._md5_offload = mock.MagicMock()
 
     with pytest.raises(KeyboardInterrupt):
         d.start()
     assert d._wait_for_download_threads.call_count == 1
+    assert d._cleanup_temporary_files.call_count == 1

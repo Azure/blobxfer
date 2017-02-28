@@ -151,12 +151,13 @@ class ConcurrencyOptions(object):
 class GeneralOptions(object):
     """General Options"""
     def __init__(
-            self, concurrency, progress_bar=True, timeout_sec=None,
-            verbose=False):
+            self, concurrency, progress_bar=True, resume_file=None,
+            timeout_sec=None, verbose=False):
         """Ctor for General Options
         :param GeneralOptions self: this
         :param ConcurrencyOptions concurrency: concurrency options
         :param bool progress_bar: progress bar
+        :param str resume_file: resume file
         :param int timeout_sec: timeout in seconds
         :param bool verbose: verbose output
         """
@@ -164,6 +165,10 @@ class GeneralOptions(object):
             raise ValueError('concurrency option is unspecified')
         self.concurrency = concurrency
         self.progress_bar = progress_bar
+        if blobxfer.util.is_not_empty(resume_file):
+            self.resume_file = pathlib.Path(resume_file)
+        else:
+            self.resume_file = None
         self.timeout_sec = timeout_sec
         self.verbose = verbose
 

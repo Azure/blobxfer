@@ -148,6 +148,19 @@ def _progress_bar_option(f):
         callback=callback)(f)
 
 
+def _resume_file_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['resume_file'] = value
+        return value
+    return click.option(
+        '--resume-file',
+        expose_value=False,
+        default=None,
+        help='Save or use resume file specified',
+        callback=callback)(f)
+
+
 def _timeout_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -192,6 +205,7 @@ def common_options(f):
     f = _verbose_option(f)
     f = _transfer_threads_option(f)
     f = _timeout_option(f)
+    f = _resume_file_option(f)
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
     f = _crypto_processes_option(f)

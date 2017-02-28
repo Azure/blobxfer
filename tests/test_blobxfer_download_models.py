@@ -251,6 +251,37 @@ def test_perform_chunked_integrity_check(tmpdir):
     assert not ucc.file_path.exists()
 
 
+def test_cleanup_all_temporary_files(tmpdir):
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 16
+    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase._size = 16
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    d = models.DownloadDescriptor(lp, ase, opts)
+
+    offsets = d.next_offsets()
+    data = b'0' * opts.chunk_size_bytes
+    d._postpone_integrity_check(offsets, data)
+    assert len(d._unchecked_chunks) == 1
+    d.cleanup_all_temporary_files()
+    assert not d.local_path.exists()
+    assert not d._unchecked_chunks[0].file_path.exists()
+
+    lp = pathlib.Path(str(tmpdir.join('b')))
+    d = models.DownloadDescriptor(lp, ase, opts)
+
+    offsets = d.next_offsets()
+    data = b'0' * opts.chunk_size_bytes
+    d._postpone_integrity_check(offsets, data)
+    assert len(d._unchecked_chunks) == 1
+    d.local_path.unlink()
+    d._unchecked_chunks[0].file_path.unlink()
+    d.cleanup_all_temporary_files()
+    assert not d.local_path.exists()
+    assert not d._unchecked_chunks[0].file_path.exists()
+
+
 def test_write_data(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
 

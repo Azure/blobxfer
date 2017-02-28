@@ -387,6 +387,26 @@ class Downloader(object):
         dd.dec_outstanding_operations()
         # TODO pickle dd to resume file
 
+    def _cleanup_temporary_files(self):
+        # type: (Downloader) -> None
+        """Cleanup temporary files in case of an exception or interrupt.
+        This function is not thread-safe.
+        :param Downloader self: this
+        """
+        # do not clean up if resume file exists
+        if self._general_options.resume_file is not None:
+            logger.debug(
+                'not cleaning up temporary files since resume file has '
+                'been specified')
+            return
+        # iterate through dd map and cleanup files
+        for key in self._dd_map:
+            dd = self._dd_map[key]
+            try:
+                dd.cleanup_all_temporary_files()
+            except Exception as e:
+                logger.exception(e)
+
     def _run(self):
         # type: (Downloader) -> None
         """Execute Downloader"""
@@ -475,10 +495,11 @@ class Downloader(object):
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
             self._wait_for_download_threads(terminate=True)
-            # TODO delete all temp files
-            # TODO close resume file in finally?
+            self._cleanup_temporary_files()
             raise
         finally:
+            # TODO close resume file
+            # shutdown processes
             if self._md5_offload is not None:
                 self._md5_offload.finalize_processes()
             if self._crypto_offload is not None:

@@ -200,6 +200,26 @@ class DownloadDescriptor(object):
                     fd.seek(allocatesize - 1)
                     fd.write(b'\0')
 
+    def cleanup_all_temporary_files(self):
+        # type: (DownloadDescriptor) -> None
+        """Cleanup all temporary files in case of an exception or interrupt.
+        This function is not thread-safe.
+        :param DownloadDescriptor self: this
+        """
+        # delete local file
+        try:
+            self.local_path.unlink()
+        except OSError:
+            pass
+        # iterate unchecked chunks and delete
+        for key in self._unchecked_chunks:
+            ucc = self._unchecked_chunks[key]
+            if ucc.temp:
+                try:
+                    ucc.file_path.unlink()
+                except OSError:
+                    pass
+
     def next_offsets(self):
         # type: (DownloadDescriptor) -> DownloadOffsets
         """Retrieve the next offsets
