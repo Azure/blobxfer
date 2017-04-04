@@ -33,8 +33,10 @@ from builtins import (  # noqa
 import enum
 # non-stdlib imports
 # local imports
-import blobxfer.crypto.operations
-import blobxfer.models
+import blobxfer.models.azure
+import blobxfer.models.download
+import blobxfer.models.options
+import blobxfer.operations.crypto
 import blobxfer.util
 
 
@@ -215,13 +217,13 @@ def merge_settings(config, cli_options):
 
 
 def create_azure_storage_credentials(config):
-    # type: (dict) -> blobxfer.models.AzureStorageCredentials
-    """Create an AzureStorageCredentials object from configuration
+    # type: (dict) -> blobxfer.models.azure.StorageCredentials
+    """Create an Azure StorageCredentials object from configuration
     :param dict config: config dict
-    :rtype: blobxfer.models.AzureStorageCredentials
+    :rtype: blobxfer.models.azure.StorageCredentials
     :return: credentials object
     """
-    creds = blobxfer.models.AzureStorageCredentials()
+    creds = blobxfer.models.azure.StorageCredentials()
     endpoint = config['azure_storage']['endpoint']
     for name in config['azure_storage']['accounts']:
         key = config['azure_storage']['accounts'][name]
@@ -230,14 +232,14 @@ def create_azure_storage_credentials(config):
 
 
 def create_general_options(config):
-    # type: (dict) -> blobxfer.models.GeneralOptions
-    """Create a GeneralOptions object from configuration
+    # type: (dict) -> blobxfer.models.options.General
+    """Create a General Options object from configuration
     :param dict config: config dict
-    :rtype: blobxfer.models.GeneralOptions
+    :rtype: blobxfer.models.options.General
     :return: general options object
     """
-    return blobxfer.models.GeneralOptions(
-        concurrency=blobxfer.models.ConcurrencyOptions(
+    return blobxfer.models.options.General(
+        concurrency=blobxfer.models.options.Concurrency(
             crypto_processes=config['options']['crypto_processes'],
             md5_processes=config['options']['md5_processes'],
             transfer_threads=config['options']['transfer_threads'],
@@ -250,38 +252,38 @@ def create_general_options(config):
 
 
 def create_download_specifications(config):
-    # type: (dict) -> List[blobxfer.models.DownloadSpecification]
-    """Create a list of DownloadSpecification objects from configuration
+    # type: (dict) -> List[blobxfer.models.download.Specification]
+    """Create a list of Download Specification objects from configuration
     :param dict config: config dict
     :rtype: list
-    :return: list of DownloadSpecification objects
+    :return: list of Download Specification objects
     """
     specs = []
     for conf in config['download']:
         # create download options
         confmode = conf['options']['mode'].lower()
         if confmode == 'auto':
-            mode = blobxfer.models.AzureStorageModes.Auto
+            mode = blobxfer.models.azure.StorageModes.Auto
         elif confmode == 'append':
-            mode = blobxfer.models.AzureStorageModes.Append
+            mode = blobxfer.models.azure.StorageModes.Append
         elif confmode == 'block':
-            mode = blobxfer.models.AzureStorageModes.Block
+            mode = blobxfer.models.azure.StorageModes.Block
         elif confmode == 'file':
-            mode = blobxfer.models.AzureStorageModes.File
+            mode = blobxfer.models.azure.StorageModes.File
         elif confmode == 'page':
-            mode = blobxfer.models.AzureStorageModes.Page
+            mode = blobxfer.models.azure.StorageModes.Page
         else:
             raise ValueError('unknown mode: {}'.format(confmode))
         # load RSA private key PEM file if specified
         rpk = conf['options']['rsa_private_key']
         if blobxfer.util.is_not_empty(rpk):
             rpkp = conf['options']['rsa_private_key_passphrase']
-            rpk = blobxfer.crypto.operations.load_rsa_private_key_file(
+            rpk = blobxfer.operations.crypto.load_rsa_private_key_file(
                 rpk, rpkp)
         else:
             rpk = None
-        ds = blobxfer.models.DownloadSpecification(
-            download_options=blobxfer.models.DownloadOptions(
+        ds = blobxfer.models.download.Specification(
+            download_options=blobxfer.models.options.Download(
                 check_file_md5=conf['options']['check_file_md5'],
                 chunk_size_bytes=conf['options']['chunk_size_bytes'],
                 delete_extraneous_destination=conf[
@@ -293,12 +295,13 @@ def create_download_specifications(config):
                     'options']['restore_file_attributes'],
                 rsa_private_key=rpk,
             ),
-            skip_on_options=blobxfer.models.SkipOnOptions(
+            skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=conf['options']['skip_on']['filesize_match'],
                 lmt_ge=conf['options']['skip_on']['lmt_ge'],
                 md5_match=conf['options']['skip_on']['md5_match'],
             ),
-            local_destination_path=blobxfer.models.LocalDestinationPath(
+            local_destination_path=blobxfer.models.download.
+            LocalDestinationPath(
                 conf['destination']
             )
         )
@@ -308,7 +311,7 @@ def create_download_specifications(config):
                 raise RuntimeError(
                     'invalid number of source pairs specified per entry')
             sa = next(iter(src))
-            asp = blobxfer.models.AzureSourcePath()
+            asp = blobxfer.models.azure.SourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
             if blobxfer.util.is_not_empty(conf['include']):
                 asp.add_includes(conf['include'])

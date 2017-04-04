@@ -42,17 +42,16 @@ import tempfile
 import threading
 # non-stdlib imports
 # local imports
-import blobxfer.blob.operations
-import blobxfer.file.operations
-import blobxfer.crypto.models
+import blobxfer.models.options
+import blobxfer.models.crypto
 import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
 
 # named tuples
-DownloadOffsets = collections.namedtuple(
-    'DownloadOffsets', [
+Offsets = collections.namedtuple(
+    'Offsets', [
         'chunk_num',
         'fd_start',
         'num_bytes',
@@ -71,19 +70,117 @@ UncheckedChunk = collections.namedtuple(
 )
 
 
-class DownloadDescriptor(object):
+class LocalDestinationPath(object):
+    """Local Destination Path"""
+    def __init__(self, path=None):
+        # type: (LocalDestinationPath, str) -> None
+        """Ctor for LocalDestinationPath
+        :param LocalDestinationPath self: this
+        :param str path: path
+        """
+        self._is_dir = None
+        if path is not None:
+            self.path = path
+
+    @property
+    def path(self):
+        # type: (LocalDestinationPath) -> pathlib.Path
+        """Path property
+        :param LocalDestinationPath self: this
+        :rtype: pathlib.Path
+        :return: local destination path
+        """
+        return self._path
+
+    @path.setter
+    def path(self, value):
+        # type: (LocalDestinationPath, str) -> None
+        """Path property setter
+        :param LocalDestinationPath self: this
+        :param str value: value to set path to
+        """
+        self._path = pathlib.Path(value)
+
+    @property
+    def is_dir(self):
+        # type: (LocalDestinationPath) -> bool
+        """is_dir property
+        :param LocalDestinationPath self: this
+        :rtype: bool
+        :return: if local destination path is a directory
+        """
+        return self._is_dir
+
+    @is_dir.setter
+    def is_dir(self, value):
+        # type: (LocalDestinationPath, bool) -> None
+        """is_dir property setter
+        :param LocalDestinationPath self: this
+        :param bool value: value to set is_dir to
+        """
+        self._is_dir = value
+
+    def ensure_path_exists(self):
+        # type: (LocalDestinationPath) -> None
+        """Ensure path exists
+        :param LocalDestinationPath self: this
+        """
+        if self._is_dir is None:
+            raise RuntimeError('is_dir not set')
+        if self._is_dir:
+            self._path.mkdir(mode=0o750, parents=True, exist_ok=True)
+        else:
+            if self._path.exists() and self._path.is_dir():
+                raise RuntimeError(
+                    ('destination path {} already exists and is a '
+                     'directory').format(self._path))
+            else:
+                # ensure parent path exists and is created
+                self._path.parent.mkdir(
+                    mode=0o750, parents=True, exist_ok=True)
+
+
+class Specification(object):
+    """Download Specification"""
+    def __init__(
+            self, download_options, skip_on_options, local_destination_path):
+        # type: (Specification, blobxfer.models.options.Download,
+        #        blobxfer.models.options.SkipOn, LocalDestinationPath) -> None
+        """Ctor for Specification
+        :param DownloadSepcification self: this
+        :param blobxfer.models.options.Download download_options:
+            download options
+        :param blobxfer.models.options.SkipOn skip_on_options: skip on options
+        :param LocalDestinationPath local_destination_path: local dest path
+        """
+        self.options = download_options
+        self.skip_on = skip_on_options
+        self.destination = local_destination_path
+        self.sources = []
+
+    def add_azure_source_path(self, source):
+        # type: (Specification, AzureSourcePath) -> None
+        """Add an Azure Source Path
+        :param DownloadSepcification self: this
+        :param AzureSourcePath source: Azure source path to add
+        """
+        self.sources.append(source)
+
+
+class Descriptor(object):
     """Download Descriptor"""
 
-    _AES_BLOCKSIZE = blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES
+    _AES_BLOCKSIZE = blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES
 
     def __init__(self, lpath, ase, options):
-        # type: (DownloadDescriptior, pathlib.Path, AzureStorageEntity,
-        #        DownloadOptions) -> None
-        """Ctor for DownloadDescriptor
-        :param DownloadDescriptor self: this
+        # type: (DownloadDescriptior, pathlib.Path,
+        #        blobxfer.models.azure.StorageEntity,
+        #        blobxfer.models.options.Download) -> None
+        """Ctor for Descriptor
+        :param Descriptor self: this
         :param pathlib.Path lpath: local path
-        :param AzureStorageEntity ase: Azure Storage Entity
-        :param DownloadOptions options: download options
+        :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
+        :param blobxfer.models.options.Download options: download options
         """
         self.final_path = lpath
         # create path holding the temporary file to download to
@@ -114,19 +211,19 @@ class DownloadDescriptor(object):
 
     @property
     def entity(self):
-        # type: (DownloadDescriptor) -> AzureStorageEntity
-        """Get linked AzureStorageEntity
-        :param DownloadDescriptor self: this
-        :rtype: AzureStorageEntity
-        :return: AzureStorageEntity
+        # type: (Descriptor) -> blobxfer.models.azure.StorageEntity
+        """Get linked blobxfer.models.azure.StorageEntity
+        :param Descriptor self: this
+        :rtype: blobxfer.models.azure.StorageEntity
+        :return: blobxfer.models.azure.StorageEntity
         """
         return self._ase
 
     @property
     def must_compute_md5(self):
-        # type: (DownloadDescriptor) -> bool
+        # type: (Descriptor) -> bool
         """Check if MD5 must be computed
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         :rtype: bool
         :return: if MD5 must be computed
         """
@@ -134,9 +231,9 @@ class DownloadDescriptor(object):
 
     @property
     def all_operations_completed(self):
-        # type: (DownloadDescriptor) -> bool
+        # type: (Descriptor) -> bool
         """All operations are completed
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         :rtype: bool
         :return: if all operations completed
         """
@@ -145,19 +242,19 @@ class DownloadDescriptor(object):
                     len(self._unchecked_chunks) == 0)
 
     def dec_outstanding_operations(self):
-        # type: (DownloadDescriptor) -> None
+        # type: (Descriptor) -> None
         """Decrement outstanding operations (and increment completed ops)
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         """
         with self._meta_lock:
             self._outstanding_ops -= 1
             self._completed_ops += 1
 
     def _initialize_integrity_checkers(self, options):
-        # type: (DownloadDescriptor, DownloadOptions) -> None
+        # type: (Descriptor, blobxfer.models.options.Download) -> None
         """Initialize file integrity checkers
-        :param DownloadDescriptor self: this
-        :param DownloadOptions options: download options
+        :param Descriptor self: this
+        :param blobxfer.models.options.Download options: download options
         """
         if self._ase.is_encrypted:
             # ensure symmetric key exists
@@ -171,9 +268,9 @@ class DownloadDescriptor(object):
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def _allocate_disk_space(self):
-        # type: (DownloadDescriptor, int) -> None
+        # type: (Descriptor, int) -> None
         """Perform file allocation (possibly sparse)
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         :param int size: size
         """
         size = self._ase.size
@@ -201,10 +298,10 @@ class DownloadDescriptor(object):
                     fd.write(b'\0')
 
     def cleanup_all_temporary_files(self):
-        # type: (DownloadDescriptor) -> None
+        # type: (Descriptor) -> None
         """Cleanup all temporary files in case of an exception or interrupt.
         This function is not thread-safe.
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         """
         # delete local file
         try:
@@ -221,10 +318,10 @@ class DownloadDescriptor(object):
                     pass
 
     def next_offsets(self):
-        # type: (DownloadDescriptor) -> DownloadOffsets
+        # type: (Descriptor) -> Offsets
         """Retrieve the next offsets
-        :param DownloadDescriptor self: this
-        :rtype: DownloadOffsets
+        :param Descriptor self: this
+        :rtype: Offsets
         :return: download offsets
         """
         with self._meta_lock:
@@ -256,7 +353,7 @@ class DownloadDescriptor(object):
                 unpad = True
             else:
                 unpad = False
-            return DownloadOffsets(
+            return Offsets(
                 chunk_num=chunk_num,
                 fd_start=fd_start,
                 num_bytes=chunk,
@@ -266,10 +363,10 @@ class DownloadDescriptor(object):
             )
 
     def _postpone_integrity_check(self, offsets, data):
-        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        # type: (Descriptor, Offsets, bytes) -> None
         """Postpone integrity check for chunk
-        :param DownloadDescriptor self: this
-        :param DownloadOffsets offsets: download offsets
+        :param Descriptor self: this
+        :param Offsets offsets: download offsets
         :param bytes data: data
         """
         if self.must_compute_md5:
@@ -297,10 +394,10 @@ class DownloadDescriptor(object):
             self._unchecked_chunks[offsets.chunk_num] = unchecked
 
     def perform_chunked_integrity_check(self, offsets, data):
-        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        # type: (Descriptor, Offsets, bytes) -> None
         """Hash data against stored MD5 hasher safely
-        :param DownloadDescriptor self: this
-        :param DownloadOffsets offsets: download offsets
+        :param Descriptor self: this
+        :param Offsets offsets: download offsets
         :param bytes data: data
         """
         self_check = False
@@ -335,10 +432,10 @@ class DownloadDescriptor(object):
             self._postpone_integrity_check(offsets, data)
 
     def write_data(self, offsets, data):
-        # type: (DownloadDescriptor, DownloadOffsets, bytes) -> None
+        # type: (Descriptor, Offsets, bytes) -> None
         """Postpone integrity check for chunk
-        :param DownloadDescriptor self: this
-        :param DownloadOffsets offsets: download offsets
+        :param Descriptor self: this
+        :param Offsets offsets: download offsets
         :param bytes data: data
         """
         with self.local_path.open('r+b') as fd:
@@ -346,9 +443,9 @@ class DownloadDescriptor(object):
             fd.write(data)
 
     def finalize_file(self):
-        # type: (DownloadDescriptor) -> None
+        # type: (Descriptor) -> None
         """Finalize file download
-        :param DownloadDescriptor self: this
+        :param Descriptor self: this
         """
         # check final file integrity
         check = False

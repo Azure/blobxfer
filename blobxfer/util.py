@@ -64,7 +64,7 @@ def setup_logger(logger):  # noqa
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
-        '%(asctime)sZ %(levelname)s %(name)s:%(funcName)s:%(lineno)d '
+        '%(asctime)s %(levelname)s %(name)s:%(funcName)s:%(lineno)d '
         '%(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)

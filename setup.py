@@ -45,18 +45,18 @@ install_requires = [
     'azure-common==1.1.4',
     'azure-storage==0.34.0',
     'click==6.7',
-    'cryptography>=1.7.2',
+    'cryptography>=1.8.1',
     'future==0.16.0',
     'python-dateutil==2.6.0',
-    'ruamel.yaml==0.13.14',
+    'ruamel.yaml==0.14.5',
 ]
 
 if sys.version_info < (3, 4):
-    install_requires.append('enum34')
+    install_requires.append('enum34==1.1.6')
 
 if sys.version_info < (3, 5):
-    install_requires.append('pathlib2')
-    install_requires.append('scandir')
+    install_requires.append('pathlib2==2.2.1')
+    install_requires.append('scandir==1.5')
 
 setup(
     name='blobxfer',

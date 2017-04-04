@@ -40,19 +40,20 @@ logger = logging.getLogger(__name__)
 
 
 def create_client(storage_account):
-    # type: (blobxfer.models.AzureStorageAccount) -> PageBlobService
-    """Create block blob client
-    :param blobxfer.models.AzureStorageAccount storage_account: storage account
-    :rtype: PageBlobService
-    :return: block blob service client
+    # type: (blobxfer.models.azure.StorageAccount) -> AppendBlobService
+    """Create Append blob client
+    :param blobxfer.models.azure.StorageAccount storage_account:
+        storage account
+    :rtype: AppendBlobService
+    :return: append blob service client
     """
     if storage_account.is_sas:
-        client = azure.storage.blob.PageBlobService(
+        client = azure.storage.blob.AppendBlobService(
             account_name=storage_account.name,
             sas_token=storage_account.key,
             endpoint_suffix=storage_account.endpoint)
     else:
-        client = azure.storage.blob.PageBlobService(
+        client = azure.storage.blob.AppendBlobService(
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint)

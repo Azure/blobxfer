@@ -46,9 +46,10 @@ logger = logging.getLogger(__name__)
 
 
 def create_client(storage_account):
-    # type: (blobxfer.models.AzureStorageAccount) -> FileService
+    # type: (blobxfer.models.azure.StorageAccount) -> FileService
     """Create file client
-    :param blobxfer.models.AzureStorageAccount storage_account: storage account
+    :param blobxfer.models.azure.StorageAccount storage_account:
+        storage account
     :rtype: FileService
     :return: file service client
     """
@@ -154,11 +155,11 @@ def list_files(client, fileshare, prefix, timeout=None):
 
 
 def get_file_range(ase, offsets, timeout=None):
-    # type: (blobxfer.models.AzureStorageEntity,
-    #        blobxfer.download.models.DownloadOffsets, int) -> bytes
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.download.Offsets, int) -> bytes
     """Retrieve file range
-    :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
-    :param blobxfer.download.models.DownloadOffsets offsets: download offsets
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param blobxfer.models.download.Offsets offsets: download offsets
     :param int timeout: timeout
     :rtype: bytes
     :return: content for file range

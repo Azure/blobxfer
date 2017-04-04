@@ -34,7 +34,7 @@ import logging
 import azure.common
 import azure.storage.blob.models
 # local imports
-import blobxfer.models
+import blobxfer.models.azure
 import blobxfer.util
 
 # create logger
@@ -63,18 +63,18 @@ def check_if_single_blob(client, container, prefix, timeout=None):
 
 def list_blobs(client, container, prefix, mode, timeout=None):
     # type: (azure.storage.blob.BaseBlobService, str, str, int,
-    #        blobxfer.models.AzureStorageModes) ->
+    #        blobxfer.models.azure.StorageModes) ->
     #        azure.storage.blob.models.Blob
     """List blobs in path conforming to mode
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix
-    :param blobxfer.models.AzureStorageModes mode: storage mode
+    :param blobxfer.models.azure.StorageModes mode: storage mode
     :param int timeout: timeout
     :rtype: azure.storage.blob.models.Blob
     :return: generator of blobs
     """
-    if mode == blobxfer.models.AzureStorageModes.File:
+    if mode == blobxfer.models.azure.StorageModes.File:
         raise RuntimeError('cannot list Azure Files from blob client')
     if blobxfer.util.blob_is_snapshot(prefix):
         snapshot = blobxfer.util.parse_blob_snapshot_parameter(prefix)
@@ -90,15 +90,15 @@ def list_blobs(client, container, prefix, mode, timeout=None):
         timeout=timeout,
     )
     for blob in blobs:
-        if (mode == blobxfer.models.AzureStorageModes.Append and
+        if (mode == blobxfer.models.azure.StorageModes.Append and
                 blob.properties.blob_type !=
                 azure.storage.blob.models._BlobTypes.AppendBlob):
             continue
-        elif (mode == blobxfer.models.AzureStorageModes.Block and
+        elif (mode == blobxfer.models.azure.StorageModes.Block and
                 blob.properties.blob_type !=
                 azure.storage.blob.models._BlobTypes.BlockBlob):
             continue
-        elif (mode == blobxfer.models.AzureStorageModes.Page and
+        elif (mode == blobxfer.models.azure.StorageModes.Page and
                 blob.properties.blob_type !=
                 azure.storage.blob.models._BlobTypes.PageBlob):
             continue
@@ -107,11 +107,11 @@ def list_blobs(client, container, prefix, mode, timeout=None):
 
 
 def get_blob_range(ase, offsets, timeout=None):
-    # type: (blobxfer.models.AzureStorageEntity,
-    #        blobxfer.download.models.DownloadOffsets, int) -> bytes
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.download.Offsets, int) -> bytes
     """Retrieve blob range
-    :param blobxfer.models.AzureStorageEntity ase: AzureStorageEntity
-    :param blobxfer.download.models.DownloadOffsets offsets: download offsets
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param blobxfer.models.download.Offsets offsets: download offsets
     :param int timeout: timeout
     :rtype: bytes
     :return: content for blob range

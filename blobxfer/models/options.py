@@ -1,0 +1,147 @@
+# Copyright (c) Microsoft Corporation
+#
+# All rights reserved.
+#
+# MIT License
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the "Software"),
+# to deal in the Software without restriction, including without limitation
+# the rights to use, copy, modify, merge, publish, distribute, sublicense,
+# and/or sell copies of the Software, and to permit persons to whom the
+# Software is furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
+
+# compat imports
+from __future__ import (
+    absolute_import, division, print_function, unicode_literals
+)
+from builtins import (  # noqa
+    bytes, dict, int, list, object, range, ascii, chr, hex, input,
+    next, oct, open, pow, round, super, filter, map, zip)
+# stdlib imports
+import collections
+import logging
+import multiprocessing
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
+# non-stdlib imports
+# local imports
+import blobxfer.util
+
+# create logger
+logger = logging.getLogger(__name__)
+
+# named tuples
+VectoredIo = collections.namedtuple(
+    'VectoredIoOptions', [
+        'stripe_chunk_size_bytes',
+        'multi_storage_account_distribution_mode',
+    ]
+)
+SkipOn = collections.namedtuple(
+    'SkipOn', [
+        'filesize_match',
+        'lmt_ge',
+        'md5_match',
+    ]
+)
+Upload = collections.namedtuple(
+    'Upload', [
+        'chunk_size_bytes',
+        'delete_extraneous_destination',
+        'mode',
+        'overwrite',
+        'recursive',
+        'rsa_private_key',
+        'rsa_public_key',
+        'store_file_attributes',
+        'store_file_md5',
+        'strip_components',
+        'vectored_io',
+        'split_size_bytes',
+    ]
+)
+Download = collections.namedtuple(
+    'Download', [
+        'check_file_md5',
+        'chunk_size_bytes',
+        'delete_extraneous_destination',
+        'mode',
+        'overwrite',
+        'recursive',
+        'restore_file_attributes',
+        'rsa_private_key',
+    ]
+)
+SyncCopy = collections.namedtuple(
+    'SyncCopy', [
+        'chunk_size_bytes',
+        'mode',
+        'overwrite',
+    ]
+)
+
+
+class Concurrency(object):
+    """Concurrency Options"""
+    def __init__(self, crypto_processes, md5_processes, transfer_threads):
+        """Ctor for Concurrency Options
+        :param Concurrency self: this
+        :param int crypto_processes: number of crypto procs
+        :param int md5_processes: number of md5 procs
+        :param int transfer_threads: number of transfer threads
+        """
+        self.crypto_processes = crypto_processes
+        self.md5_processes = md5_processes
+        self.transfer_threads = transfer_threads
+        # allow crypto processes to be zero (which will inline crypto
+        # routines with main process)
+        if self.crypto_processes is None or self.crypto_processes < 1:
+            self.crypto_processes = 0
+        if self.md5_processes is None or self.md5_processes < 1:
+            self.md5_processes = multiprocessing.cpu_count() // 2
+        if self.md5_processes < 1:
+            self.md5_processes = 1
+        if self.transfer_threads is None or self.transfer_threads < 1:
+            self.transfer_threads = multiprocessing.cpu_count() * 3
+            # cap maximum number of threads from cpu count to 24
+            if self.transfer_threads > 24:
+                self.transfer_threads = 24
+
+
+class General(object):
+    """General Options"""
+    def __init__(
+            self, concurrency, progress_bar=True, resume_file=None,
+            timeout_sec=None, verbose=False):
+        """Ctor for General Options
+        :param General self: this
+        :param Concurrency concurrency: concurrency options
+        :param bool progress_bar: progress bar
+        :param str resume_file: resume file
+        :param int timeout_sec: timeout in seconds
+        :param bool verbose: verbose output
+        """
+        if concurrency is None:
+            raise ValueError('concurrency option is unspecified')
+        self.concurrency = concurrency
+        self.progress_bar = progress_bar
+        if blobxfer.util.is_not_empty(resume_file):
+            self.resume_file = pathlib.Path(resume_file)
+        else:
+            self.resume_file = None
+        self.timeout_sec = timeout_sec
+        self.verbose = verbose

@@ -31,13 +31,8 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import base64
-import enum
 import logging
 import os
-try:
-    import queue
-except ImportError:  # noqa
-    import Queue as queue
 # non-stdlib imports
 import cryptography.hazmat.backends
 import cryptography.hazmat.primitives.asymmetric.padding
@@ -50,7 +45,7 @@ import cryptography.hazmat.primitives.hashes
 import cryptography.hazmat.primitives.padding
 import cryptography.hazmat.primitives.serialization
 # local imports
-import blobxfer.offload
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -216,58 +211,3 @@ def aes_cbc_encrypt_data(symkey, iv, data, pad):
         return cipher.update(pkcs7_pad(data)) + cipher.finalize()
     else:
         return cipher.update(data) + cipher.finalize()
-
-
-class CryptoAction(enum.Enum):
-    Encrypt = 1
-    Decrypt = 2
-
-
-class CryptoOffload(blobxfer.offload._MultiprocessOffload):
-    def __init__(self, num_workers):
-        # type: (CryptoOffload, int) -> None
-        """Ctor for Crypto Offload
-        :param CryptoOffload self: this
-        :param int num_workers: number of worker processes
-        """
-        super(CryptoOffload, self).__init__(
-            self._worker_process, num_workers, 'Crypto')
-
-    def _worker_process(self):
-        # type: (CryptoOffload) -> None
-        """Crypto worker
-        :param CryptoOffload self: this
-        """
-        while not self.terminated:
-            try:
-                inst = self._task_queue.get(True, 1)
-            except queue.Empty:
-                continue
-            if inst[0] == CryptoAction.Encrypt:
-                # TODO on upload
-                raise NotImplementedError()
-            elif inst[0] == CryptoAction.Decrypt:
-                final_path, offsets, symkey, iv, encdata = \
-                    inst[1], inst[2], inst[3], inst[4], inst[5]
-                data = aes_cbc_decrypt_data(symkey, iv, encdata, offsets.unpad)
-            self._done_cv.acquire()
-            self._done_queue.put((final_path, offsets, data))
-            self._done_cv.notify()
-            self._done_cv.release()
-
-    def add_decrypt_chunk(
-            self, final_path, offsets, symkey, iv, encdata):
-        # type: (CryptoOffload, str, blobxfer.download.models.DownloadOffsets,
-        #        bytes, bytes, bytes) -> None
-        """Add a chunk to decrypt
-        :param CryptoOffload self: this
-        :param str final_path: final path
-        :param blobxfer.download.models.DownloadOffsets offsets: offsets
-        :param bytes symkey: symmetric key
-        :param bytes iv: initialization vector
-        :param bytes encdata: encrypted data
-        """
-        self._task_queue.put(
-            (CryptoAction.Decrypt, final_path, offsets, symkey, iv,
-             encdata)
-        )

@@ -23,44 +23,53 @@
 # DEALINGS IN THE SOFTWARE.
 
 # compat imports
-from __future__ import absolute_import, division, print_function
+from __future__ import (
+    absolute_import, division, print_function, unicode_literals
+)
 from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip
-)
+    next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
+import collections
 import logging
+import os
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 # non-stdlib imports
-import azure.storage.blob
 # local imports
-import blobxfer.retry
+import blobxfer.models
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
 
 
-def create_client(storage_account):
-    # type: (blobxfer.models.AzureStorageAccount) -> BlockBlobService
-    """Create block blob client
-    :param blobxfer.models.AzureStorageAccount storage_account: storage account
-    :rtype: azure.storage.blob.BlockBlobService
-    :return: block blob service client
-    """
-    if storage_account.is_sas:
-        client = azure.storage.blob.BlockBlobService(
-            account_name=storage_account.name,
-            sas_token=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
-    else:
-        client = azure.storage.blob.BlockBlobService(
-            account_name=storage_account.name,
-            account_key=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
-    # set retry policy
-    client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
-    return client
+LocalPath = collections.namedtuple(
+    'LocalPath', [
+        'parent_path',
+        'relative_path',
+    ]
+)
 
 
-def upload_block():
-    logger.info('upload block')
-    print('upload')
+class LocalSourcePaths(blobxfer.models._BaseSourcePaths):
+    """Local Source Paths"""
+    def files(self):
+        # type: (LocalSourcePaths) -> LocalPath
+        """Generator for files in paths
+        :param LocalSourcePaths self: this
+        :rtype: LocalPath
+        :return: LocalPath
+        """
+        for _path in self._paths:
+            _ppath = os.path.expandvars(os.path.expanduser(str(_path)))
+            _expath = pathlib.Path(_ppath)
+            for entry in blobxfer.util.scantree(_ppath):
+                _rpath = pathlib.Path(entry.path).relative_to(_ppath)
+                if not self._inclusion_check(_rpath):
+                    logger.debug(
+                        'skipping file {} due to filters'.format(_rpath))
+                    continue
+                yield LocalPath(parent_path=_expath, relative_path=_rpath)

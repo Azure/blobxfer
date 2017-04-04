@@ -46,13 +46,11 @@ import threading
 # non-stdlib imports
 import dateutil
 # local imports
-import blobxfer.crypto.models
-import blobxfer.crypto.operations
-import blobxfer.download.models
-import blobxfer.md5
-import blobxfer.operations
-import blobxfer.blob.operations
-import blobxfer.file.operations
+import blobxfer.models.crypto
+import blobxfer.models.md5
+import blobxfer.operations.azure.blob
+import blobxfer.operations.azure.file
+import blobxfer.operations.crypto
 import blobxfer.util
 
 # create logger
@@ -68,14 +66,14 @@ class DownloadAction(enum.Enum):
 class Downloader(object):
     """Downloader"""
     def __init__(self, general_options, creds, spec):
-        # type: (Downloader, blobxfer.models.GeneralOptions,
-        #        blobxfer.models.AzureStorageCredentials,
-        #        blobxfer.models.DownloadSpecification) -> None
+        # type: (Downloader, blobxfer.models.options.General,
+        #        blobxfer.models.azure.StorageCredentials,
+        #        blobxfer.models.download.Specification) -> None
         """Ctor for Downloader
         :param Downloader self: this
-        :param blobxfer.models.GeneralOptions general_options: general opts
-        :param blobxfer.models.AzureStorageCredentials creds: creds
-        :param blobxfer.models.DownloadSpecification spec: download spec
+        :param blobxfer.models.options.General general_options: general opts
+        :param blobxfer.models.azure.StorageCredentials creds: creds
+        :param blobxfer.models.download.Specification spec: download spec
         """
         self._all_remote_files_processed = False
         self._crypto_offload = None
@@ -123,13 +121,47 @@ class Downloader(object):
                          len(self._md5_map) == 0 and
                          len(self._download_set) == 0))
 
+    @staticmethod
+    def ensure_local_destination(creds, spec):
+        # type: (blobxfer.models.azure.StorageCredentials,
+        #        blobxfer.models.download.Specification) -> None
+        """Ensure a local destination path given a download spec
+        :param blobxfer.models.azure.StorageCredentials creds: creds
+        :param blobxfer.models.download.Specification spec: download spec
+        """
+        # ensure destination path is writable given the source
+        if len(spec.sources) < 1:
+            raise RuntimeError('no sources to download from specified')
+        # set is_dir for destination
+        spec.destination.is_dir = True
+        if len(spec.sources) == 1:
+            # we need to query the source to see if this is a directory
+            rpath = str(spec.sources[0].paths[0])
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            if not blobxfer.util.is_none_or_empty(dir):
+                sa = creds.get_storage_account(
+                    spec.sources[0].lookup_storage_account(rpath))
+                if (spec.options.mode ==
+                        blobxfer.models.azure.StorageModes.File):
+                    if blobxfer.operations.azure.file.check_if_single_file(
+                            sa.file_client, cont, dir)[0]:
+                        spec.destination.is_dir = False
+                else:
+                    if blobxfer.operations.azure.blob.check_if_single_blob(
+                            sa.block_blob_client, cont, dir):
+                        spec.destination.is_dir = False
+        logger.debug('dest is_dir={} for {} specs'.format(
+            spec.destination.is_dir, len(spec.sources)))
+        # ensure destination path
+        spec.destination.ensure_path_exists()
+
     def _check_download_conditions(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
-        #        blobxfer.models.AzureStorageEntity) -> DownloadAction
+        #        blobxfer.models.azure.StorageEntity) -> DownloadAction
         """Check for download conditions
         :param Downloader self: this
         :param pathlib.Path lpath: local path
-        :param blobxfer.models.AzureStorageEntity rfile: remote file
+        :param blobxfer.models.azure.StorageEntity rfile: remote file
         :rtype: DownloadAction
         :return: download action
         """
@@ -151,7 +183,7 @@ class Downloader(object):
         dl_fs = None
         if self._spec.skip_on.filesize_match:
             lsize = lpath.stat().st_size
-            if rfile.mode == blobxfer.models.AzureStorageModes.Page:
+            if rfile.mode == blobxfer.models.azure.StorageModes.Page:
                 lsize = blobxfer.util.page_align_content_length(lsize)
             if rfile.size == lsize:
                 dl_fs = False
@@ -174,11 +206,11 @@ class Downloader(object):
 
     def _pre_md5_skip_on_check(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
-        #        blobxfer.models.AzureStorageEntity) -> None
+        #        blobxfer.models.azure.StorageEntity) -> None
         """Perform pre MD5 skip on check
         :param Downloader self: this
         :param pathlib.Path lpath: local path
-        :param blobxfer.models.AzureStorageEntity rfile: remote file
+        :param blobxfer.models.azure.StorageEntity rfile: remote file
         """
         # if encryption metadata is present, check for pre-encryption
         # md5 in blobxfer extensions
@@ -259,14 +291,14 @@ class Downloader(object):
 
     def _add_to_download_queue(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
-        #        blobxfer.models.AzureStorageEntity) -> None
+        #        blobxfer.models.azure.StorageEntity) -> None
         """Add remote file to download queue
         :param Downloader self: this
         :param pathlib.Path lpath: local path
-        :param blobxfer.models.AzureStorageEntity rfile: remote file
+        :param blobxfer.models.azure.StorageEntity rfile: remote file
         """
         # prepare remote file for download
-        dd = blobxfer.download.models.DownloadDescriptor(
+        dd = blobxfer.models.download.Descriptor(
             lpath, rfile, self._spec.options)
         if dd.entity.is_encrypted:
             with self._download_lock:
@@ -330,11 +362,11 @@ class Downloader(object):
             if offsets is None:
                 continue
             # issue get range
-            if dd.entity.mode == blobxfer.models.AzureStorageModes.File:
-                data = blobxfer.file.operations.get_file_range(
+            if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
+                data = blobxfer.operations.azure.file.get_file_range(
                     dd.entity, offsets, self._general_options.timeout_sec)
             else:
-                data = blobxfer.blob.operations.get_blob_range(
+                data = blobxfer.operations.azure.blob.get_blob_range(
                     dd.entity, offsets, self._general_options.timeout_sec)
             # accounting
             with self._download_lock:
@@ -342,7 +374,7 @@ class Downloader(object):
             # decrypt if necessary
             if dd.entity.is_encrypted:
                 # slice data to proper bounds
-                encdata = data[blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES:]
+                encdata = data[blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES:]
                 intdata = encdata
                 # get iv for chunk and compute hmac
                 if offsets.chunk_num == 0:
@@ -350,7 +382,7 @@ class Downloader(object):
                     # integrity check for first chunk must include iv
                     intdata = iv + data
                 else:
-                    iv = data[:blobxfer.crypto.models._AES256_BLOCKSIZE_BYTES]
+                    iv = data[:blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES]
                 # integrity check data
                 dd.perform_chunked_integrity_check(offsets, intdata)
                 # decrypt data
@@ -362,7 +394,7 @@ class Downloader(object):
                     # data will be completed once retrieved from crypto queue
                     continue
                 else:
-                    data = blobxfer.crypto.operations.aes_cbc_decrypt_data(
+                    data = blobxfer.operations.crypto.aes_cbc_decrypt_data(
                         dd.entity.encryption_metadata.symmetric_key,
                         iv, encdata, offsets.unpad)
             elif dd.must_compute_md5:
@@ -372,14 +404,13 @@ class Downloader(object):
             self._complete_chunk_download(offsets, data, dd)
 
     def _complete_chunk_download(self, offsets, data, dd):
-        # type: (Downloader, blobxfer.download.models.DownloadOffsets, bytes,
-        #        blobxfer.models.download.DownloadDescriptor) -> None
+        # type: (Downloader, blobxfer.models.download.Offsets, bytes,
+        #        blobxfer.models.download.Descriptor) -> None
         """Complete chunk download
         :param Downloader self: this
-        :param blobxfer.download.models.DownloadOffsets offsets: offsets
+        :param blobxfer.models.download.Offsets offsets: offsets
         :param bytes data: data
-        :param blobxfer.models.download.DownloadDescriptor dd:
-            download descriptor
+        :param blobxfer.models.download.Descriptor dd: download descriptor
         """
         # write data to disk
         dd.write_data(offsets, data)
@@ -413,17 +444,18 @@ class Downloader(object):
         start_time = datetime.datetime.now(tz=dateutil.tz.tzlocal())
         logger.info('script start time: {0}'.format(start_time))
         # ensure destination path
-        blobxfer.operations.ensure_local_destination(self._creds, self._spec)
+        blobxfer.operations.download.Downloader.ensure_local_destination(
+            self._creds, self._spec)
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
         # initialize MD5 processes
-        self._md5_offload = blobxfer.md5.LocalFileMd5Offload(
+        self._md5_offload = blobxfer.models.md5.LocalFileMd5Offload(
             num_workers=self._general_options.concurrency.md5_processes)
         self._md5_offload.initialize_check_thread(
             self._check_for_downloads_from_md5)
         # initialize crypto processes
         if self._general_options.concurrency.crypto_processes > 0:
-            self._crypto_offload = blobxfer.crypto.operations.CryptoOffload(
+            self._crypto_offload = blobxfer.models.crypto.CryptoOffload(
                 num_workers=self._general_options.concurrency.crypto_processes)
             self._crypto_offload.initialize_check_thread(
                 self._check_for_crypto_done)
