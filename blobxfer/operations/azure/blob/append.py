@@ -40,9 +40,9 @@ logger = logging.getLogger(__name__)
 
 
 def create_client(storage_account):
-    # type: (blobxfer.models.azure.StorageAccount) -> AppendBlobService
+    # type: (blobxfer.operations.azure.StorageAccount) -> AppendBlobService
     """Create Append blob client
-    :param blobxfer.models.azure.StorageAccount storage_account:
+    :param blobxfer.operations.azure.StorageAccount storage_account:
         storage account
     :rtype: AppendBlobService
     :return: append blob service client

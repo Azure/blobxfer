@@ -8,9 +8,9 @@ import time
 # non-stdlib imports
 import cryptography.hazmat.primitives.asymmetric.rsa
 # local imports
-import blobxfer.download.models
+import blobxfer.models.download
 # module under test
-import blobxfer.crypto.operations as ops
+import blobxfer.operations.crypto as ops
 
 
 _RSAKEY = cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key(
@@ -94,7 +94,7 @@ def test_cryptooffload_decrypt():
     a = None
     try:
         a = ops.CryptoOffload(1)
-        offsets = blobxfer.download.models.DownloadOffsets(
+        offsets = blobxfer.models.download.Offsets(
             chunk_num=0,
             fd_start=1,
             num_bytes=2,

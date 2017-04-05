@@ -8,9 +8,9 @@ import azure.common
 import azure.storage.blob
 import pytest
 # local imports
-import blobxfer.models as models
+import blobxfer.models.azure as azmodels
 # module under test
-import blobxfer.blob.operations as ops
+import blobxfer.operations.azure.blob as ops
 
 
 def test_check_if_single_blob():
@@ -36,7 +36,7 @@ def test_check_if_single_blob():
 def test_list_blobs():
     with pytest.raises(RuntimeError):
         for blob in ops.list_blobs(
-                None, 'cont', 'prefix', models.AzureStorageModes.File):
+                None, 'cont', 'prefix', azmodels.StorageModes.File):
             pass
 
     _blob = azure.storage.blob.models.Blob(name='name')
@@ -46,7 +46,7 @@ def test_list_blobs():
 
     i = 0
     for blob in ops.list_blobs(
-            client, 'cont', 'prefix', models.AzureStorageModes.Auto):
+            client, 'cont', 'prefix', azmodels.StorageModes.Auto):
         i += 1
         assert blob.name == 'name'
     assert i == 1
@@ -55,14 +55,14 @@ def test_list_blobs():
         azure.storage.blob.models._BlobTypes.AppendBlob
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', models.AzureStorageModes.Block):
+            client, 'dir', 'prefix', azmodels.StorageModes.Block):
         i += 1
         assert blob.name == 'name'
     assert i == 0
 
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', models.AzureStorageModes.Page):
+            client, 'dir', 'prefix', azmodels.StorageModes.Page):
         i += 1
         assert blob.name == 'name'
     assert i == 0
@@ -71,7 +71,7 @@ def test_list_blobs():
         azure.storage.blob.models._BlobTypes.BlockBlob
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', models.AzureStorageModes.Append):
+            client, 'dir', 'prefix', azmodels.StorageModes.Append):
         i += 1
         assert blob.name == 'name'
     assert i == 0
@@ -82,7 +82,7 @@ def test_list_blobs():
     for blob in ops.list_blobs(
             client, 'cont',
             'a?snapshot=2017-02-23T22:21:14.8121864Z',
-            models.AzureStorageModes.Auto):
+            azmodels.StorageModes.Auto):
         i += 1
         assert blob.name == 'name'
         assert blob.snapshot == _blob.snapshot

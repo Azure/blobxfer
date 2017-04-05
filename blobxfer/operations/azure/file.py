@@ -46,9 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 def create_client(storage_account):
-    # type: (blobxfer.models.azure.StorageAccount) -> FileService
+    # type: (blobxfer.operations.azure.StorageAccount) -> FileService
     """Create file client
-    :param blobxfer.models.azure.StorageAccount storage_account:
+    :param blobxfer.operations.azure.StorageAccount storage_account:
         storage account
     :rtype: FileService
     :return: file service client

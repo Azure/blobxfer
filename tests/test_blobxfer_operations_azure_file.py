@@ -7,14 +7,14 @@ import mock
 import azure.common
 import azure.storage
 # local imports
-import blobxfer.models as models
 import blobxfer.util as util
 # module under test
-import blobxfer.file.operations as ops
+import blobxfer.operations.azure as azops
+import blobxfer.operations.azure.file as ops
 
 
 def test_create_client():
-    sa = models.AzureStorageAccount('name', 'key', 'endpoint')
+    sa = azops.StorageAccount('name', 'key', 'endpoint')
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
@@ -22,7 +22,7 @@ def test_create_client():
         client.authentication,
         azure.storage._auth._StorageSharedKeyAuthentication)
 
-    sa = models.AzureStorageAccount('name', '?key&sig=key', 'endpoint')
+    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint')
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
@@ -94,7 +94,7 @@ def test_list_files_single_file():
 
 
 @mock.patch(
-    'blobxfer.file.operations.check_if_single_file',
+    'blobxfer.operations.azure.file.check_if_single_file',
     return_value=(False, None)
 )
 def test_list_files_directory(patched_cisf):

@@ -1,0 +1,82 @@
+# coding=utf-8
+"""Tests for models options"""
+
+# stdlib imports
+import mock
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
+# non-stdlib imports
+import pytest
+# module under test
+import blobxfer.models.options as options
+
+
+@mock.patch('multiprocessing.cpu_count', return_value=1)
+def test_concurrency_options(patched_cc):
+    a = options.Concurrency(
+        crypto_processes=-1,
+        md5_processes=0,
+        transfer_threads=-2,
+    )
+
+    assert a.crypto_processes == 0
+    assert a.md5_processes == 1
+    assert a.transfer_threads == 3
+
+
+@mock.patch('multiprocessing.cpu_count', return_value=10)
+def test_concurrency_options_max_transfer_threads(patched_cc):
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        transfer_threads=None,
+    )
+
+    assert a.transfer_threads == 24
+
+
+def test_general_options():
+    a = options.General(
+        concurrency=options.Concurrency(
+            crypto_processes=1,
+            md5_processes=2,
+            transfer_threads=3,
+        ),
+        progress_bar=False,
+        resume_file='abc',
+        timeout_sec=1,
+        verbose=True,
+    )
+
+    assert a.concurrency.crypto_processes == 1
+    assert a.concurrency.md5_processes == 2
+    assert a.concurrency.transfer_threads == 3
+    assert not a.progress_bar
+    assert a.resume_file == pathlib.Path('abc')
+    assert a.timeout_sec == 1
+    assert a.verbose
+
+    a = options.General(
+        concurrency=options.Concurrency(
+            crypto_processes=1,
+            md5_processes=2,
+            transfer_threads=3,
+        ),
+        progress_bar=False,
+        resume_file=None,
+        timeout_sec=1,
+        verbose=True,
+    )
+
+    assert a.concurrency.crypto_processes == 1
+    assert a.concurrency.md5_processes == 2
+    assert a.concurrency.transfer_threads == 3
+    assert not a.progress_bar
+    assert a.resume_file is None
+    assert a.timeout_sec == 1
+    assert a.verbose
+
+    with pytest.raises(ValueError):
+        a = options.General(None)

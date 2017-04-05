@@ -1,5 +1,5 @@
 # coding=utf-8
-"""Tests for crypto operations"""
+"""Tests for crypto models"""
 
 # stdlib imports
 import copy
@@ -8,8 +8,8 @@ import json
 import pytest
 # local imports
 # module under test
-import blobxfer.crypto.models as models
-import blobxfer.crypto.operations as ops
+import blobxfer.models.crypto as models
+import blobxfer.operations.crypto as ops
 
 
 _SAMPLE_RSA_KEY = """

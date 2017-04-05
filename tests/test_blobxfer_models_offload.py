@@ -7,7 +7,7 @@ import mock
 import pytest
 # local imports
 # module under test
-import blobxfer.offload as offload
+import blobxfer.models.offload as offload
 
 
 def test_multiprocess_offload():

@@ -36,6 +36,7 @@ import enum
 import blobxfer.models.azure
 import blobxfer.models.download
 import blobxfer.models.options
+import blobxfer.operations.azure
 import blobxfer.operations.crypto
 import blobxfer.util
 
@@ -217,13 +218,13 @@ def merge_settings(config, cli_options):
 
 
 def create_azure_storage_credentials(config):
-    # type: (dict) -> blobxfer.models.azure.StorageCredentials
+    # type: (dict) -> blobxfer.operations.azure.StorageCredentials
     """Create an Azure StorageCredentials object from configuration
     :param dict config: config dict
-    :rtype: blobxfer.models.azure.StorageCredentials
+    :rtype: blobxfer.operations.azure.StorageCredentials
     :return: credentials object
     """
-    creds = blobxfer.models.azure.StorageCredentials()
+    creds = blobxfer.operations.azure.StorageCredentials()
     endpoint = config['azure_storage']['endpoint']
     for name in config['azure_storage']['accounts']:
         key = config['azure_storage']['accounts'][name]
@@ -311,7 +312,7 @@ def create_download_specifications(config):
                 raise RuntimeError(
                     'invalid number of source pairs specified per entry')
             sa = next(iter(src))
-            asp = blobxfer.models.azure.SourcePath()
+            asp = blobxfer.operations.azure.SourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
             if blobxfer.util.is_not_empty(conf['include']):
                 asp.add_includes(conf['include'])

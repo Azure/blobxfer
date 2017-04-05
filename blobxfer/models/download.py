@@ -170,7 +170,7 @@ class Specification(object):
 class Descriptor(object):
     """Download Descriptor"""
 
-    _AES_BLOCKSIZE = blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES
+    _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
     def __init__(self, lpath, ase, options):
         # type: (DownloadDescriptior, pathlib.Path,

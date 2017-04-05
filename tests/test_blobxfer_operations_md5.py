@@ -7,9 +7,9 @@ import uuid
 # non-stdlib imports
 import pytest
 # local imports
-import blobxfer.models as models
+import blobxfer.models.azure as azmodels
 # module under test
-import blobxfer.md5 as md5
+import blobxfer.operations.md5 as ops
 
 
 def test_compute_md5(tmpdir):
@@ -17,22 +17,22 @@ def test_compute_md5(tmpdir):
     testdata = str(uuid.uuid4())
     with open(lpath, 'wt') as f:
         f.write(testdata)
-    md5_file = md5.compute_md5_for_file_asbase64(lpath)
-    md5_data = md5.compute_md5_for_data_asbase64(testdata.encode('utf8'))
+    md5_file = ops.compute_md5_for_file_asbase64(lpath)
+    md5_data = ops.compute_md5_for_data_asbase64(testdata.encode('utf8'))
     assert md5_file == md5_data
 
-    md5_file_page = md5.compute_md5_for_file_asbase64(lpath, True)
+    md5_file_page = ops.compute_md5_for_file_asbase64(lpath, True)
     assert md5_file != md5_file_page
 
     # test non-existent file
     with pytest.raises(IOError):
-        md5.compute_md5_for_file_asbase64(testdata)
+        ops.compute_md5_for_file_asbase64(testdata)
 
 
 def test_done_cv():
     a = None
     try:
-        a = md5.LocalFileMd5Offload(num_workers=1)
+        a = ops.LocalFileMd5Offload(num_workers=1)
         assert a.done_cv == a._done_cv
     finally:
         if a:
@@ -41,11 +41,11 @@ def test_done_cv():
 
 def test_finalize_md5_processes():
     with pytest.raises(ValueError):
-        md5.LocalFileMd5Offload(num_workers=0)
+        ops.LocalFileMd5Offload(num_workers=0)
 
     a = None
     try:
-        a = md5.LocalFileMd5Offload(num_workers=1)
+        a = ops.LocalFileMd5Offload(num_workers=1)
     finally:
         if a:
             a.finalize_processes()
@@ -58,16 +58,16 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
 
-    remote_md5 = md5.compute_md5_for_file_asbase64(str(file))
+    remote_md5 = ops.compute_md5_for_file_asbase64(str(file))
 
     a = None
     try:
-        a = md5.LocalFileMd5Offload(num_workers=1)
+        a = ops.LocalFileMd5Offload(num_workers=1)
         result = a.pop_done_queue()
         assert result is None
 
         a.add_localfile_for_md5_check(
-            str(file), remote_md5, models.AzureStorageModes.Block)
+            str(file), remote_md5, azmodels.StorageModes.Block)
         i = 33
         checked = False
         while i > 0:
@@ -91,16 +91,16 @@ def test_from_add_to_done_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
 
-    remote_md5 = md5.compute_md5_for_file_asbase64(str(file), True)
+    remote_md5 = ops.compute_md5_for_file_asbase64(str(file), True)
 
     a = None
     try:
-        a = md5.LocalFileMd5Offload(num_workers=1)
+        a = ops.LocalFileMd5Offload(num_workers=1)
         result = a.pop_done_queue()
         assert result is None
 
         a.add_localfile_for_md5_check(
-            str(file), remote_md5, models.AzureStorageModes.Page)
+            str(file), remote_md5, azmodels.StorageModes.Page)
         i = 33
         checked = False
         while i > 0:

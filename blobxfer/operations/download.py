@@ -47,10 +47,10 @@ import threading
 import dateutil
 # local imports
 import blobxfer.models.crypto
-import blobxfer.models.md5
 import blobxfer.operations.azure.blob
 import blobxfer.operations.azure.file
 import blobxfer.operations.crypto
+import blobxfer.operations.md5
 import blobxfer.util
 
 # create logger
@@ -67,12 +67,12 @@ class Downloader(object):
     """Downloader"""
     def __init__(self, general_options, creds, spec):
         # type: (Downloader, blobxfer.models.options.General,
-        #        blobxfer.models.azure.StorageCredentials,
+        #        blobxfer.operations.azure.StorageCredentials,
         #        blobxfer.models.download.Specification) -> None
         """Ctor for Downloader
         :param Downloader self: this
         :param blobxfer.models.options.General general_options: general opts
-        :param blobxfer.models.azure.StorageCredentials creds: creds
+        :param blobxfer.operations.azure.StorageCredentials creds: creds
         :param blobxfer.models.download.Specification spec: download spec
         """
         self._all_remote_files_processed = False
@@ -123,10 +123,10 @@ class Downloader(object):
 
     @staticmethod
     def ensure_local_destination(creds, spec):
-        # type: (blobxfer.models.azure.StorageCredentials,
+        # type: (blobxfer.operations.azure.StorageCredentials,
         #        blobxfer.models.download.Specification) -> None
         """Ensure a local destination path given a download spec
-        :param blobxfer.models.azure.StorageCredentials creds: creds
+        :param blobxfer.operations.azure.StorageCredentials creds: creds
         :param blobxfer.models.download.Specification spec: download spec
         """
         # ensure destination path is writable given the source
@@ -374,7 +374,7 @@ class Downloader(object):
             # decrypt if necessary
             if dd.entity.is_encrypted:
                 # slice data to proper bounds
-                encdata = data[blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES:]
+                encdata = data[blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
                 intdata = encdata
                 # get iv for chunk and compute hmac
                 if offsets.chunk_num == 0:
@@ -382,7 +382,7 @@ class Downloader(object):
                     # integrity check for first chunk must include iv
                     intdata = iv + data
                 else:
-                    iv = data[:blobxfer.models.crypto._AES256_BLOCKSIZE_BYTES]
+                    iv = data[:blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES]
                 # integrity check data
                 dd.perform_chunked_integrity_check(offsets, intdata)
                 # decrypt data
@@ -449,13 +449,13 @@ class Downloader(object):
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
         # initialize MD5 processes
-        self._md5_offload = blobxfer.models.md5.LocalFileMd5Offload(
+        self._md5_offload = blobxfer.operations.md5.LocalFileMd5Offload(
             num_workers=self._general_options.concurrency.md5_processes)
         self._md5_offload.initialize_check_thread(
             self._check_for_downloads_from_md5)
         # initialize crypto processes
         if self._general_options.concurrency.crypto_processes > 0:
-            self._crypto_offload = blobxfer.models.crypto.CryptoOffload(
+            self._crypto_offload = blobxfer.operations.crypto.CryptoOffload(
                 num_workers=self._general_options.concurrency.crypto_processes)
             self._crypto_offload.initialize_check_thread(
                 self._check_for_crypto_done)

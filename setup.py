@@ -31,13 +31,10 @@ if not version:
 
 packages = [
     'blobxfer',
-    'blobxfer.blob',
-    'blobxfer.blob.append',
-    'blobxfer.blob.block',
-    'blobxfer.blob.page',
-    'blobxfer.crypto',
-    'blobxfer.download',
-    'blobxfer.file',
+    'blobxfer.models',
+    'blobxfer.operations',
+    'blobxfer.operations.azure',
+    'blobxfer.operations.azure.blob',
     'blobxfer_cli',
 ]
 

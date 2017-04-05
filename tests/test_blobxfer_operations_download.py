@@ -18,11 +18,82 @@ except ImportError:  # noqa
 import azure.storage.blob
 import pytest
 # local imports
-import blobxfer.download.models
-import blobxfer.models as models
+import blobxfer.models.azure as azmodels
+import blobxfer.models.download as models
+import blobxfer.models.options as options
+import blobxfer.operations.azure as azops
 import blobxfer.util as util
 # module under test
-import blobxfer.download.operations as ops
+import blobxfer.operations.download as ops
+
+
+@mock.patch('blobxfer.operations.azure.file.check_if_single_file')
+@mock.patch('blobxfer.operations.azure.blob.check_if_single_blob')
+def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
+    downdir = tmpdir.join('down')
+
+    # non-file tests
+    ds = models.Specification(
+        download_options=options.Download(
+            check_file_md5=True,
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.Auto,
+            overwrite=True,
+            recursive=True,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+        ),
+        skip_on_options=mock.MagicMock(),
+        local_destination_path=models.LocalDestinationPath(
+            str(downdir)
+        ),
+    )
+
+    with pytest.raises(RuntimeError):
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+
+    asp = azops.SourcePath()
+    p = 'cont/remote/path'
+    asp.add_path_with_storage_account(p, 'sa')
+
+    ds.add_azure_source_path(asp)
+
+    patched_blob.return_value = False
+    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+    assert ds.destination.is_dir
+
+    patched_blob.return_value = True
+    with pytest.raises(RuntimeError):
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+
+    # file tests
+    ds = models.Specification(
+        download_options=options.Download(
+            check_file_md5=True,
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.File,
+            overwrite=True,
+            recursive=True,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+        ),
+        skip_on_options=mock.MagicMock(),
+        local_destination_path=models.LocalDestinationPath(
+            str(downdir)
+        ),
+    )
+
+    ds.add_azure_source_path(asp)
+
+    patched_file.return_value = (False, None)
+    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+    assert ds.destination.is_dir
+
+    patched_file.return_value = (True, mock.MagicMock())
+    with pytest.raises(RuntimeError):
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
 
 
 def test_check_download_conditions(tmpdir):
@@ -31,18 +102,18 @@ def test_check_download_conditions(tmpdir):
     ep = pathlib.Path(str(ap))
     nep = pathlib.Path(str(tmpdir.join('nep')))
 
-    ds = models.DownloadSpecification(
-        download_options=models.DownloadOptions(
+    ds = models.Specification(
+        download_options=options.Download(
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
-            mode=models.AzureStorageModes.Auto,
+            mode=azmodels.StorageModes.Auto,
             overwrite=False,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=models.SkipOnOptions(
+        skip_on_options=options.SkipOn(
             filesize_match=True,
             lmt_ge=True,
             md5_match=True,
@@ -55,18 +126,18 @@ def test_check_download_conditions(tmpdir):
     result = d._check_download_conditions(ep, mock.MagicMock())
     assert result == ops.DownloadAction.Skip
 
-    ds = models.DownloadSpecification(
-        download_options=models.DownloadOptions(
+    ds = models.Specification(
+        download_options=options.Download(
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
-            mode=models.AzureStorageModes.Auto,
+            mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=models.SkipOnOptions(
+        skip_on_options=options.SkipOn(
             filesize_match=True,
             lmt_ge=True,
             md5_match=True,
@@ -77,18 +148,18 @@ def test_check_download_conditions(tmpdir):
     result = d._check_download_conditions(ep, mock.MagicMock())
     assert result == ops.DownloadAction.CheckMd5
 
-    ds = models.DownloadSpecification(
-        download_options=models.DownloadOptions(
+    ds = models.Specification(
+        download_options=options.Download(
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
-            mode=models.AzureStorageModes.Auto,
+            mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=models.SkipOnOptions(
+        skip_on_options=options.SkipOn(
             filesize_match=False,
             lmt_ge=False,
             md5_match=False,
@@ -99,18 +170,18 @@ def test_check_download_conditions(tmpdir):
     result = d._check_download_conditions(ep, mock.MagicMock())
     assert result == ops.DownloadAction.Download
 
-    ds = models.DownloadSpecification(
-        download_options=models.DownloadOptions(
+    ds = models.Specification(
+        download_options=options.Download(
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
-            mode=models.AzureStorageModes.Auto,
+            mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=models.SkipOnOptions(
+        skip_on_options=options.SkipOn(
             filesize_match=True,
             lmt_ge=False,
             md5_match=False,
@@ -118,29 +189,29 @@ def test_check_download_conditions(tmpdir):
         local_destination_path=models.LocalDestinationPath('dest'),
     )
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
-    rfile = models.AzureStorageEntity('cont')
+    rfile = azmodels.StorageEntity('cont')
     rfile._size = util.page_align_content_length(ep.stat().st_size)
-    rfile._mode = models.AzureStorageModes.Page
+    rfile._mode = azmodels.StorageModes.Page
     result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.Skip
 
     rfile._size = ep.stat().st_size
-    rfile._mode = models.AzureStorageModes.Page
+    rfile._mode = azmodels.StorageModes.Page
     result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.Download
 
-    ds = models.DownloadSpecification(
-        download_options=models.DownloadOptions(
+    ds = models.Specification(
+        download_options=options.Download(
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
-            mode=models.AzureStorageModes.Auto,
+            mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
-        skip_on_options=models.SkipOnOptions(
+        skip_on_options=options.SkipOn(
             filesize_match=False,
             lmt_ge=True,
             md5_match=False,
@@ -148,7 +219,7 @@ def test_check_download_conditions(tmpdir):
         local_destination_path=models.LocalDestinationPath('dest'),
     )
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
-    rfile = models.AzureStorageEntity('cont')
+    rfile = azmodels.StorageEntity('cont')
     rfile._lmt = datetime.datetime.now(dateutil.tz.tzutc()) + \
         datetime.timedelta(days=1)
     result = d._check_download_conditions(ep, rfile)
@@ -164,7 +235,7 @@ def test_pre_md5_skip_on_check():
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._md5_offload = mock.MagicMock()
 
-    rfile = models.AzureStorageEntity('cont')
+    rfile = azmodels.StorageEntity('cont')
     rfile._encryption = mock.MagicMock()
     rfile._encryption.blobxfer_extensions = mock.MagicMock()
     rfile._encryption.blobxfer_extensions.pre_encrypted_content_md5 = \
@@ -186,7 +257,7 @@ def test_post_md5_skip_on_check():
     d._md5_offload = mock.MagicMock()
 
     lpath = 'lpath'
-    rfile = models.AzureStorageEntity('cont')
+    rfile = azmodels.StorageEntity('cont')
     rfile._md5 = 'abc'
     d._pre_md5_skip_on_check(lpath, rfile)
     d._download_set.add(pathlib.Path(lpath))
@@ -217,7 +288,7 @@ def test_check_for_downloads_from_md5():
     assert d._add_to_download_queue.call_count == 0
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.'
+            'blobxfer.operations.download.Downloader.'
             'termination_check_md5',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
@@ -233,7 +304,7 @@ def test_check_for_downloads_from_md5():
         assert d._add_to_download_queue.call_count == 1
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.'
+            'blobxfer.operations.download.Downloader.'
             'termination_check_md5',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
@@ -267,7 +338,7 @@ def test_check_for_crypto_done():
     assert d._complete_chunk_download.call_count == 0
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.termination_check',
+            'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -288,7 +359,7 @@ def test_check_for_crypto_done():
 def test_add_to_download_queue(tmpdir):
     path = tmpdir.join('a')
     lpath = pathlib.Path(str(path))
-    ase = models.AzureStorageEntity('cont')
+    ase = azmodels.StorageEntity('cont')
     ase._size = 1
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'abc'
@@ -320,9 +391,9 @@ def test_complete_chunk_download(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = False
     opts.chunk_size_bytes = 16
-    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd = models.Descriptor(lp, ase, opts)
 
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     offsets = dd.next_offsets()
@@ -335,9 +406,9 @@ def test_complete_chunk_download(tmpdir):
     assert dd._completed_ops == 1
 
 
-@mock.patch('blobxfer.crypto.operations.aes_cbc_decrypt_data')
-@mock.patch('blobxfer.file.operations.get_file_range')
-@mock.patch('blobxfer.blob.operations.get_blob_range')
+@mock.patch('blobxfer.operations.crypto.aes_cbc_decrypt_data')
+@mock.patch('blobxfer.operations.azure.file.get_file_range')
+@mock.patch('blobxfer.operations.azure.blob.get_blob_range')
 def test_worker_thread_download(
         patched_gbr, patched_gfr, patched_acdd, tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -352,10 +423,10 @@ def test_worker_thread_download(
     assert d._complete_chunk_download.call_count == 0
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.termination_check',
+            'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
         with mock.patch(
-                'blobxfer.download.models.DownloadDescriptor.'
+                'blobxfer.models.download.Descriptor.'
                 'all_operations_completed',
                 new_callable=mock.PropertyMock) as patched_aoc:
             d = ops.Downloader(
@@ -364,12 +435,12 @@ def test_worker_thread_download(
             opts = mock.MagicMock()
             opts.check_file_md5 = False
             opts.chunk_size_bytes = 16
-            ase = blobxfer.models.AzureStorageEntity('cont')
+            ase = azmodels.StorageEntity('cont')
             ase._size = 16
             ase._encryption = mock.MagicMock()
             ase._encryption.symmetric_key = b'abc'
             lp = pathlib.Path(str(tmpdir.join('a')))
-            dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+            dd = models.Descriptor(lp, ase, opts)
             dd.next_offsets = mock.MagicMock(side_effect=[None, None])
             dd.finalize_file = mock.MagicMock()
             patched_aoc.side_effect = [False, True]
@@ -385,19 +456,19 @@ def test_worker_thread_download(
             assert d._download_count == 1
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.termination_check',
+            'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
         opts = mock.MagicMock()
         opts.check_file_md5 = True
         opts.chunk_size_bytes = 16
-        ase = blobxfer.models.AzureStorageEntity('cont')
-        ase._mode = blobxfer.models.AzureStorageModes.File
+        ase = azmodels.StorageEntity('cont')
+        ase._mode = azmodels.StorageModes.File
         ase._size = 16
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('b')))
-        dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+        dd = models.Descriptor(lp, ase, opts)
         dd.finalize_file = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
         d._dd_map[str(lp)] = mock.MagicMock()
@@ -411,22 +482,22 @@ def test_worker_thread_download(
         assert dd.perform_chunked_integrity_check.call_count == 1
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.termination_check',
+            'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
         opts = mock.MagicMock()
         opts.check_file_md5 = False
         opts.chunk_size_bytes = 16
-        ase = blobxfer.models.AzureStorageEntity('cont')
-        ase._mode = blobxfer.models.AzureStorageModes.Auto
+        ase = azmodels.StorageEntity('cont')
+        ase._mode = azmodels.StorageModes.Auto
         ase._size = 32
         ase._encryption = mock.MagicMock()
         ase._encryption.symmetric_key = b'abc'
         ase._encryption.content_encryption_iv = b'0' * 16
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('c')))
-        dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+        dd = models.Descriptor(lp, ase, opts)
         dd.finalize_file = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
         d._crypto_offload = mock.MagicMock()
@@ -443,7 +514,7 @@ def test_worker_thread_download(
         assert dd.perform_chunked_integrity_check.call_count == 1
 
     with mock.patch(
-            'blobxfer.download.operations.Downloader.termination_check',
+            'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -451,15 +522,15 @@ def test_worker_thread_download(
         opts = mock.MagicMock()
         opts.check_file_md5 = False
         opts.chunk_size_bytes = 16
-        ase = blobxfer.models.AzureStorageEntity('cont')
-        ase._mode = blobxfer.models.AzureStorageModes.Auto
+        ase = azmodels.StorageEntity('cont')
+        ase._mode = azmodels.StorageModes.Auto
         ase._size = 32
         ase._encryption = mock.MagicMock()
         ase._encryption.symmetric_key = b'abc'
         ase._encryption.content_encryption_iv = b'0' * 16
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('d')))
-        dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+        dd = models.Descriptor(lp, ase, opts)
         dd.next_offsets()
         dd.perform_chunked_integrity_check = mock.MagicMock()
         patched_acdd.return_value = b'0' * 16
@@ -480,9 +551,9 @@ def test_cleanup_temporary_files(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = False
     opts.chunk_size_bytes = 16
-    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd = models.Descriptor(lp, ase, opts)
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -495,9 +566,9 @@ def test_cleanup_temporary_files(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = False
     opts.chunk_size_bytes = 16
-    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd = models.Descriptor(lp, ase, opts)
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._general_options.resume_file = None
     d._dd_map[0] = dd
@@ -508,9 +579,9 @@ def test_cleanup_temporary_files(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = False
     opts.chunk_size_bytes = 16
-    ase = blobxfer.models.AzureStorageEntity('cont')
+    ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = blobxfer.download.models.DownloadDescriptor(lp, ase, opts)
+    dd = models.Descriptor(lp, ase, opts)
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -521,9 +592,12 @@ def test_cleanup_temporary_files(tmpdir):
 
 
 @mock.patch('time.clock')
-@mock.patch('blobxfer.md5.LocalFileMd5Offload')
-@mock.patch('blobxfer.blob.operations.list_blobs')
-@mock.patch('blobxfer.operations.ensure_local_destination', return_value=True)
+@mock.patch('blobxfer.operations.md5.LocalFileMd5Offload')
+@mock.patch('blobxfer.operations.azure.blob.list_blobs')
+@mock.patch(
+    'blobxfer.operations.download.Downloader.ensure_local_destination',
+    return_value=True
+)
 def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._cleanup_temporary_files = mock.MagicMock()
@@ -534,7 +608,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
     d._spec.options.chunk_size_bytes = 1
-    d._spec.options.mode = models.AzureStorageModes.Auto
+    d._spec.options.mode = azmodels.StorageModes.Auto
     d._spec.options.overwrite = True
     d._spec.skip_on = mock.MagicMock()
     d._spec.skip_on.md5_match = False
@@ -544,7 +618,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d._spec.destination.path = pathlib.Path(str(tmpdir))
 
     p = '/cont/remote/path'
-    asp = models.AzureSourcePath()
+    asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
     d._spec.sources.append(asp)
 
