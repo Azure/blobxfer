@@ -453,7 +453,7 @@ def test_worker_thread_download(
             assert d._complete_chunk_download.call_count == 0
             assert str(lp) not in d._dd_map
             assert dd.finalize_file.call_count == 1
-            assert d._download_count == 1
+            assert d._download_sofar == 1
 
     with mock.patch(
             'blobxfer.operations.download.Downloader.termination_check',

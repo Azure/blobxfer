@@ -45,7 +45,6 @@ import settings
 
 # create logger
 logger = logging.getLogger('blobxfer')
-blobxfer.util.setup_logger(logger)
 # global defines
 _CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -96,7 +95,11 @@ class CliContext(object):
             self._read_yaml_file(self.yaml_config)
         # merge cli options with config
         settings.merge_settings(self.config, self.cli_options)
+        # set log file if specified
+        blobxfer.util.setup_logger(logger, self.config['options']['log_file'])
+        # output config
         if self.config['options']['verbose']:
+            blobxfer.util.set_verbose_logger_handlers()
             logger.debug('config: \n' + json.dumps(self.config, indent=4))
         # free mem
         del self.yaml_config
@@ -118,6 +121,19 @@ def _crypto_processes_option(f):
         type=int,
         default=0,
         help='Concurrent crypto processes',
+        callback=callback)(f)
+
+
+def _log_file_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['log_file'] = value
+        return value
+    return click.option(
+        '--log-file',
+        expose_value=False,
+        default=None,
+        help='Log to file specified',
         callback=callback)(f)
 
 
@@ -144,7 +160,7 @@ def _progress_bar_option(f):
         '--progress-bar/--no-progress-bar',
         expose_value=False,
         default=True,
-        help='Display progress bar',
+        help='Display progress bar instead of console logs',
         callback=callback)(f)
 
 
@@ -208,6 +224,7 @@ def common_options(f):
     f = _resume_file_option(f)
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
+    f = _log_file_option(f)
     f = _crypto_processes_option(f)
     return f
 

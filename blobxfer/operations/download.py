@@ -30,8 +30,6 @@ from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
-import datetime
-import dateutil.tz
 import enum
 import logging
 try:
@@ -44,13 +42,13 @@ except ImportError:  # noqa
     import Queue as queue
 import threading
 # non-stdlib imports
-import dateutil
 # local imports
 import blobxfer.models.crypto
 import blobxfer.operations.azure.blob
 import blobxfer.operations.azure.file
 import blobxfer.operations.crypto
 import blobxfer.operations.md5
+import blobxfer.operations.progress
 import blobxfer.util
 
 # create logger
@@ -85,9 +83,12 @@ class Downloader(object):
         self._download_set = set()
         self._download_start = None
         self._download_threads = []
-        self._download_count = 0
-        self._download_total_bytes = 0
+        self._download_total = None
+        self._download_sofar = 0
+        self._download_bytes_total = None
+        self._download_bytes_sofar = 0
         self._download_terminate = False
+        self._start_time = None
         self._dd_map = {}
         self._general_options = general_options
         self._creds = creds
@@ -155,6 +156,21 @@ class Downloader(object):
         # ensure destination path
         spec.destination.ensure_path_exists()
 
+    def _update_progress_bar(self):
+        # type: (Downloader) -> None
+        """Update progress bar
+        :param Downloader self: this
+        """
+        blobxfer.operations.progress.update_progress_bar(
+            self._general_options,
+            'download',
+            self._start_time,
+            self._download_total,
+            self._download_sofar,
+            self._download_bytes_total,
+            self._download_bytes_sofar,
+        )
+
     def _check_download_conditions(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity) -> DownloadAction
@@ -192,8 +208,8 @@ class Downloader(object):
         # check skip on lmt ge
         dl_lmt = None
         if self._spec.skip_on.lmt_ge:
-            mtime = datetime.datetime.fromtimestamp(
-                lpath.stat().st_mtime, tz=dateutil.tz.tzlocal())
+            mtime = blobxfer.util.datetime_from_timestamp(
+                lpath.stat().st_mtime)
             if mtime >= rfile.lmt:
                 dl_lmt = False
             else:
@@ -308,8 +324,7 @@ class Downloader(object):
         if self._download_start is None:
             with self._download_lock:
                 if self._download_start is None:
-                    self._download_start = datetime.datetime.now(
-                        tz=dateutil.tz.tzlocal())
+                    self._download_start = blobxfer.util.datetime_now()
 
     def _initialize_download_threads(self):
         # type: (Downloader) -> None
@@ -344,6 +359,8 @@ class Downloader(object):
                 dd = self._download_queue.get(False, 1)
             except queue.Empty:
                 continue
+            # update progress bar
+            self._update_progress_bar()
             # get download offsets
             offsets = dd.next_offsets()
             # check if all operations completed
@@ -355,7 +372,7 @@ class Downloader(object):
                     if dd.entity.is_encrypted:
                         self._dd_map.pop(str(dd.final_path))
                     self._download_set.remove(dd.final_path)
-                    self._download_count += 1
+                    self._download_sofar += 1
                 continue
             # re-enqueue for other threads to download
             self._download_queue.put(dd)
@@ -370,7 +387,7 @@ class Downloader(object):
                     dd.entity, offsets, self._general_options.timeout_sec)
             # accounting
             with self._download_lock:
-                self._download_total_bytes += offsets.num_bytes
+                self._download_bytes_sofar += offsets.num_bytes
             # decrypt if necessary
             if dd.entity.is_encrypted:
                 # slice data to proper bounds
@@ -440,14 +457,16 @@ class Downloader(object):
 
     def _run(self):
         # type: (Downloader) -> None
-        """Execute Downloader"""
-        start_time = datetime.datetime.now(tz=dateutil.tz.tzlocal())
-        logger.info('script start time: {0}'.format(start_time))
+        """Execute Downloader
+        :param Downloader self: this
+        """
         # ensure destination path
         blobxfer.operations.download.Downloader.ensure_local_destination(
             self._creds, self._spec)
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
+        # TODO catalog all local files if delete extraneous enabled
+
         # initialize MD5 processes
         self._md5_offload = blobxfer.operations.md5.LocalFileMd5Offload(
             num_workers=self._general_options.concurrency.md5_processes)
@@ -461,19 +480,22 @@ class Downloader(object):
                 self._check_for_crypto_done)
         # initialize download threads
         self._initialize_download_threads()
-        # iterate through source paths to download
+        # initialize local counters
         nfiles = 0
-        empty_files = 0
-        skipped_files = 0
         total_size = 0
+        skipped_files = 0
         skipped_size = 0
+        # mark start
+        self._start_time = blobxfer.util.datetime_now()
+        logger.info('download start time: {0}'.format(self._start_time))
+        # display progress bar if specified
+        self._update_progress_bar()
+        # iterate through source paths to download
         for src in self._spec.sources:
             for rfile in src.files(
                     self._creds, self._spec.options, self._general_options):
                 nfiles += 1
                 total_size += rfile.size
-                if rfile.size == 0:
-                    empty_files += 1
                 # form local path for remote file
                 lpath = pathlib.Path(self._spec.destination.path, rfile.name)
                 # check on download conditions
@@ -490,44 +512,60 @@ class Downloader(object):
                     self._pre_md5_skip_on_check(lpath, rfile)
                 elif action == DownloadAction.Download:
                     self._add_to_download_queue(lpath, rfile)
-        download_files = nfiles - skipped_files
-        download_size = total_size - skipped_size
-        download_size_mib = download_size / 1048576
-        # clean up processes and threads
+        self._download_total = nfiles - skipped_files
+        self._download_bytes_total = total_size - skipped_size
+        download_size_mib = self._download_bytes_total / blobxfer.util.MEGABYTE
+        # set remote files processed
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
         logger.debug(
             ('{0} remote files processed, waiting for download completion '
              'of {1:.4f} MiB').format(nfiles, download_size_mib))
+        del nfiles
+        del total_size
+        del skipped_files
+        del skipped_size
+        # TODO delete all remaining local files not accounted for if
+        # delete extraneous enabled
+
+        # wait for downloads to complete
         self._wait_for_download_threads(terminate=False)
-        end_time = datetime.datetime.now(tz=dateutil.tz.tzlocal())
-        if (self._download_count != download_files or
-                self._download_total_bytes != download_size):
+        # update progress bar
+        self._update_progress_bar()
+        end_time = blobxfer.util.datetime_now()
+        if (self._download_sofar != self._download_total or
+                self._download_bytes_sofar != self._download_bytes_total):
             raise RuntimeError(
                 'download mismatch: [count={}/{} bytes={}/{}]'.format(
-                    self._download_count, download_files,
-                    self._download_total_bytes, download_size))
+                    self._download_sofar, self._download_total,
+                    self._download_bytes_sofar, self._download_bytes_total))
         if self._download_start is not None:
             dltime = (end_time - self._download_start).total_seconds()
             logger.info(
                 ('elapsed download + verify time and throughput: {0:.3f} sec, '
                  '{1:.4f} Mbps').format(
                      dltime, download_size_mib * 8 / dltime))
-        logger.info('script end time: {0} (elapsed: {1:.3f} sec)'.format(
-            end_time, (end_time - start_time).total_seconds()))
+        logger.info('download end time: {0} (elapsed: {1:.3f} sec)'.format(
+            end_time, (end_time - self._start_time).total_seconds()))
 
     def start(self):
         # type: (Downloader) -> None
-        """Start the Downloader"""
+        """Start the Downloader
+        :param Downloader self: this
+        """
         try:
+            blobxfer.operations.progress.output_download_parameters(
+                self._general_options, self._spec)
             self._run()
         except (KeyboardInterrupt, Exception) as ex:
             if isinstance(ex, KeyboardInterrupt):
                 logger.error(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
-            self._wait_for_download_threads(terminate=True)
-            self._cleanup_temporary_files()
+            try:
+                self._wait_for_download_threads(terminate=True)
+            finally:
+                self._cleanup_temporary_files()
             raise
         finally:
             # TODO close resume file

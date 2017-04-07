@@ -209,6 +209,7 @@ def merge_settings(config, cli_options):
     if 'options' not in config:
         config['options'] = {}
     config['options']['crypto_processes'] = cli_options['crypto_processes']
+    config['options']['log_file'] = cli_options['log_file']
     config['options']['md5_processes'] = cli_options['md5_processes']
     config['options']['progress_bar'] = cli_options['progress_bar']
     config['options']['resume_file'] = cli_options['resume_file']
@@ -245,6 +246,7 @@ def create_general_options(config):
             md5_processes=config['options']['md5_processes'],
             transfer_threads=config['options']['transfer_threads'],
         ),
+        log_file=config['options']['log_file'],
         progress_bar=config['options']['progress_bar'],
         resume_file=config['options']['resume_file'],
         timeout_sec=config['options']['timeout_sec'],

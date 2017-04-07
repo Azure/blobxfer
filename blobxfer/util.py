@@ -31,7 +31,7 @@ from builtins import (  # noqa
 # stdlib imports
 import base64
 import copy
-import dateutil
+import datetime
 import hashlib
 import logging
 import logging.handlers
@@ -42,10 +42,14 @@ except ImportError:  # noqa
     from scandir import scandir as scandir
 import re
 # non-stdlib imports
+import dateutil
+import dateutil.tz
 import future.utils
 # local imports
 
 # global defines
+MEGABYTE = 1048576
+_REGISTERED_LOGGER_HANDLERS = []
 _PAGEBLOB_BOUNDARY = 512
 
 
@@ -58,16 +62,34 @@ def on_python2():
     return future.utils.PY2
 
 
-def setup_logger(logger):  # noqa
-    # type: (logger) -> None
+def setup_logger(logger, logfile):  # noqa
+    # type: (logger, str) -> None
     """Set up logger"""
+    global _REGISTERED_LOGGER_HANDLERS
     logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
+    if is_none_or_empty(logfile):
+        handler = logging.StreamHandler()
+    else:
+        handler = logging.FileHandler(logfile, encoding='utf-8')
+    logging.getLogger().addHandler(handler)
+    formatter = logging.Formatter('%(asctime)s %(levelname)s - %(message)s')
+    formatter.default_msec_format = '%s.%03d'
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.propagate = False
+    _REGISTERED_LOGGER_HANDLERS.append(handler)
+
+
+def set_verbose_logger_handlers():  # noqa
+    # type: (None) -> None
+    """Set logger handler formatters to more detail"""
+    global _REGISTERED_LOGGER_HANDLERS
     formatter = logging.Formatter(
         '%(asctime)s %(levelname)s %(name)s:%(funcName)s:%(lineno)d '
         '%(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    formatter.default_msec_format = '%s.%03d'
+    for handler in _REGISTERED_LOGGER_HANDLERS:
+        handler.setFormatter(formatter)
 
 
 def is_none_or_empty(obj):
@@ -77,9 +99,7 @@ def is_none_or_empty(obj):
     :rtype: bool
     :return: if object is None or empty
     """
-    if obj is None or len(obj) == 0:
-        return True
-    return False
+    return obj is None or len(obj) == 0
 
 
 def is_not_empty(obj):
@@ -89,9 +109,7 @@ def is_not_empty(obj):
     :rtype: bool
     :return: if object is not None and length is > 0
     """
-    if obj is not None and len(obj) > 0:
-        return True
-    return False
+    return obj is not None and len(obj) > 0
 
 
 def merge_dict(dict1, dict2):
@@ -114,6 +132,28 @@ def merge_dict(dict1, dict2):
         else:
             result[k] = copy.deepcopy(v)
     return result
+
+
+def datetime_now():
+    # type: (None) -> datetime.datetime
+    """Return a timezone-aware datetime instance with local offset
+    :rtype: datetime.datetime
+    :return: datetime now with local tz
+    """
+    return datetime.datetime.now(tz=dateutil.tz.tzlocal())
+
+
+def datetime_from_timestamp(ts, tz=None):
+    # type: (int, dateutil.tz) -> datetime.datetime
+    """Convert a timestamp into datetime with offset
+    :param int ts: timestamp
+    :param dateutil.tz tz: time zone or local tz if not specified
+    :rtype: datetime.datetime
+    :return: converted timestamp to datetime
+    """
+    if tz is None:
+        tz = dateutil.tz.tzlocal()
+    return datetime.datetime.fromtimestamp(ts, tz=tz)
 
 
 def scantree(path):

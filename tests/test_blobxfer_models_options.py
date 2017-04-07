@@ -44,6 +44,7 @@ def test_general_options():
             md5_processes=2,
             transfer_threads=3,
         ),
+        log_file='abc.log',
         progress_bar=False,
         resume_file='abc',
         timeout_sec=1,
@@ -53,6 +54,7 @@ def test_general_options():
     assert a.concurrency.crypto_processes == 1
     assert a.concurrency.md5_processes == 2
     assert a.concurrency.transfer_threads == 3
+    assert a.log_file == 'abc.log'
     assert not a.progress_bar
     assert a.resume_file == pathlib.Path('abc')
     assert a.timeout_sec == 1
@@ -73,6 +75,7 @@ def test_general_options():
     assert a.concurrency.crypto_processes == 1
     assert a.concurrency.md5_processes == 2
     assert a.concurrency.transfer_threads == 3
+    assert a.log_file is None
     assert not a.progress_bar
     assert a.resume_file is None
     assert a.timeout_sec == 1
