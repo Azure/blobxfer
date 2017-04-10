@@ -218,14 +218,16 @@ def merge_settings(config, cli_options):
     config['options']['verbose'] = cli_options['verbose']
 
 
-def create_azure_storage_credentials(config):
-    # type: (dict) -> blobxfer.operations.azure.StorageCredentials
+def create_azure_storage_credentials(config, general_options):
+    # type: (dict, blobxfer.models.options.General) ->
+    #        blobxfer.operations.azure.StorageCredentials
     """Create an Azure StorageCredentials object from configuration
     :param dict config: config dict
+    :param blobxfer.models.options.General: general options
     :rtype: blobxfer.operations.azure.StorageCredentials
     :return: credentials object
     """
-    creds = blobxfer.operations.azure.StorageCredentials()
+    creds = blobxfer.operations.azure.StorageCredentials(general_options)
     endpoint = config['azure_storage']['endpoint']
     for name in config['azure_storage']['accounts']:
         key = config['azure_storage']['accounts'][name]
@@ -285,6 +287,12 @@ def create_download_specifications(config):
                 rpk, rpkp)
         else:
             rpk = None
+        # ensure compatible options
+        if (not conf['options']['check_file_md5'] and
+                conf['options']['skip_on']['md5_match']):
+            raise ValueError(
+                'Cannot specify skip on MD5 match without file MD5 enabled')
+        # create specification
         ds = blobxfer.models.download.Specification(
             download_options=blobxfer.models.options.Download(
                 check_file_md5=conf['options']['check_file_md5'],

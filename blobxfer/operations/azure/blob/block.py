@@ -51,12 +51,14 @@ def create_client(storage_account):
         client = azure.storage.blob.BlockBlobService(
             account_name=storage_account.name,
             sas_token=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
+            endpoint_suffix=storage_account.endpoint,
+            request_session=storage_account.session)
     else:
         client = azure.storage.blob.BlockBlobService(
             account_name=storage_account.name,
             account_key=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
+            endpoint_suffix=storage_account.endpoint,
+            request_session=storage_account.session)
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client

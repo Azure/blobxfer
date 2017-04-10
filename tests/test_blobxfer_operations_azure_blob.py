@@ -36,44 +36,51 @@ def test_check_if_single_blob():
 def test_list_blobs():
     with pytest.raises(RuntimeError):
         for blob in ops.list_blobs(
-                None, 'cont', 'prefix', azmodels.StorageModes.File):
+                None, 'cont', 'prefix', azmodels.StorageModes.File, True):
             pass
 
-    _blob = azure.storage.blob.models.Blob(name='name')
+    _blob = azure.storage.blob.models.Blob(name='dir/name')
     _blob.properties = azure.storage.blob.models.BlobProperties()
     client = mock.MagicMock()
     client.list_blobs.return_value = [_blob]
 
     i = 0
     for blob in ops.list_blobs(
-            client, 'cont', 'prefix', azmodels.StorageModes.Auto):
+            client, 'cont', 'prefix', azmodels.StorageModes.Auto, False):
         i += 1
-        assert blob.name == 'name'
+        assert blob.name == _blob.name
+    assert i == 0
+
+    i = 0
+    for blob in ops.list_blobs(
+            client, 'cont', 'prefix', azmodels.StorageModes.Auto, True):
+        i += 1
+        assert blob.name == _blob.name
     assert i == 1
 
     _blob.properties.blob_type = \
         azure.storage.blob.models._BlobTypes.AppendBlob
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', azmodels.StorageModes.Block):
+            client, 'dir', 'prefix', azmodels.StorageModes.Block, True):
         i += 1
-        assert blob.name == 'name'
+        assert blob.name == _blob.name
     assert i == 0
 
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', azmodels.StorageModes.Page):
+            client, 'dir', 'prefix', azmodels.StorageModes.Page, True):
         i += 1
-        assert blob.name == 'name'
+        assert blob.name == _blob.name
     assert i == 0
 
     _blob.properties.blob_type = \
         azure.storage.blob.models._BlobTypes.BlockBlob
     i = 0
     for blob in ops.list_blobs(
-            client, 'dir', 'prefix', azmodels.StorageModes.Append):
+            client, 'dir', 'prefix', azmodels.StorageModes.Append, True):
         i += 1
-        assert blob.name == 'name'
+        assert blob.name == _blob.name
     assert i == 0
 
     _blob.snapshot = '2017-02-23T22:21:14.8121864Z'
@@ -82,9 +89,10 @@ def test_list_blobs():
     for blob in ops.list_blobs(
             client, 'cont',
             'a?snapshot=2017-02-23T22:21:14.8121864Z',
-            azmodels.StorageModes.Auto):
+            azmodels.StorageModes.Auto,
+            True):
         i += 1
-        assert blob.name == 'name'
+        assert blob.name == _blob.name
         assert blob.snapshot == _blob.snapshot
     assert i == 1
 

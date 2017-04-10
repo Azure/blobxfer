@@ -23,10 +23,10 @@ def test_concurrency_options(patched_cc):
 
     assert a.crypto_processes == 0
     assert a.md5_processes == 1
-    assert a.transfer_threads == 3
+    assert a.transfer_threads == 4
 
 
-@mock.patch('multiprocessing.cpu_count', return_value=10)
+@mock.patch('multiprocessing.cpu_count', return_value=64)
 def test_concurrency_options_max_transfer_threads(patched_cc):
     a = options.Concurrency(
         crypto_processes=1,
@@ -34,7 +34,7 @@ def test_concurrency_options_max_transfer_threads(patched_cc):
         transfer_threads=None,
     )
 
-    assert a.transfer_threads == 24
+    assert a.transfer_threads == 96
 
 
 def test_general_options():

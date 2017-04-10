@@ -14,7 +14,7 @@ import blobxfer.operations.azure as azops
 
 
 def test_storage_credentials():
-    creds = azops.StorageCredentials()
+    creds = azops.StorageCredentials(mock.MagicMock())
     creds.add_storage_account('sa1', 'somekey1', 'endpoint')
 
     a = creds.get_storage_account('sa1')
@@ -48,25 +48,25 @@ def test_storage_credentials():
 
 
 def test_key_is_sas():
-    a = azops.StorageAccount('name', 'abcdef', 'endpoint')
+    a = azops.StorageAccount('name', 'abcdef', 'endpoint', 10)
     assert not a.is_sas
 
-    a = azops.StorageAccount('name', 'abcdef&blah', 'endpoint')
+    a = azops.StorageAccount('name', 'abcdef&blah', 'endpoint', 10)
     assert not a.is_sas
 
-    a = azops.StorageAccount('name', '?abcdef', 'endpoint')
+    a = azops.StorageAccount('name', '?abcdef', 'endpoint', 10)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'endpoint')
+        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sv=0&sr=1&sig=2', 'endpoint')
+        'name', 'sv=0&sr=1&sig=2', 'endpoint', 10)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint')
+        'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint', 10)
     assert a.is_sas
 
 

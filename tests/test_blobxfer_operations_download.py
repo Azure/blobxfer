@@ -591,6 +591,41 @@ def test_cleanup_temporary_files(tmpdir):
     assert dd.local_path.exists()
 
 
+def test_catalog_local_files_for_deletion(tmpdir):
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._spec.options.delete_extraneous_destination = False
+
+    d._catalog_local_files_for_deletion()
+    assert len(d._delete_after) == 0
+
+    a = tmpdir.join('a')
+    a.write('abc')
+    d._spec.destination.path = tmpdir
+    d._spec.options.delete_extraneous_destination = True
+    d._spec.destination.is_dir = True
+
+    d._catalog_local_files_for_deletion()
+    assert len(d._delete_after) == 1
+    assert pathlib.Path(str(a)) in d._delete_after
+
+
+def test_delete_extraneous_files(tmpdir):
+    a = tmpdir.join('a')
+    a.write('abc')
+    fp = pathlib.Path(str(a))
+
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._spec.options.delete_extraneous_destination = True
+    d._spec.destination.is_dir = True
+    d._delete_after.add(fp)
+
+    d._delete_extraneous_files()
+    assert not fp.exists()
+
+    # following should not throw exception
+    d._delete_extraneous_files()
+
+
 @mock.patch('time.clock')
 @mock.patch('blobxfer.operations.md5.LocalFileMd5Offload')
 @mock.patch('blobxfer.operations.azure.blob.list_blobs')
@@ -605,6 +640,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d._initialize_download_threads = mock.MagicMock()
     patched_lfmo._check_thread = mock.MagicMock()
     d._general_options.concurrency.crypto_processes = 1
+    d._general_options.concurrency.md5_processes = 1
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
     d._spec.options.chunk_size_bytes = 1
@@ -616,6 +652,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     d._spec.skip_on.filesize_match = False
     d._spec.destination = mock.MagicMock()
     d._spec.destination.path = pathlib.Path(str(tmpdir))
+    d._download_start_time = util.datetime_now()
 
     p = '/cont/remote/path'
     asp = azops.SourcePath()

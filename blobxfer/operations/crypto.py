@@ -241,7 +241,7 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
         """
         while not self.terminated:
             try:
-                inst = self._task_queue.get(True, 1)
+                inst = self._task_queue.get(True, 0.25)
             except queue.Empty:
                 continue
             if inst[0] == CryptoAction.Encrypt:

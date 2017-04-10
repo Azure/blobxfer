@@ -14,7 +14,7 @@ import blobxfer.operations.azure.file as ops
 
 
 def test_create_client():
-    sa = azops.StorageAccount('name', 'key', 'endpoint')
+    sa = azops.StorageAccount('name', 'key', 'endpoint', 10)
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
@@ -22,7 +22,7 @@ def test_create_client():
         client.authentication,
         azure.storage._auth._StorageSharedKeyAuthentication)
 
-    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint')
+    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint', 10)
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
@@ -87,7 +87,7 @@ def test_list_files_single_file():
     client.get_file_properties.return_value = 'fp'
 
     i = 0
-    for file in ops.list_files(client, 'a', 'b/c'):
+    for file in ops.list_files(client, 'a', 'b/c', True):
         i += 1
         assert file == 'fp'
     assert i == 1
@@ -104,7 +104,7 @@ def test_list_files_directory(patched_cisf):
     client.get_file_properties.return_value = _file
 
     i = 0
-    for file in ops.list_files(client, 'dir', ''):
+    for file in ops.list_files(client, 'dir', '', True):
         i += 1
         assert file.name == 'name'
     assert i == 1
@@ -117,7 +117,7 @@ def test_list_files_directory(patched_cisf):
     client.get_file_properties.side_effect = [_file]
 
     i = 0
-    for file in ops.list_files(client, '', ''):
+    for file in ops.list_files(client, '', '', True):
         i += 1
         assert file.name == _file.name
         assert type(file) == azure.storage.file.models.File

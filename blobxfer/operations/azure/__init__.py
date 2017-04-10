@@ -31,6 +31,7 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 # non-stdlib imports
+import requests
 # local imports
 import blobxfer.models
 import blobxfer.operations.azure.blob.append
@@ -41,10 +42,14 @@ import blobxfer.operations.azure.file
 
 class StorageCredentials(object):
     """Azure Storage Credentials"""
-    def __init__(self):
-        # type: (StorageCredentials) -> None
-        """Ctor for StorageCredentials"""
+    def __init__(self, general_options):
+        # type: (StorageCredentials, blobxfer.models.options.General) -> None
+        """Ctor for StorageCredentials
+        :param StorageCredentials self: this
+        :param blobxfer.models.options.General: general options
+        """
         self._storage_accounts = {}
+        self._general_options = general_options
 
     def add_storage_account(self, name, key, endpoint):
         # type: (StorageCredentials, str, str, str) -> None
@@ -57,7 +62,10 @@ class StorageCredentials(object):
         if name in self._storage_accounts:
             raise ValueError(
                 '{} already exists in storage accounts'.format(name))
-        self._storage_accounts[name] = StorageAccount(name, key, endpoint)
+        self._storage_accounts[name] = StorageAccount(
+            name, key, endpoint,
+            self._general_options.concurrency.transfer_threads
+        )
 
     def get_storage_account(self, name):
         # type: (StorageCredentials, str) -> StorageAccount
@@ -72,12 +80,13 @@ class StorageCredentials(object):
 
 class StorageAccount(object):
     """Azure Storage Account"""
-    def __init__(self, name, key, endpoint):
-        # type: (StorageAccount, str, str, str) -> None
+    def __init__(self, name, key, endpoint, transfer_threads):
+        # type: (StorageAccount, str, str, str, int) -> None
         """Ctor for StorageAccount
         :param str name: name of storage account
         :param str key: storage key or sas
         :param str endpoint: endpoint
+        :param int transfer_threads: number of transfer threads
         """
         self._append_blob_client = None
         self._block_blob_client = None
@@ -90,6 +99,15 @@ class StorageAccount(object):
         # normalize sas keys
         if self.is_sas and self.key.startswith('?'):
             self.key = self.key[1:]
+        # create requests session for connection pooling
+        self.session = requests.Session()
+        self.session.mount(
+            'https://',
+            requests.adapters.HTTPAdapter(
+                pool_connections=transfer_threads,
+                pool_maxsize=transfer_threads << 1,
+            )
+        )
         self._create_clients()
 
     @staticmethod
@@ -241,7 +259,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             cont, dir = blobxfer.util.explode_azure_path(rpath)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             for file in blobxfer.operations.azure.file.list_files(
-                    sa.file_client, cont, dir, general_options.timeout_sec):
+                    sa.file_client, cont, dir, options.recursive,
+                    general_options.timeout_sec):
                 if blobxfer.models.crypto.EncryptionMetadata.\
                         encryption_metadata_exists(file.metadata):
                     ed = blobxfer.models.crypto.EncryptionMetadata()
@@ -271,7 +290,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             for blob in blobxfer.operations.azure.blob.list_blobs(
                     sa.block_blob_client, cont, dir, options.mode,
-                    general_options.timeout_sec):
+                    options.recursive, general_options.timeout_sec):
                 if blobxfer.models.crypto.EncryptionMetadata.\
                         encryption_metadata_exists(blob.metadata):
                     ed = blobxfer.models.crypto.EncryptionMetadata()

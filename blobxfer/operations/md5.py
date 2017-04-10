@@ -98,7 +98,8 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
         """
         while not self.terminated:
             try:
-                filename, remote_md5, pagealign = self._task_queue.get(True, 1)
+                filename, remote_md5, pagealign = self._task_queue.get(
+                    True, 0.25)
             except queue.Empty:
                 continue
             md5 = blobxfer.operations.md5.compute_md5_for_file_asbase64(

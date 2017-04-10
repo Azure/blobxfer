@@ -116,10 +116,10 @@ class Concurrency(object):
         if self.md5_processes < 1:
             self.md5_processes = 1
         if self.transfer_threads is None or self.transfer_threads < 1:
-            self.transfer_threads = multiprocessing.cpu_count() * 3
-            # cap maximum number of threads from cpu count to 24
-            if self.transfer_threads > 24:
-                self.transfer_threads = 24
+            self.transfer_threads = multiprocessing.cpu_count() * 4
+            # cap maximum number of threads from cpu count to 96
+            if self.transfer_threads > 96:
+                self.transfer_threads = 96
 
 
 class General(object):

@@ -11,7 +11,7 @@ import blobxfer.operations.azure.blob.append as ops
 
 
 def test_create_client():
-    sa = azops.StorageAccount('name', 'key', 'endpoint')
+    sa = azops.StorageAccount('name', 'key', 'endpoint', 10)
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.blob.AppendBlobService)
@@ -19,7 +19,7 @@ def test_create_client():
         client.authentication,
         azure.storage._auth._StorageSharedKeyAuthentication)
 
-    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint')
+    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint', 10)
     client = ops.create_client(sa)
     assert client is not None
     assert isinstance(client, azure.storage.blob.AppendBlobService)

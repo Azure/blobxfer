@@ -57,12 +57,14 @@ def create_client(storage_account):
         client = azure.storage.file.FileService(
             account_name=storage_account.name,
             sas_token=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
+            endpoint_suffix=storage_account.endpoint,
+            request_session=storage_account.session)
     else:
         client = azure.storage.file.FileService(
             account_name=storage_account.name,
             account_key=storage_account.key,
-            endpoint_suffix=storage_account.endpoint)
+            endpoint_suffix=storage_account.endpoint,
+            request_session=storage_account.session)
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
@@ -114,13 +116,14 @@ def check_if_single_file(client, fileshare, prefix, timeout=None):
     return (True, file)
 
 
-def list_files(client, fileshare, prefix, timeout=None):
-    # type: (azure.storage.file.FileService, str, str, int) ->
+def list_files(client, fileshare, prefix, recursive, timeout=None):
+    # type: (azure.storage.file.FileService, str, str, bool, int) ->
     #        azure.storage.file.models.File
     """List files in path
     :param azure.storage.file.FileService client: file client
     :param str fileshare: file share
     :param str prefix: path prefix
+    :param bool recursive: recursive
     :param int timeout: timeout
     :rtype: azure.storage.file.models.File
     :return: generator of files
@@ -151,7 +154,8 @@ def list_files(client, fileshare, prefix, timeout=None):
                 )
                 yield fsprop
             else:
-                dirs.append(fspath)
+                if recursive:
+                    dirs.append(fspath)
 
 
 def get_file_range(ase, offsets, timeout=None):

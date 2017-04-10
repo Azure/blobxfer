@@ -65,9 +65,9 @@ class CliContext(object):
         :param CliContext self: this
         """
         self._init_config()
-        self.credentials = settings.create_azure_storage_credentials(
-            self.config)
         self.general_options = settings.create_general_options(self.config)
+        self.credentials = settings.create_azure_storage_credentials(
+            self.config, self.general_options)
 
     def _read_yaml_file(self, yaml_file):
         # type: (CliContext, pathlib.Path) -> None
@@ -382,7 +382,7 @@ def _file_md5_option(f):
         '--file-md5/--no-file-md5',
         expose_value=False,
         default=False,
-        help='Compute file MD5 [True]',
+        help='Compute file MD5 [False]',
         callback=callback)(f)
 
 

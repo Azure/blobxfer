@@ -61,15 +61,16 @@ def check_if_single_blob(client, container, prefix, timeout=None):
     return True
 
 
-def list_blobs(client, container, prefix, mode, timeout=None):
-    # type: (azure.storage.blob.BaseBlobService, str, str, int,
-    #        blobxfer.models.azure.StorageModes) ->
+def list_blobs(client, container, prefix, mode, recursive, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, str,
+    #        blobxfer.models.azure.StorageModes, bool, int) ->
     #        azure.storage.blob.models.Blob
     """List blobs in path conforming to mode
     :param azure.storage.blob.BaseBlobService client: blob client
     :param str container: container
     :param str prefix: path prefix
     :param blobxfer.models.azure.StorageModes mode: storage mode
+    :param bool recursive: recursive
     :param int timeout: timeout
     :rtype: azure.storage.blob.models.Blob
     :return: generator of blobs
@@ -85,7 +86,7 @@ def list_blobs(client, container, prefix, mode, timeout=None):
         return
     blobs = client.list_blobs(
         container_name=container,
-        prefix=prefix,
+        prefix=prefix if blobxfer.util.is_not_empty(prefix) else None,
         include=azure.storage.blob.models.Include.METADATA,
         timeout=timeout,
     )
@@ -101,6 +102,8 @@ def list_blobs(client, container, prefix, mode, timeout=None):
         elif (mode == blobxfer.models.azure.StorageModes.Page and
                 blob.properties.blob_type !=
                 azure.storage.blob.models._BlobTypes.PageBlob):
+            continue
+        if not recursive and '/' in blob.name:
             continue
         # auto or match, yield the blob
         yield blob

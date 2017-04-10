@@ -36,6 +36,7 @@ import platform
 import sys
 # non-stdlib imports
 import azure.storage
+import requests
 # local imports
 import blobxfer.util
 import blobxfer.version
@@ -58,7 +59,8 @@ def update_progress_bar(
     :param int total_bytes: total number of bytes
     :param int bytes_sofar: bytes transferred so far
     """
-    if not go.progress_bar or blobxfer.util.is_none_or_empty(go.log_file):
+    if (not go.progress_bar or blobxfer.util.is_none_or_empty(go.log_file) or
+            start is None):
         return
     diff = (blobxfer.util.datetime_now() - start).total_seconds()
     if diff <= 0:
@@ -99,13 +101,16 @@ def output_download_parameters(general_options, spec):
     log.append('     blobxfer version: {}'.format(
         blobxfer.version.__version__))
     log.append('             platform: {}'.format(platform.platform()))
-    log.append('               python: {} {} az.stor={}'.format(
-        platform.python_implementation(), platform.python_version(),
-        azure.storage._constants.__version__))
+    log.append('               python: {} {} az.stor={} req={}'.format(
+        platform.python_implementation(),
+        platform.python_version(),
+        azure.storage._constants.__version__,
+        requests.__version__))
     log.append('   transfer direction: {}'.format('local->Azure'))
     log.append('              workers: xfer={} md5={} crypto={}'.format(
         general_options.concurrency.transfer_threads,
-        general_options.concurrency.md5_processes,
+        general_options.concurrency.md5_processes
+        if spec.options.check_file_md5 else 0,
         general_options.concurrency.crypto_processes))
     log.append('              timeout: {}'.format(
         general_options.timeout_sec))

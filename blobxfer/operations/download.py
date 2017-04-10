@@ -81,7 +81,7 @@ class Downloader(object):
         self._download_lock = threading.Lock()
         self._download_queue = queue.Queue()
         self._download_set = set()
-        self._download_start = None
+        self._download_start_time = None
         self._download_threads = []
         self._download_total = None
         self._download_sofar = 0
@@ -89,6 +89,7 @@ class Downloader(object):
         self._download_bytes_sofar = 0
         self._download_terminate = False
         self._start_time = None
+        self._delete_after = set()
         self._dd_map = {}
         self._general_options = general_options
         self._creds = creds
@@ -164,7 +165,7 @@ class Downloader(object):
         blobxfer.operations.progress.update_progress_bar(
             self._general_options,
             'download',
-            self._start_time,
+            self._download_start_time,
             self._download_total,
             self._download_sofar,
             self._download_bytes_total,
@@ -321,10 +322,10 @@ class Downloader(object):
                 self._dd_map[str(dd.final_path)] = dd
         # add download descriptor to queue
         self._download_queue.put(dd)
-        if self._download_start is None:
+        if self._download_start_time is None:
             with self._download_lock:
-                if self._download_start is None:
-                    self._download_start = blobxfer.util.datetime_now()
+                if self._download_start_time is None:
+                    self._download_start_time = blobxfer.util.datetime_now()
 
     def _initialize_download_threads(self):
         # type: (Downloader) -> None
@@ -356,7 +357,7 @@ class Downloader(object):
         """
         while not self.termination_check:
             try:
-                dd = self._download_queue.get(False, 1)
+                dd = self._download_queue.get(False, 0.25)
             except queue.Empty:
                 continue
             # update progress bar
@@ -455,23 +456,52 @@ class Downloader(object):
             except Exception as e:
                 logger.exception(e)
 
+    def _catalog_local_files_for_deletion(self):
+        # type: (Downloader) -> None
+        """Catalog all local files if delete extraneous enabled
+        :param Downloader self: this
+        """
+        if not (self._spec.options.delete_extraneous_destination and
+                self._spec.destination.is_dir):
+            return
+        dst = str(self._spec.destination.path)
+        for file in blobxfer.util.scantree(dst):
+            self._delete_after.add(pathlib.Path(file.path))
+
+    def _delete_extraneous_files(self):
+        # type: (Downloader) -> None
+        """Delete extraneous files cataloged
+        :param Downloader self: this
+        """
+        logger.info('attempting to delete {} extraneous files'.format(
+            len(self._delete_after)))
+        for file in self._delete_after:
+            try:
+                file.unlink()
+            except OSError:
+                pass
+
     def _run(self):
         # type: (Downloader) -> None
         """Execute Downloader
         :param Downloader self: this
         """
+        # mark start
+        self._start_time = blobxfer.util.datetime_now()
+        logger.info('blobxfer start time: {0}'.format(self._start_time))
         # ensure destination path
         blobxfer.operations.download.Downloader.ensure_local_destination(
             self._creds, self._spec)
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
-        # TODO catalog all local files if delete extraneous enabled
-
+        self._catalog_local_files_for_deletion()
         # initialize MD5 processes
-        self._md5_offload = blobxfer.operations.md5.LocalFileMd5Offload(
-            num_workers=self._general_options.concurrency.md5_processes)
-        self._md5_offload.initialize_check_thread(
-            self._check_for_downloads_from_md5)
+        if (self._spec.options.check_file_md5 and
+                self._general_options.concurrency.md5_processes > 0):
+            self._md5_offload = blobxfer.operations.md5.LocalFileMd5Offload(
+                num_workers=self._general_options.concurrency.md5_processes)
+            self._md5_offload.initialize_check_thread(
+                self._check_for_downloads_from_md5)
         # initialize crypto processes
         if self._general_options.concurrency.crypto_processes > 0:
             self._crypto_offload = blobxfer.operations.crypto.CryptoOffload(
@@ -485,11 +515,6 @@ class Downloader(object):
         total_size = 0
         skipped_files = 0
         skipped_size = 0
-        # mark start
-        self._start_time = blobxfer.util.datetime_now()
-        logger.info('download start time: {0}'.format(self._start_time))
-        # display progress bar if specified
-        self._update_progress_bar()
         # iterate through source paths to download
         for src in self._spec.sources:
             for rfile in src.files(
@@ -498,6 +523,11 @@ class Downloader(object):
                 total_size += rfile.size
                 # form local path for remote file
                 lpath = pathlib.Path(self._spec.destination.path, rfile.name)
+                # remove from delete after set
+                try:
+                    self._delete_after.remove(lpath)
+                except KeyError:
+                    pass
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 if action == DownloadAction.Skip:
@@ -525,27 +555,30 @@ class Downloader(object):
         del total_size
         del skipped_files
         del skipped_size
-        # TODO delete all remaining local files not accounted for if
-        # delete extraneous enabled
-
         # wait for downloads to complete
         self._wait_for_download_threads(terminate=False)
+        end_time = blobxfer.util.datetime_now()
         # update progress bar
         self._update_progress_bar()
-        end_time = blobxfer.util.datetime_now()
+        # check for mismatches
         if (self._download_sofar != self._download_total or
                 self._download_bytes_sofar != self._download_bytes_total):
             raise RuntimeError(
                 'download mismatch: [count={}/{} bytes={}/{}]'.format(
                     self._download_sofar, self._download_total,
                     self._download_bytes_sofar, self._download_bytes_total))
-        if self._download_start is not None:
-            dltime = (end_time - self._download_start).total_seconds()
+        # delete all remaining local files not accounted for if
+        # delete extraneous enabled
+        self._delete_extraneous_files()
+        # output throughput
+        if self._download_start_time is not None:
+            dltime = (end_time - self._download_start_time).total_seconds()
             logger.info(
                 ('elapsed download + verify time and throughput: {0:.3f} sec, '
                  '{1:.4f} Mbps').format(
                      dltime, download_size_mib * 8 / dltime))
-        logger.info('download end time: {0} (elapsed: {1:.3f} sec)'.format(
+        end_time = blobxfer.util.datetime_now()
+        logger.info('blobxfer end time: {0} (elapsed: {1:.3f} sec)'.format(
             end_time, (end_time - self._start_time).total_seconds()))
 
     def start(self):
