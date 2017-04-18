@@ -49,6 +49,7 @@ import blobxfer.operations.azure.file
 import blobxfer.operations.crypto
 import blobxfer.operations.md5
 import blobxfer.operations.progress
+import blobxfer.operations.resume
 import blobxfer.util
 
 # create logger
@@ -94,6 +95,7 @@ class Downloader(object):
         self._general_options = general_options
         self._creds = creds
         self._spec = spec
+        self._resume = None
 
     @property
     def termination_check(self):
@@ -255,6 +257,8 @@ class Downloader(object):
         if md5_match:
             with self._download_lock:
                 self._download_set.remove(lpath)
+                self._download_total -= 1
+                self._download_bytes_total -= lpath.stat().st_size
         else:
             self._add_to_download_queue(lpath, rfile)
 
@@ -302,9 +306,14 @@ class Downloader(object):
                     break
             cv.release()
             if result is not None:
-                with self._download_lock:
-                    dd = self._dd_map[result[0]]
-                self._complete_chunk_download(result[1], result[2], dd)
+                try:
+                    with self._download_lock:
+                        dd = self._dd_map[result]
+                    dd.perform_chunked_integrity_check()
+                except KeyError:
+                    # this can happen if all of the last integrity
+                    # chunks are processed at once
+                    pass
 
     def _add_to_download_queue(self, lpath, rfile):
         # type: (Downloader, pathlib.Path,
@@ -316,7 +325,7 @@ class Downloader(object):
         """
         # prepare remote file for download
         dd = blobxfer.models.download.Descriptor(
-            lpath, rfile, self._spec.options)
+            lpath, rfile, self._spec.options, self._resume)
         if dd.entity.is_encrypted:
             with self._download_lock:
                 self._dd_map[str(dd.final_path)] = dd
@@ -363,7 +372,12 @@ class Downloader(object):
             # update progress bar
             self._update_progress_bar()
             # get download offsets
-            offsets = dd.next_offsets()
+            offsets, resume_bytes = dd.next_offsets()
+            # add resume bytes to counter
+            if resume_bytes is not None:
+                with self._download_lock:
+                    self._download_bytes_sofar += resume_bytes
+                del resume_bytes
             # check if all operations completed
             if offsets is None and dd.all_operations_completed:
                 # finalize file
@@ -391,50 +405,43 @@ class Downloader(object):
                 self._download_bytes_sofar += offsets.num_bytes
             # decrypt if necessary
             if dd.entity.is_encrypted:
-                # slice data to proper bounds
-                encdata = data[blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
-                intdata = encdata
-                # get iv for chunk and compute hmac
+                # slice data to proper bounds and get iv for chunk
                 if offsets.chunk_num == 0:
+                    # set iv
                     iv = dd.entity.encryption_metadata.content_encryption_iv
-                    # integrity check for first chunk must include iv
-                    intdata = iv + data
+                    # set data to decrypt
+                    encdata = data
+                    # send iv through hmac
+                    dd.hmac_iv(iv)
                 else:
+                    # set iv
                     iv = data[:blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES]
-                # integrity check data
-                dd.perform_chunked_integrity_check(offsets, intdata)
+                    # set data to decrypt
+                    encdata = data[
+                        blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
+                # write encdata to disk for hmac later
+                _hmac_datafile = dd.write_unchecked_hmac_data(
+                    offsets, encdata)
                 # decrypt data
                 if self._crypto_offload is not None:
                     self._crypto_offload.add_decrypt_chunk(
-                        str(dd.final_path), offsets,
+                        str(dd.final_path), str(dd.local_path), offsets,
                         dd.entity.encryption_metadata.symmetric_key,
-                        iv, encdata)
-                    # data will be completed once retrieved from crypto queue
+                        iv, _hmac_datafile)
+                    # data will be integrity checked and written once
+                    # retrieved from crypto queue
                     continue
                 else:
                     data = blobxfer.operations.crypto.aes_cbc_decrypt_data(
                         dd.entity.encryption_metadata.symmetric_key,
                         iv, encdata, offsets.unpad)
-            elif dd.must_compute_md5:
-                # rolling compute md5
-                dd.perform_chunked_integrity_check(offsets, data)
-            # complete chunk download
-            self._complete_chunk_download(offsets, data, dd)
-
-    def _complete_chunk_download(self, offsets, data, dd):
-        # type: (Downloader, blobxfer.models.download.Offsets, bytes,
-        #        blobxfer.models.download.Descriptor) -> None
-        """Complete chunk download
-        :param Downloader self: this
-        :param blobxfer.models.download.Offsets offsets: offsets
-        :param bytes data: data
-        :param blobxfer.models.download.Descriptor dd: download descriptor
-        """
-        # write data to disk
-        dd.write_data(offsets, data)
-        # decrement outstanding operations
-        dd.dec_outstanding_operations()
-        # TODO pickle dd to resume file
+                    dd.write_data(offsets, data)
+            else:
+                # write data to disk
+                dd.write_unchecked_data(offsets, data)
+            # integrity check data and write to disk (this is called
+            # regardless of md5/hmac enablement for resume purposes)
+            dd.perform_chunked_integrity_check()
 
     def _cleanup_temporary_files(self):
         # type: (Downloader) -> None
@@ -442,12 +449,6 @@ class Downloader(object):
         This function is not thread-safe.
         :param Downloader self: this
         """
-        # do not clean up if resume file exists
-        if self._general_options.resume_file is not None:
-            logger.debug(
-                'not cleaning up temporary files since resume file has '
-                'been specified')
-            return
         # iterate through dd map and cleanup files
         for key in self._dd_map:
             dd = self._dd_map[key]
@@ -495,6 +496,10 @@ class Downloader(object):
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
         self._catalog_local_files_for_deletion()
+        # initialize resume db if specified
+        if self._general_options.resume_file is not None:
+            self._resume = blobxfer.operations.resume.DownloadResumeManager(
+                self._general_options.resume_file)
         # initialize MD5 processes
         if (self._spec.options.check_file_md5 and
                 self._general_options.concurrency.md5_processes > 0):
@@ -570,6 +575,9 @@ class Downloader(object):
         # delete all remaining local files not accounted for if
         # delete extraneous enabled
         self._delete_extraneous_files()
+        # delete resume file if we've gotten this far
+        if self._resume is not None:
+            self._resume.delete()
         # output throughput
         if self._download_start_time is not None:
             dltime = (end_time - self._download_start_time).total_seconds()
@@ -592,7 +600,7 @@ class Downloader(object):
             self._run()
         except (KeyboardInterrupt, Exception) as ex:
             if isinstance(ex, KeyboardInterrupt):
-                logger.error(
+                logger.info(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
             try:
@@ -601,9 +609,11 @@ class Downloader(object):
                 self._cleanup_temporary_files()
             raise
         finally:
-            # TODO close resume file
             # shutdown processes
             if self._md5_offload is not None:
                 self._md5_offload.finalize_processes()
             if self._crypto_offload is not None:
                 self._crypto_offload.finalize_processes()
+            # close resume file
+            if self._resume is not None:
+                self._resume.close()

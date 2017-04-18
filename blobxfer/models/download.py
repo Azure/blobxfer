@@ -42,8 +42,9 @@ import tempfile
 import threading
 # non-stdlib imports
 # local imports
-import blobxfer.models.options
+import blobxfer.models.azure
 import blobxfer.models.crypto
+import blobxfer.models.options
 import blobxfer.util
 
 # create logger
@@ -172,42 +173,44 @@ class Descriptor(object):
 
     _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
-    def __init__(self, lpath, ase, options):
+    def __init__(self, lpath, ase, options, resume_mgr):
         # type: (DownloadDescriptior, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity,
-        #        blobxfer.models.options.Download) -> None
+        #        blobxfer.models.options.Download,
+        #        blobxfer.operations.resume.DownloadResumeManager) -> None
         """Ctor for Descriptor
         :param Descriptor self: this
         :param pathlib.Path lpath: local path
         :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
         :param blobxfer.models.options.Download options: download options
+        :param blobxfer.operations.resume.DownloadResumeManager resume_mgr:
+            download resume manager
         """
+        self._offset = 0
+        self._chunk_num = 0
+        self._next_integrity_chunk = 0
+        self._unchecked_chunks = {}
+        self._allocated = False
+        self._finalized = False
+        self._meta_lock = threading.Lock()
+        self._hasher_lock = threading.Lock()
+        self._resume_mgr = resume_mgr
+        self._ase = ase
+        # set paths
         self.final_path = lpath
         # create path holding the temporary file to download to
         _tmp = list(lpath.parts[:-1])
         _tmp.append(lpath.name + '.bxtmp')
         self.local_path = pathlib.Path(*_tmp)
-        self._meta_lock = threading.Lock()
-        self._hasher_lock = threading.Lock()
-        self._ase = ase
+        del _tmp
         # calculate the total number of ops required for transfer
         self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
-        try:
-            self._total_chunks = int(
-                math.ceil(self._ase.size / self._chunk_size))
-        except ZeroDivisionError:
-            self._total_chunks = 0
+        self._total_chunks = self._compute_total_chunks(self._chunk_size)
+        self._outstanding_ops = self._total_chunks
+        # initialize integrity checkers
         self.hmac = None
         self.md5 = None
-        self._offset = 0
-        self._chunk_num = 0
-        self._next_integrity_chunk = 0
-        self._unchecked_chunks = {}
-        self._outstanding_ops = self._total_chunks
-        self._completed_ops = 0
-        # initialize checkers and allocate space
         self._initialize_integrity_checkers(options)
-        self._allocate_disk_space()
 
     @property
     def entity(self):
@@ -241,14 +244,28 @@ class Descriptor(object):
             return (self._outstanding_ops == 0 and
                     len(self._unchecked_chunks) == 0)
 
-    def dec_outstanding_operations(self):
-        # type: (Descriptor) -> None
-        """Decrement outstanding operations (and increment completed ops)
+    @property
+    def is_resumable(self):
+        # type: (Descriptor) -> bool
+        """Download is resume capable
         :param Descriptor self: this
+        :rtype: bool
+        :return: if resumable
         """
-        with self._meta_lock:
-            self._outstanding_ops -= 1
-            self._completed_ops += 1
+        return self._resume_mgr is not None and self.hmac is None
+
+    def _compute_total_chunks(self, chunk_size):
+        # type: (Descriptor, int) -> int
+        """Compute total number of chunks for entity
+        :param Descriptor self: this
+        :param int chunk_size: chunk size
+        :rtype: int
+        :return: num chunks
+        """
+        try:
+            return int(math.ceil(self._ase.size / chunk_size))
+        except ZeroDivisionError:
+            return 0
 
     def _initialize_integrity_checkers(self, options):
         # type: (Descriptor, blobxfer.models.options.Download) -> None
@@ -273,29 +290,145 @@ class Descriptor(object):
         :param Descriptor self: this
         :param int size: size
         """
-        size = self._ase.size
-        # compute size
-        if size > 0:
-            if self._ase.is_encrypted:
-                # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
-                allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
-                    self._AES_BLOCKSIZE
+        with self._meta_lock:
+            if self._allocated:
+                return
+            size = self._ase.size
+            # compute size
+            if size > 0:
+                if self._ase.is_encrypted:
+                    # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
+                    allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
+                        self._AES_BLOCKSIZE
+                else:
+                    allocatesize = size
+                if allocatesize < 0:
+                    allocatesize = 0
             else:
-                allocatesize = size
-            if allocatesize < 0:
                 allocatesize = 0
-        else:
-            allocatesize = 0
-        # create parent path
-        self.local_path.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
-        # allocate file
-        with self.local_path.open('wb') as fd:
-            if allocatesize > 0:
-                try:
-                    os.posix_fallocate(fd.fileno(), 0, allocatesize)
-                except AttributeError:
-                    fd.seek(allocatesize - 1)
-                    fd.write(b'\0')
+            # check if path already exists and is of sufficient size
+            if (not self.local_path.exists() or
+                    self.local_path.stat().st_size != allocatesize):
+                # create parent path
+                self.local_path.parent.mkdir(
+                    mode=0o750, parents=True, exist_ok=True)
+                # allocate file
+                with self.local_path.open('wb') as fd:
+                    if allocatesize > 0:
+                        try:
+                            os.posix_fallocate(fd.fileno(), 0, allocatesize)
+                        except AttributeError:
+                            fd.seek(allocatesize - 1)
+                            fd.write(b'\0')
+            self._allocated = True
+
+    def _resume(self):
+        # type: (Descriptor) -> int
+        """Resume a download, if possible
+        :param Descriptor self: this
+        :rtype: int or None
+        :return: verified download offset
+        """
+        if self._resume_mgr is None or self._offset != 0:
+            return None
+        # check if path exists in resume db
+        rr = self._resume_mgr.get_record(str(self.final_path))
+        if rr is None:
+            logger.debug('no resume record for {}'.format(self.final_path))
+            return None
+        # ensure lengths are the same
+        if rr.length != self._ase.size:
+            logger.warning('resume length mismatch {} -> {}'.format(
+                rr.length, self._ase.size))
+            return None
+        # calculate current chunk and offset
+        if rr.next_integrity_chunk == 0:
+            logger.debug('nothing to resume for {}'.format(self.final_path))
+            return None
+        curr_chunk = rr.next_integrity_chunk
+        curr_offset = curr_chunk * rr.chunk_size
+        # set offsets if completed and the final path exists
+        if rr.completed and self.final_path.exists():
+            logger.debug('{} download already completed'.format(
+                self.final_path))
+            with self._meta_lock:
+                self._offset = self._ase.size
+                self._chunk_num = curr_chunk
+                self._chunk_size = rr.chunk_size
+                self._total_chunks = self._compute_total_chunks(rr.chunk_size)
+                self._next_integrity_chunk = rr.next_integrity_chunk
+                self._outstanding_ops = 0
+                self._finalized = True
+            return self._ase.size
+        # encrypted files are not resumable due to hmac requirement
+        if self._ase.is_encrypted:
+            logger.debug('cannot resume encrypted entity {}/{}'.format(
+                self._ase.container, self._ase.name))
+            return None
+        # check if intermediate (blobtmp) exists
+        if not self.local_path.exists():
+            logger.warning('temporary download file {} does not exist'.format(
+                rr.temp_path))
+            return None
+        if self.hmac is not None:
+            raise RuntimeError(
+                'unexpected hmac object for entity {}/{}'.format(
+                    self._ase.container, self._ase.name))
+        # re-hash from 0 to offset if needed
+        if self.md5 is not None and curr_chunk > 0:
+            pagealign = (
+                self._ase.mode == blobxfer.models.azure.StorageModes.Page
+            )
+            _fd_offset = 0
+            _end_offset = min(
+                (curr_chunk * rr.chunk_size, rr.length)
+            )
+            logger.debug(
+                'integrity checking existing file {} to offset {}'.format(
+                    self.final_path, _end_offset))
+            with self._hasher_lock:
+                with self.local_path.open('rb') as filedesc:
+                    while _fd_offset < _end_offset:
+                        _blocksize = blobxfer.util.MEGABYTE << 2
+                        if (_fd_offset + _blocksize) > _end_offset:
+                            _blocksize = _end_offset - _fd_offset
+                        buf = filedesc.read(_blocksize)
+                        buflen = len(buf)
+                        if pagealign and buflen < _blocksize:
+                            aligned = blobxfer.\
+                                util.page_align_content_length(buflen)
+                            if aligned != buflen:
+                                buf = buf.ljust(aligned, b'\0')
+                        self.md5.update(buf)
+                        _fd_offset += _blocksize
+            del _fd_offset
+            del _end_offset
+            # compare hashes
+            hexdigest = self.md5.hexdigest()
+            if rr.md5hexdigest != hexdigest:
+                logger.warning(
+                    'MD5 mismatch resume={} computed={} for {}'.format(
+                         rr.md5hexdigest, hexdigest, self.local_path))
+                # reset hasher
+                self.md5 = blobxfer.util.new_md5_hasher()
+                return None
+        # set values from resume
+        with self._meta_lock:
+            self._offset = curr_offset
+            self._chunk_num = curr_chunk
+            self._chunk_size = rr.chunk_size
+            self._total_chunks = self._compute_total_chunks(rr.chunk_size)
+            self._next_integrity_chunk = rr.next_integrity_chunk
+            self._outstanding_ops = \
+                self._total_chunks - self._next_integrity_chunk
+            logger.debug(
+                ('resuming file {} from byte={} chunk={} chunk_size={} '
+                 'total_chunks={} next_integrity_chunk={} '
+                 'outstanding_ops={}').format(
+                     self.final_path, self._offset, self._chunk_num,
+                     self._chunk_size, self._total_chunks,
+                     self._next_integrity_chunk, self._outstanding_ops))
+        return curr_offset
 
     def cleanup_all_temporary_files(self):
         # type: (Descriptor) -> None
@@ -324,9 +457,12 @@ class Descriptor(object):
         :rtype: Offsets
         :return: download offsets
         """
+        resume_bytes = self._resume()
+        if resume_bytes is None and not self._allocated:
+            self._allocate_disk_space()
         with self._meta_lock:
             if self._offset >= self._ase.size:
-                return None
+                return None, resume_bytes
             if self._offset + self._chunk_size > self._ase.size:
                 chunk = self._ase.size - self._offset
             else:
@@ -360,47 +496,62 @@ class Descriptor(object):
                 range_start=range_start,
                 range_end=range_end,
                 unpad=unpad,
-            )
+            ), resume_bytes
 
-    def _postpone_integrity_check(self, offsets, data):
+    def hmac_iv(self, iv):
+        # type: (Descriptor, bytes) -> None
+        """Send IV through hasher
+        :param Descriptor self: this
+        :param bytes iv: iv
+        """
+        with self._hasher_lock:
+            self.hmac.update(iv)
+
+    def write_unchecked_data(self, offsets, data):
         # type: (Descriptor, Offsets, bytes) -> None
-        """Postpone integrity check for chunk
+        """Write unchecked data to disk
         :param Descriptor self: this
         :param Offsets offsets: download offsets
         :param bytes data: data
         """
-        if self.must_compute_md5:
-            with self.local_path.open('r+b') as fd:
-                fd.seek(offsets.fd_start, 0)
-                fd.write(data)
-            unchecked = UncheckedChunk(
-                data_len=len(data),
-                fd_start=offsets.fd_start,
-                file_path=self.local_path,
-                temp=False,
-            )
-        else:
-            fname = None
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False) as fd:
-                fname = fd.name
-                fd.write(data)
-            unchecked = UncheckedChunk(
-                data_len=len(data),
-                fd_start=0,
-                file_path=pathlib.Path(fname),
-                temp=True,
-            )
+        with self.local_path.open('r+b') as fd:
+            fd.seek(offsets.fd_start, 0)
+            fd.write(data)
+        unchecked = UncheckedChunk(
+            data_len=len(data),
+            fd_start=offsets.fd_start,
+            file_path=self.local_path,
+            temp=False,
+        )
         with self._meta_lock:
             self._unchecked_chunks[offsets.chunk_num] = unchecked
 
-    def perform_chunked_integrity_check(self, offsets, data):
+    def write_unchecked_hmac_data(self, offsets, data):
         # type: (Descriptor, Offsets, bytes) -> None
-        """Hash data against stored MD5 hasher safely
+        """Write unchecked encrypted data to disk
         :param Descriptor self: this
         :param Offsets offsets: download offsets
-        :param bytes data: data
+        :param bytes data: hmac/encrypted data
         """
-        self_check = False
+        fname = None
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as fd:
+            fname = fd.name
+            fd.write(data)
+        unchecked = UncheckedChunk(
+            data_len=len(data),
+            fd_start=0,
+            file_path=pathlib.Path(fname),
+            temp=True,
+        )
+        with self._meta_lock:
+            self._unchecked_chunks[offsets.chunk_num] = unchecked
+        return str(unchecked.file_path)
+
+    def perform_chunked_integrity_check(self):
+        # type: (Descriptor) -> None
+        """Hash data against stored hasher safely
+        :param Descriptor self: this
+        """
         hasher = self.hmac or self.md5
         # iterate from next chunk to be checked
         while True:
@@ -410,26 +561,45 @@ class Descriptor(object):
                 # check if the next chunk is ready
                 if chunk_num in self._unchecked_chunks:
                     ucc = self._unchecked_chunks.pop(chunk_num)
-                elif chunk_num != offsets.chunk_num:
+                else:
                     break
-            # prepare data for hashing
-            if ucc is None:
-                chunk = data
-                self_check = True
-            else:
+            # hash data and set next integrity chunk
+            md5hexdigest = None
+            if hasher is not None:
                 with ucc.file_path.open('rb') as fd:
-                    fd.seek(ucc.fd_start, 0)
+                    if not ucc.temp:
+                        fd.seek(ucc.fd_start, 0)
                     chunk = fd.read(ucc.data_len)
                 if ucc.temp:
                     ucc.file_path.unlink()
-            # hash data and set next integrity chunk
-            with self._hasher_lock:
-                hasher.update(chunk)
+                with self._hasher_lock:
+                    hasher.update(chunk)
+                    if hasher == self.md5:
+                        md5hexdigest = hasher.hexdigest()
             with self._meta_lock:
+                # update integrity counter and resume db
                 self._next_integrity_chunk += 1
-        # store data that hasn't been checked
-        if not self_check:
-            self._postpone_integrity_check(offsets, data)
+                if self.is_resumable:
+                    self._resume_mgr.add_or_update_record(
+                        self.final_path, self.local_path, self._ase.size,
+                        self._chunk_size, self._next_integrity_chunk, False,
+                        md5hexdigest,
+                    )
+                # decrement outstanding op counter
+                self._outstanding_ops -= 1
+
+    def _update_resume_for_completed(self):
+        # type: (Descriptor) -> None
+        """Update resume for completion
+        :param Descriptor self: this
+        """
+        if not self.is_resumable:
+            return
+        with self._meta_lock:
+            self._resume_mgr.add_or_update_record(
+                self.final_path, self.local_path, self._ase.size,
+                self._chunk_size, self._next_integrity_chunk, True, None,
+            )
 
     def write_data(self, offsets, data):
         # type: (Descriptor, Offsets, bytes) -> None
@@ -438,15 +608,19 @@ class Descriptor(object):
         :param Offsets offsets: download offsets
         :param bytes data: data
         """
-        with self.local_path.open('r+b') as fd:
-            fd.seek(offsets.fd_start, 0)
-            fd.write(data)
+        if len(data) > 0:
+            with self.local_path.open('r+b') as fd:
+                fd.seek(offsets.fd_start, 0)
+                fd.write(data)
 
     def finalize_file(self):
         # type: (Descriptor) -> None
         """Finalize file download
         :param Descriptor self: this
         """
+        with self._meta_lock:
+            if self._finalized:
+                return
         # check final file integrity
         check = False
         msg = None
@@ -491,4 +665,8 @@ class Descriptor(object):
         # TODO set file uid/gid and mode
 
         # move temp download file to final path
-        self.local_path.rename(self.final_path)
+        self.local_path.replace(self.final_path)
+        # update resume file
+        self._update_resume_for_completed()
+        with self._meta_lock:
+            self._finalized = True

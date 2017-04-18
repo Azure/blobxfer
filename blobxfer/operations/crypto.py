@@ -248,28 +248,37 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
                 # TODO on upload
                 raise NotImplementedError()
             elif inst[0] == CryptoAction.Decrypt:
-                final_path, offsets, symkey, iv, encdata = \
-                    inst[1], inst[2], inst[3], inst[4], inst[5]
+                final_path, local_path, offsets, symkey, iv, hmac_datafile = \
+                    inst[1], inst[2], inst[3], inst[4], inst[5], inst[6]
+                # read encrypted data from disk
+                with open(hmac_datafile, 'rb') as fd:
+                    encdata = fd.read()
                 data = blobxfer.operations.crypto.aes_cbc_decrypt_data(
                     symkey, iv, encdata, offsets.unpad)
+                # write decrypted data to disk
+                if len(data) > 0:
+                    with open(local_path, 'r+b') as fd:
+                        fd.seek(offsets.fd_start, 0)
+                        fd.write(data)
             self._done_cv.acquire()
-            self._done_queue.put((final_path, offsets, data))
+            self._done_queue.put(final_path)
             self._done_cv.notify()
             self._done_cv.release()
 
     def add_decrypt_chunk(
-            self, final_path, offsets, symkey, iv, encdata):
-        # type: (CryptoOffload, str, blobxfer.models.download.Offsets,
-        #        bytes, bytes, bytes) -> None
+            self, final_path, local_path, offsets, symkey, iv, hmac_datafile):
+        # type: (CryptoOffload, str, str, blobxfer.models.download.Offsets,
+        #        bytes, bytes, str) -> None
         """Add a chunk to decrypt
         :param CryptoOffload self: this
         :param str final_path: final path
+        :param str local_path: temp local path
         :param blobxfer.models.download.Offsets offsets: offsets
         :param bytes symkey: symmetric key
         :param bytes iv: initialization vector
-        :param bytes encdata: encrypted data
+        :param str hmac_datafile: encrypted data file
         """
         self._task_queue.put(
-            (CryptoAction.Decrypt, final_path, offsets, symkey, iv,
-             encdata)
+            (CryptoAction.Decrypt, final_path, local_path, offsets, symkey,
+             iv, hmac_datafile)
         )
