@@ -2,6 +2,14 @@
 """Tests for util"""
 
 # stdlib imports
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 import sys
 # non-stdlib imports
 import pytest
@@ -88,6 +96,38 @@ def test_scantree(tmpdir):
     assert 'hello.txt' in found
     assert 'world.txt' in found
     assert len(found) == 2
+
+
+def test_replace_file(tmpdir):
+    src = pathlib.Path(str(tmpdir.join('src')))
+    dst = pathlib.Path(str(tmpdir.join('dst')))
+    src.touch()
+    dst.touch()
+
+    replace_avail = sys.version_info >= (3, 3)
+
+    with mock.patch(
+            'sys.version_info',
+            new_callable=mock.PropertyMock(return_value=(3, 2, 0))):
+        blobxfer.util.replace_file(src, dst)
+        assert not src.exists()
+        assert dst.exists()
+
+    dst.unlink()
+    src.touch()
+    dst.touch()
+
+    with mock.patch(
+            'sys.version_info',
+            new_callable=mock.PropertyMock(return_value=(3, 3, 0))):
+        if replace_avail:
+            blobxfer.util.replace_file(src, dst)
+            assert not src.exists()
+            assert dst.exists()
+        else:
+            src = mock.MagicMock()
+            blobxfer.util.replace_file(src, dst)
+            assert src.replace.call_count == 1
 
 
 def test_get_mime_type():

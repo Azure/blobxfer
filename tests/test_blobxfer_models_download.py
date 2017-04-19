@@ -4,18 +4,23 @@
 # stdlib imports
 import hashlib
 import hmac
-import mock
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
 import os
 try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
     import pathlib
+import unittest
 # non-stdlib imports
 import pytest
 # local imports
 import blobxfer.models.azure as azmodels
 import blobxfer.models.options as options
 import blobxfer.operations.azure as azops
+import blobxfer.operations.resume as rops
 import blobxfer.util as util
 # module under test
 import blobxfer.models.download as models
@@ -100,6 +105,7 @@ def test_downloaddescriptor(tmpdir):
 
     ase._encryption.symmetric_key = b'123'
     d = models.Descriptor(lp, ase, opts, None)
+    assert not d._allocated
     d._allocate_disk_space()
 
     assert d.entity == ase
@@ -110,6 +116,9 @@ def test_downloaddescriptor(tmpdir):
     assert str(d.local_path) == str(lp) + '.bxtmp'
     assert d._allocated
     assert d.local_path.stat().st_size == 1024 - 16
+
+    d._allocate_disk_space()
+    assert d._allocated
 
     d.local_path.unlink()
     ase._size = 1
@@ -134,6 +143,146 @@ def test_downloaddescriptor(tmpdir):
     assert d._total_chunks == 0
     assert d._allocated
     assert d.local_path.stat().st_size == 0
+
+
+@unittest.skipIf(util.on_python2(), 'fallocate does not exist')
+def test_downloaddescriptor_allocate_disk_space_via_seek(tmpdir):
+    fp = pathlib.Path(str(tmpdir.join('fp')))
+    lp = pathlib.Path(str(tmpdir.join('fp.bxtmp')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 256
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._name = 'blob'
+    d = models.Descriptor(fp, ase, opts, None)
+
+    with mock.patch('os.posix_fallocate') as patched_fallocate:
+        patched_fallocate.side_effect = [AttributeError()]
+        d._allocate_disk_space()
+        assert d._allocated
+        assert not fp.exists()
+        assert lp.stat().st_size == ase._size
+
+
+def test_downloaddescriptor_resume(tmpdir):
+    resumefile = pathlib.Path(str(tmpdir.join('resume')))
+    fp = pathlib.Path(str(tmpdir.join('fp')))
+    lp = pathlib.Path(str(tmpdir.join('fp.bxtmp')))
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 256
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._name = 'blob'
+
+    # test no record
+    rmgr = rops.DownloadResumeManager(resumefile)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb is None
+
+    # test length mismatch
+    rmgr.add_or_update_record(str(fp), str(lp), 127, 0, 0, False, None)
+    rb = d._resume()
+    assert rb is None
+
+    # test nothing to resume
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+
+    rmgr.add_or_update_record(str(fp), str(lp), ase._size, 0, 0, False, None)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb is None
+
+    # test completion
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+
+    rmgr.add_or_update_record(str(fp), str(lp), ase._size, 32, 1, True, None)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    fp.touch()
+    rb = d._resume()
+    assert rb == ase._size
+
+    # test encrypted no resume
+    fp.unlink()
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+
+    ase._encryption = mock.MagicMock()
+    ase._encryption.symmetric_key = b'123'
+    rmgr.add_or_update_record(str(fp), str(lp), ase._size, 32, 1, False, None)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb is None
+
+    # test if intermediate file not exists
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._name = 'blob'
+
+    rmgr.add_or_update_record(str(fp), str(lp), ase._size, 32, 1, False, None)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb is None
+
+    # ensure hmac not populated
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._name = 'blob'
+    lp.touch()
+
+    rmgr.add_or_update_record(str(fp), str(lp), ase._size, 32, 1, False, None)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    d.hmac = True
+    with pytest.raises(RuntimeError):
+        d._resume()
+
+    # md5 hash check
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+
+    data = os.urandom(32)
+    with lp.open('wb') as f:
+        f.write(data)
+    md5 = util.new_md5_hasher()
+    md5.update(data)
+
+    rmgr.add_or_update_record(
+        str(fp), str(lp), ase._size, 32, 1, False, md5.hexdigest())
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb == 32
+
+    # md5 hash mismatch
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+    rmgr.add_or_update_record(
+        str(fp), str(lp), ase._size, 32, 1, False, 'abc')
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb is None
+
+    # md5 hash check as page file
+    rmgr.delete()
+    rmgr = rops.DownloadResumeManager(resumefile)
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._name = 'blob'
+    ase._mode = azmodels.StorageModes.Page
+
+    rmgr.add_or_update_record(
+        str(fp), str(lp), ase._size, 32, 1, False, md5.hexdigest())
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    rb = d._resume()
+    assert rb == 32
 
 
 def test_downloaddescriptor_next_offsets(tmpdir):
@@ -259,6 +408,24 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
 
+def test_hmac_iv(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 256
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 128
+    ase._encryption = mock.MagicMock()
+    ase._encryption.symmetric_key = b'123'
+    ase._size = 128
+    d = models.Descriptor(lp, ase, opts, None)
+
+    iv = b'abc'
+    d.hmac_iv(iv)
+    assert d.hmac.update.call_count == 1
+
+
 def test_write_unchecked_data(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
 
@@ -345,6 +512,48 @@ def test_perform_chunked_integrity_check(tmpdir):
     assert 1 not in d._unchecked_chunks
     assert len(d._unchecked_chunks) == 0
 
+    # check integrity with resume
+    resumefile = pathlib.Path(str(tmpdir.join('resume')))
+    fp = pathlib.Path(str(tmpdir.join('fp')))
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 16
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    ase._name = 'blob'
+    rmgr = rops.DownloadResumeManager(resumefile)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+
+    data = b'0' * opts.chunk_size_bytes
+    md5 = util.new_md5_hasher()
+    md5.update(data)
+    offsets, _ = d.next_offsets()
+    d.write_unchecked_hmac_data(offsets, data)
+    d.perform_chunked_integrity_check()
+    assert d._next_integrity_chunk == 1
+    assert len(d._unchecked_chunks) == 0
+    dr = rmgr.get_record(str(fp))
+    assert dr.next_integrity_chunk == 1
+    assert dr.md5hexdigest == md5.hexdigest()
+
+
+def test_update_resume_for_completed(tmpdir):
+    resumefile = pathlib.Path(str(tmpdir.join('resume')))
+    fp = pathlib.Path(str(tmpdir.join('fp')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 16
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    ase._name = 'blob'
+    rmgr = rops.DownloadResumeManager(resumefile)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+    offsets, _ = d.next_offsets()
+    d._update_resume_for_completed()
+    dr = rmgr.get_record(str(fp))
+    assert dr.completed
+
 
 def test_cleanup_all_temporary_files(tmpdir):
     opts = mock.MagicMock()
@@ -396,6 +605,25 @@ def test_write_data(tmpdir):
 
 
 def test_finalize_file(tmpdir):
+    # already finalized
+    lp = pathlib.Path(str(tmpdir.join('af')))
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 16
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+
+    data = b'0' * ase._size
+
+    d = models.Descriptor(lp, ase, opts, None)
+    d._allocate_disk_space()
+    d._finalized = True
+    d.finalize_file()
+
+    assert d.local_path.exists()
+    assert not d.final_path.exists()
+    d.local_path.unlink()
+
     # hmac check success
     lp = pathlib.Path(str(tmpdir.join('a')))
     opts = mock.MagicMock()

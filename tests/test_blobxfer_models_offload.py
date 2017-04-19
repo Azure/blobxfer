@@ -2,7 +2,10 @@
 """Tests for offload"""
 
 # stdlib imports
-import mock
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
 # non-stdlib imports
 import pytest
 # local imports

@@ -3,8 +3,10 @@
 
 # stdlib imports
 import datetime
-import dateutil.tz
-import mock
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
 import multiprocessing
 try:
     import pathlib2 as pathlib
@@ -16,6 +18,7 @@ except ImportError:  # noqa
     import Queue as queue
 # non-stdlib imports
 import azure.storage.blob
+import dateutil.tz
 import pytest
 # local imports
 import blobxfer.models.azure as azmodels
@@ -340,6 +343,7 @@ def test_check_for_crypto_done():
     d._check_for_crypto_done()
     assert dd.perform_chunked_integrity_check.call_count == 0
 
+    # check successful integrity check call
     with mock.patch(
             'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
@@ -358,6 +362,25 @@ def test_check_for_crypto_done():
         d._complete_chunk_download = mock.MagicMock()
         d._check_for_crypto_done()
         assert dd.perform_chunked_integrity_check.call_count == 1
+
+    # check KeyError on result
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._download_set.add(pathlib.Path(lpath))
+        dd = mock.MagicMock()
+        d._crypto_offload = mock.MagicMock()
+        d._crypto_offload.done_cv = multiprocessing.Condition()
+        d._crypto_offload.pop_done_queue.side_effect = [
+            None,
+            lpath,
+        ]
+        patched_tc.side_effect = [False, False, True]
+        d._complete_chunk_download = mock.MagicMock()
+        d._check_for_crypto_done()
+        assert dd.perform_chunked_integrity_check.call_count == 0
 
 
 def test_add_to_download_queue(tmpdir):
@@ -409,6 +432,27 @@ def test_worker_thread_download(
     with mock.patch(
             'blobxfer.operations.download.Downloader.termination_check',
             new_callable=mock.PropertyMock) as patched_tc:
+        patched_tc.side_effect = [False, False, True]
+        ase = azmodels.StorageEntity('cont')
+        ase._size = 16
+        ase._encryption = mock.MagicMock()
+        ase._encryption.symmetric_key = b'abc'
+        lp = pathlib.Path(str(tmpdir.join('exc')))
+        opts = mock.MagicMock()
+        opts.check_file_md5 = False
+        opts.chunk_size_bytes = 16
+        dd = models.Descriptor(lp, ase, opts, None)
+        d._download_queue = mock.MagicMock()
+        d._download_queue.get.side_effect = [queue.Empty, dd]
+        d._process_download_descriptor = mock.MagicMock()
+        d._process_download_descriptor.side_effect = RuntimeError('oops')
+        d._worker_thread_download()
+        assert len(d._exceptions) == 1
+        assert d._process_download_descriptor.call_count == 1
+
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
         with mock.patch(
                 'blobxfer.models.download.Descriptor.'
                 'all_operations_completed',
@@ -425,7 +469,7 @@ def test_worker_thread_download(
             lp = pathlib.Path(str(tmpdir.join('a')))
             dd = models.Descriptor(lp, ase, opts, None)
             dd.next_offsets = mock.MagicMock(
-                side_effect=[(None, None), (None, None)])
+                side_effect=[(None, 1), (None, 2)])
             dd.finalize_file = mock.MagicMock()
             dd.perform_chunked_integrity_check = mock.MagicMock()
             patched_aoc.side_effect = [False, True]
@@ -438,6 +482,7 @@ def test_worker_thread_download(
             assert str(lp) not in d._dd_map
             assert dd.finalize_file.call_count == 1
             assert d._download_sofar == 1
+            assert d._download_bytes_sofar == 3
 
     with mock.patch(
             'blobxfer.operations.download.Downloader.termination_check',
@@ -610,14 +655,13 @@ def test_delete_extraneous_files(tmpdir):
     d._delete_extraneous_files()
 
 
-@mock.patch('time.clock')
 @mock.patch('blobxfer.operations.md5.LocalFileMd5Offload')
 @mock.patch('blobxfer.operations.azure.blob.list_blobs')
 @mock.patch(
     'blobxfer.operations.download.Downloader.ensure_local_destination',
     return_value=True
 )
-def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
+def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._cleanup_temporary_files = mock.MagicMock()
     d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
@@ -625,7 +669,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     patched_lfmo._check_thread = mock.MagicMock()
     d._general_options.concurrency.crypto_processes = 1
     d._general_options.concurrency.md5_processes = 1
-    d._general_options.resume_file = None
+    d._general_options.resume_file = pathlib.Path(str(tmpdir.join('rf')))
     d._spec.sources = []
     d._spec.options = mock.MagicMock()
     d._spec.options.chunk_size_bytes = 1
@@ -647,19 +691,15 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     b = azure.storage.blob.models.Blob(name='name')
     b.properties.content_length = 1
     patched_lb.side_effect = [[b]]
-
     d._pre_md5_skip_on_check = mock.MagicMock()
-
     d._check_download_conditions = mock.MagicMock()
     d._check_download_conditions.return_value = ops.DownloadAction.Skip
-    patched_tc.side_effect = [1, 2]
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 0
 
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = ops.DownloadAction.CheckMd5
-    patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
     assert d._pre_md5_skip_on_check.call_count == 1
@@ -668,10 +708,21 @@ def test_start(patched_eld, patched_lb, patched_lfmo, patched_tc, tmpdir):
     patched_lb.side_effect = [[b]]
     d._all_remote_files_processed = False
     d._check_download_conditions.return_value = ops.DownloadAction.Download
-    patched_tc.side_effect = [1, 2]
     with pytest.raises(RuntimeError):
         d.start()
     assert d._download_queue.qsize() == 1
+
+    # test exception count
+    b = azure.storage.blob.models.Blob(name='name')
+    b.properties.content_length = 1
+    patched_lb.side_effect = [[b]]
+    d._pre_md5_skip_on_check = mock.MagicMock()
+    d._check_download_conditions = mock.MagicMock()
+    d._check_download_conditions.return_value = ops.DownloadAction.Skip
+    d._exceptions = [RuntimeError('oops')]
+    with pytest.raises(RuntimeError):
+        d.start()
+    assert d._pre_md5_skip_on_check.call_count == 0
 
 
 def test_start_keyboard_interrupt():

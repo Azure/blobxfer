@@ -2,7 +2,10 @@
 """Tests for models options"""
 
 # stdlib imports
-import mock
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
 try:
     import pathlib2 as pathlib
 except ImportError:  # noqa

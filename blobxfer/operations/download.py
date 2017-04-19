@@ -96,6 +96,7 @@ class Downloader(object):
         self._creds = creds
         self._spec = spec
         self._resume = None
+        self._exceptions = []
 
     @property
     def termination_check(self):
@@ -107,6 +108,7 @@ class Downloader(object):
         """
         with self._download_lock:
             return (self._download_terminate or
+                    len(self._exceptions) > 0 or
                     (self._all_remote_files_processed and
                      len(self._download_set) == 0))
 
@@ -369,79 +371,92 @@ class Downloader(object):
                 dd = self._download_queue.get(False, 0.25)
             except queue.Empty:
                 continue
-            # update progress bar
-            self._update_progress_bar()
-            # get download offsets
-            offsets, resume_bytes = dd.next_offsets()
-            # add resume bytes to counter
-            if resume_bytes is not None:
+            try:
+                self._process_download_descriptor(dd)
+            except Exception as e:
                 with self._download_lock:
-                    self._download_bytes_sofar += resume_bytes
-                del resume_bytes
-            # check if all operations completed
-            if offsets is None and dd.all_operations_completed:
-                # finalize file
-                dd.finalize_file()
-                # accounting
-                with self._download_lock:
-                    if dd.entity.is_encrypted:
-                        self._dd_map.pop(str(dd.final_path))
-                    self._download_set.remove(dd.final_path)
-                    self._download_sofar += 1
-                continue
-            # re-enqueue for other threads to download
-            self._download_queue.put(dd)
-            if offsets is None:
-                continue
-            # issue get range
-            if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
-                data = blobxfer.operations.azure.file.get_file_range(
-                    dd.entity, offsets, self._general_options.timeout_sec)
-            else:
-                data = blobxfer.operations.azure.blob.get_blob_range(
-                    dd.entity, offsets, self._general_options.timeout_sec)
+                    self._exceptions.append(e)
+
+    def _process_download_descriptor(self, dd):
+        # type: (Downloader, blobxfer.models.download.Descriptor) -> None
+        """Process download descriptor
+        :param Downloader self: this
+        :param blobxfer.models.download.Descriptor: download descriptor
+        """
+        # update progress bar
+        self._update_progress_bar()
+        # get download offsets
+        offsets, resume_bytes = dd.next_offsets()
+        # add resume bytes to counter
+        if resume_bytes is not None:
+            with self._download_lock:
+                self._download_bytes_sofar += resume_bytes
+                logger.debug('adding {} sofar {} from {}'.format(
+                    resume_bytes, self._download_bytes_sofar, dd._ase.name))
+            del resume_bytes
+        # check if all operations completed
+        if offsets is None and dd.all_operations_completed:
+            # finalize file
+            dd.finalize_file()
             # accounting
             with self._download_lock:
-                self._download_bytes_sofar += offsets.num_bytes
-            # decrypt if necessary
-            if dd.entity.is_encrypted:
-                # slice data to proper bounds and get iv for chunk
-                if offsets.chunk_num == 0:
-                    # set iv
-                    iv = dd.entity.encryption_metadata.content_encryption_iv
-                    # set data to decrypt
-                    encdata = data
-                    # send iv through hmac
-                    dd.hmac_iv(iv)
-                else:
-                    # set iv
-                    iv = data[:blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES]
-                    # set data to decrypt
-                    encdata = data[
-                        blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
-                # write encdata to disk for hmac later
-                _hmac_datafile = dd.write_unchecked_hmac_data(
-                    offsets, encdata)
-                # decrypt data
-                if self._crypto_offload is not None:
-                    self._crypto_offload.add_decrypt_chunk(
-                        str(dd.final_path), str(dd.local_path), offsets,
-                        dd.entity.encryption_metadata.symmetric_key,
-                        iv, _hmac_datafile)
-                    # data will be integrity checked and written once
-                    # retrieved from crypto queue
-                    continue
-                else:
-                    data = blobxfer.operations.crypto.aes_cbc_decrypt_data(
-                        dd.entity.encryption_metadata.symmetric_key,
-                        iv, encdata, offsets.unpad)
-                    dd.write_data(offsets, data)
+                if dd.entity.is_encrypted:
+                    self._dd_map.pop(str(dd.final_path))
+                self._download_set.remove(dd.final_path)
+                self._download_sofar += 1
+            return
+        # re-enqueue for other threads to download
+        self._download_queue.put(dd)
+        if offsets is None:
+            return
+        # issue get range
+        if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
+            data = blobxfer.operations.azure.file.get_file_range(
+                dd.entity, offsets, self._general_options.timeout_sec)
+        else:
+            data = blobxfer.operations.azure.blob.get_blob_range(
+                dd.entity, offsets, self._general_options.timeout_sec)
+        # accounting
+        with self._download_lock:
+            self._download_bytes_sofar += offsets.num_bytes
+        # decrypt if necessary
+        if dd.entity.is_encrypted:
+            # slice data to proper bounds and get iv for chunk
+            if offsets.chunk_num == 0:
+                # set iv
+                iv = dd.entity.encryption_metadata.content_encryption_iv
+                # set data to decrypt
+                encdata = data
+                # send iv through hmac
+                dd.hmac_iv(iv)
             else:
-                # write data to disk
-                dd.write_unchecked_data(offsets, data)
-            # integrity check data and write to disk (this is called
-            # regardless of md5/hmac enablement for resume purposes)
-            dd.perform_chunked_integrity_check()
+                # set iv
+                iv = data[:blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES]
+                # set data to decrypt
+                encdata = data[blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
+            # write encdata to disk for hmac later
+            _hmac_datafile = dd.write_unchecked_hmac_data(
+                offsets, encdata)
+            # decrypt data
+            if self._crypto_offload is not None:
+                self._crypto_offload.add_decrypt_chunk(
+                    str(dd.final_path), str(dd.local_path), offsets,
+                    dd.entity.encryption_metadata.symmetric_key,
+                    iv, _hmac_datafile)
+                # data will be integrity checked and written once
+                # retrieved from crypto queue
+                return
+            else:
+                data = blobxfer.operations.crypto.aes_cbc_decrypt_data(
+                    dd.entity.encryption_metadata.symmetric_key,
+                    iv, encdata, offsets.unpad)
+                dd.write_data(offsets, data)
+        else:
+            # write data to disk
+            dd.write_unchecked_data(offsets, data)
+        # integrity check data and write to disk (this is called
+        # regardless of md5/hmac enablement for resume purposes)
+        dd.perform_chunked_integrity_check()
 
     def _cleanup_temporary_files(self):
         # type: (Downloader) -> None
@@ -565,6 +580,11 @@ class Downloader(object):
         end_time = blobxfer.util.datetime_now()
         # update progress bar
         self._update_progress_bar()
+        # check for exceptions
+        if len(self._exceptions) > 0:
+            logger.error('exceptions encountered while downloading')
+            # raise the first one
+            raise self._exceptions[0]
         # check for mismatches
         if (self._download_sofar != self._download_total or
                 self._download_bytes_sofar != self._download_bytes_total):

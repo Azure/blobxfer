@@ -329,7 +329,7 @@ class Descriptor(object):
         :rtype: int or None
         :return: verified download offset
         """
-        if self._resume_mgr is None or self._offset != 0:
+        if self._resume_mgr is None or self._offset > 0 or self._finalized:
             return None
         # check if path exists in resume db
         rr = self._resume_mgr.get_record(str(self.final_path))
@@ -346,12 +346,11 @@ class Descriptor(object):
             logger.debug('nothing to resume for {}'.format(self.final_path))
             return None
         curr_chunk = rr.next_integrity_chunk
-        curr_offset = curr_chunk * rr.chunk_size
         # set offsets if completed and the final path exists
         if rr.completed and self.final_path.exists():
-            logger.debug('{} download already completed'.format(
-                self.final_path))
             with self._meta_lock:
+                logger.debug('{} download already completed'.format(
+                    self.final_path))
                 self._offset = self._ase.size
                 self._chunk_num = curr_chunk
                 self._chunk_size = rr.chunk_size
@@ -375,34 +374,22 @@ class Descriptor(object):
                 'unexpected hmac object for entity {}/{}'.format(
                     self._ase.container, self._ase.name))
         # re-hash from 0 to offset if needed
+        _fd_offset = 0
+        _end_offset = min((curr_chunk * rr.chunk_size, rr.length))
         if self.md5 is not None and curr_chunk > 0:
-            pagealign = (
-                self._ase.mode == blobxfer.models.azure.StorageModes.Page
-            )
-            _fd_offset = 0
-            _end_offset = min(
-                (curr_chunk * rr.chunk_size, rr.length)
-            )
+            _blocksize = blobxfer.util.MEGABYTE << 2
             logger.debug(
                 'integrity checking existing file {} to offset {}'.format(
                     self.final_path, _end_offset))
             with self._hasher_lock:
                 with self.local_path.open('rb') as filedesc:
                     while _fd_offset < _end_offset:
-                        _blocksize = blobxfer.util.MEGABYTE << 2
                         if (_fd_offset + _blocksize) > _end_offset:
                             _blocksize = _end_offset - _fd_offset
-                        buf = filedesc.read(_blocksize)
-                        buflen = len(buf)
-                        if pagealign and buflen < _blocksize:
-                            aligned = blobxfer.\
-                                util.page_align_content_length(buflen)
-                            if aligned != buflen:
-                                buf = buf.ljust(aligned, b'\0')
-                        self.md5.update(buf)
+                        _buf = filedesc.read(_blocksize)
+                        self.md5.update(_buf)
                         _fd_offset += _blocksize
-            del _fd_offset
-            del _end_offset
+            del _blocksize
             # compare hashes
             hexdigest = self.md5.hexdigest()
             if rr.md5hexdigest != hexdigest:
@@ -414,13 +401,14 @@ class Descriptor(object):
                 return None
         # set values from resume
         with self._meta_lock:
-            self._offset = curr_offset
+            self._offset = _end_offset
             self._chunk_num = curr_chunk
             self._chunk_size = rr.chunk_size
             self._total_chunks = self._compute_total_chunks(rr.chunk_size)
             self._next_integrity_chunk = rr.next_integrity_chunk
-            self._outstanding_ops = \
+            self._outstanding_ops = (
                 self._total_chunks - self._next_integrity_chunk
+            )
             logger.debug(
                 ('resuming file {} from byte={} chunk={} chunk_size={} '
                  'total_chunks={} next_integrity_chunk={} '
@@ -428,7 +416,7 @@ class Descriptor(object):
                      self.final_path, self._offset, self._chunk_num,
                      self._chunk_size, self._total_chunks,
                      self._next_integrity_chunk, self._outstanding_ops))
-        return curr_offset
+        return _end_offset
 
     def cleanup_all_temporary_files(self):
         # type: (Descriptor) -> None

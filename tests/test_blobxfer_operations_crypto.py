@@ -2,7 +2,10 @@
 """Tests for crypto operations"""
 
 # stdlib imports
-import mock
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
 import os
 import time
 # non-stdlib imports

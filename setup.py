@@ -39,14 +39,14 @@ packages = [
 ]
 
 install_requires = [
-    'azure-common==1.1.4',
+    'azure-common==1.1.5',
     'azure-storage==0.34.0',
     'click==6.7',
     'cryptography>=1.8.1',
     'future==0.16.0',
     'python-dateutil==2.6.0',
     'requests==2.13.0',
-    'ruamel.yaml==0.14.5',
+    'ruamel.yaml==0.14.8',
 ]
 
 if sys.version_info < (3, 4):
