@@ -109,7 +109,6 @@ def test_list_files_directory(patched_cisf):
         assert file.name == 'name'
     assert i == 1
 
-    print('test')
     _dir = azure.storage.file.models.Directory(name='dirname')
     _file = azure.storage.file.models.File(name='dirname/name')
     client = mock.MagicMock()

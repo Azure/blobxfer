@@ -90,21 +90,32 @@ def test_aes_cbc_encryption():
     assert decdata == plaindata
 
 
-def test_cryptooffload_decrypt():
+def test_cryptooffload_decrypt(tmpdir):
+    symkey = ops.aes256_generate_random_key()
+    iv = os.urandom(16)
+    plainlen = 16
+    plaindata = os.urandom(plainlen)
+    encdata = ops.aes_cbc_encrypt_data(symkey, iv, plaindata, False)
+
+    afile = tmpdir.join('a')
+    afile.write(encdata, mode='wb')
+    hmacfile = str(afile)
+    bfile = tmpdir.join('b')
+    bfile.ensure(file=True)
+
     a = None
     try:
         a = ops.CryptoOffload(1)
         offsets = blobxfer.models.download.Offsets(
             chunk_num=0,
-            fd_start=1,
+            fd_start=0,  # this matters!
             num_bytes=2,
             range_end=3,
             range_start=4,
             unpad=False,
         )
         a.add_decrypt_chunk(
-            'fp', offsets, ops.aes256_generate_random_key(), os.urandom(16),
-            os.urandom(16))
+            'fp', str(bfile), offsets, symkey, iv, hmacfile)
         i = 33
         checked = False
         while i > 0:
@@ -113,12 +124,13 @@ def test_cryptooffload_decrypt():
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 3
-            assert result[0] == 'fp'
-            assert result[1] == offsets
+            assert result == 'fp'
             checked = True
             break
         assert checked
+        assert bfile.stat().size == plainlen
+        decdata = bfile.read(mode='rb')
+        assert decdata == plaindata
     finally:
         if a is not None:
             a.finalize_processes()

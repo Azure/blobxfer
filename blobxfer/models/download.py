@@ -665,7 +665,7 @@ class Descriptor(object):
         # TODO set file uid/gid and mode
 
         # move temp download file to final path
-        self.local_path.replace(self.final_path)
+        blobxfer.util.replace_file(self.local_path, self.final_path)
         # update resume file
         self._update_resume_for_completed()
         with self._meta_lock:
