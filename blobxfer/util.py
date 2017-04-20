@@ -297,6 +297,6 @@ def parse_blob_snapshot_parameter(url):
     """
     if blob_is_snapshot(url):
         tmp = url.split('?snapshot=')
-        if len(tmp) > 1:
-            return tmp[-1]
+        if len(tmp) == 2:
+            return tmp[0], tmp[1]
     return None

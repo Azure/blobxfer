@@ -149,12 +149,14 @@ class Downloader(object):
                     spec.sources[0].lookup_storage_account(rpath))
                 if (spec.options.mode ==
                         blobxfer.models.azure.StorageModes.File):
-                    if blobxfer.operations.azure.file.check_if_single_file(
-                            sa.file_client, cont, dir)[0]:
+                    if (blobxfer.operations.azure.file.check_if_single_file(
+                            sa.file_client, cont, dir)[0] and
+                            spec.options.rename):
                         spec.destination.is_dir = False
                 else:
-                    if blobxfer.operations.azure.blob.check_if_single_blob(
-                            sa.block_blob_client, cont, dir):
+                    if (blobxfer.operations.azure.blob.check_if_single_blob(
+                            sa.block_blob_client, cont, dir) and
+                            spec.options.rename):
                         spec.destination.is_dir = False
         logger.debug('dest is_dir={} for {} specs'.format(
             spec.destination.is_dir, len(spec.sources)))
@@ -194,7 +196,8 @@ class Downloader(object):
                     lpath, rfile.container, rfile.name))
             return DownloadAction.Skip
         # check skip on options, MD5 match takes priority
-        if self._spec.skip_on.md5_match:
+        if (self._spec.skip_on.md5_match and
+                blobxfer.util.is_not_empty(rfile.md5)):
             return DownloadAction.CheckMd5
         # if neither of the remaining skip on actions are activated, download
         if (not self._spec.skip_on.filesize_match and
@@ -542,7 +545,12 @@ class Downloader(object):
                 nfiles += 1
                 total_size += rfile.size
                 # form local path for remote file
-                lpath = pathlib.Path(self._spec.destination.path, rfile.name)
+                if (not self._spec.destination.is_dir and
+                        self._spec.options.rename):
+                    lpath = pathlib.Path(self._spec.destination.path)
+                else:
+                    lpath = pathlib.Path(
+                        self._spec.destination.path, rfile.name)
                 # remove from delete after set
                 try:
                     self._delete_after.remove(lpath)

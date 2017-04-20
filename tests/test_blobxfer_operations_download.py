@@ -34,8 +34,9 @@ import blobxfer.operations.download as ops
 @mock.patch('blobxfer.operations.azure.blob.check_if_single_blob')
 def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     downdir = tmpdir.join('down')
+    downdir.mkdir()
 
-    # non-file tests
+    # no spec sources
     ds = models.Specification(
         download_options=options.Download(
             check_file_md5=True,
@@ -44,6 +45,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -52,25 +54,42 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             str(downdir)
         ),
     )
-
     with pytest.raises(RuntimeError):
         ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
 
+    # blob directory
     asp = azops.SourcePath()
     p = 'cont/remote/path'
     asp.add_path_with_storage_account(p, 'sa')
-
     ds.add_azure_source_path(asp)
-
     patched_blob.return_value = False
     ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
     assert ds.destination.is_dir
 
+    # blob single file + rename
+    ds = models.Specification(
+        download_options=options.Download(
+            check_file_md5=True,
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.Auto,
+            overwrite=True,
+            recursive=True,
+            rename=True,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+        ),
+        skip_on_options=mock.MagicMock(),
+        local_destination_path=models.LocalDestinationPath(
+            str(downdir)
+        ),
+    )
+    ds.add_azure_source_path(asp)
     patched_blob.return_value = True
     with pytest.raises(RuntimeError):
         ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
 
-    # file tests
+    # file directory
     ds = models.Specification(
         download_options=options.Download(
             check_file_md5=True,
@@ -79,6 +98,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             mode=azmodels.StorageModes.File,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -87,13 +107,30 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             str(downdir)
         ),
     )
-
     ds.add_azure_source_path(asp)
-
     patched_file.return_value = (False, None)
     ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
     assert ds.destination.is_dir
 
+    # file single + rename
+    ds = models.Specification(
+        download_options=options.Download(
+            check_file_md5=True,
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.File,
+            overwrite=True,
+            recursive=True,
+            rename=True,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+        ),
+        skip_on_options=mock.MagicMock(),
+        local_destination_path=models.LocalDestinationPath(
+            str(downdir)
+        ),
+    )
+    ds.add_azure_source_path(asp)
     patched_file.return_value = (True, mock.MagicMock())
     with pytest.raises(RuntimeError):
         ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
@@ -113,6 +150,7 @@ def test_check_download_conditions(tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=False,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -137,6 +175,7 @@ def test_check_download_conditions(tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -148,7 +187,9 @@ def test_check_download_conditions(tmpdir):
         local_destination_path=models.LocalDestinationPath('dest'),
     )
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
-    result = d._check_download_conditions(ep, mock.MagicMock())
+    rfile = mock.MagicMock()
+    rfile.md5 = 'abc'
+    result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.CheckMd5
 
     ds = models.Specification(
@@ -159,6 +200,7 @@ def test_check_download_conditions(tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -181,6 +223,7 @@ def test_check_download_conditions(tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -211,6 +254,7 @@ def test_check_download_conditions(tmpdir):
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -675,6 +719,7 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     d._spec.options.chunk_size_bytes = 1
     d._spec.options.mode = azmodels.StorageModes.Auto
     d._spec.options.overwrite = True
+    d._spec.options.rename = False
     d._spec.skip_on = mock.MagicMock()
     d._spec.skip_on.md5_match = False
     d._spec.skip_on.lmt_ge = False
@@ -716,6 +761,8 @@ def test_start(patched_eld, patched_lb, patched_lfmo, tmpdir):
     b = azure.storage.blob.models.Blob(name='name')
     b.properties.content_length = 1
     patched_lb.side_effect = [[b]]
+    d._spec.destination.is_dir = False
+    d._spec.options.rename = True
     d._pre_md5_skip_on_check = mock.MagicMock()
     d._check_download_conditions = mock.MagicMock()
     d._check_download_conditions.return_value = ops.DownloadAction.Skip

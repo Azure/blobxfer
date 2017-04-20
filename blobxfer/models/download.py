@@ -148,7 +148,7 @@ class Specification(object):
         # type: (Specification, blobxfer.models.options.Download,
         #        blobxfer.models.options.SkipOn, LocalDestinationPath) -> None
         """Ctor for Specification
-        :param DownloadSepcification self: this
+        :param DownloadSpecification self: this
         :param blobxfer.models.options.Download download_options:
             download options
         :param blobxfer.models.options.SkipOn skip_on_options: skip on options
@@ -162,7 +162,7 @@ class Specification(object):
     def add_azure_source_path(self, source):
         # type: (Specification, AzureSourcePath) -> None
         """Add an Azure Source Path
-        :param DownloadSepcification self: this
+        :param DownloadSpecification self: this
         :param AzureSourcePath source: Azure source path to add
         """
         self.sources.append(source)
@@ -281,7 +281,8 @@ class Descriptor(object):
                     'symmetric key is invalid: provide RSA private key '
                     'or metadata corrupt')
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
-        if self.hmac is None and options.check_file_md5:
+        if (self.hmac is None and options.check_file_md5 and
+                blobxfer.util.is_not_empty(self._ase.md5)):
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def _allocate_disk_space(self):

@@ -66,6 +66,7 @@ def test_downloadspecification():
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
         ),
@@ -266,6 +267,7 @@ def test_downloaddescriptor_resume(tmpdir):
     rmgr = rops.DownloadResumeManager(resumefile)
     rmgr.add_or_update_record(
         str(fp), str(lp), ase._size, 32, 1, False, 'abc')
+    ase._md5 = 'abc'
     d = models.Descriptor(fp, ase, opts, rmgr)
     rb = d._resume()
     assert rb is None
@@ -519,17 +521,21 @@ def test_perform_chunked_integrity_check(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = True
     opts.chunk_size_bytes = 16
-    ase = azmodels.StorageEntity('cont')
-    ase._size = 32
-    ase._name = 'blob'
-    rmgr = rops.DownloadResumeManager(resumefile)
-    d = models.Descriptor(fp, ase, opts, rmgr)
 
     data = b'0' * opts.chunk_size_bytes
     md5 = util.new_md5_hasher()
     md5.update(data)
+
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    ase._name = 'blob'
+    ase._md5 = md5.hexdigest()
+
+    rmgr = rops.DownloadResumeManager(resumefile)
+    d = models.Descriptor(fp, ase, opts, rmgr)
+
     offsets, _ = d.next_offsets()
-    d.write_unchecked_hmac_data(offsets, data)
+    d.write_unchecked_data(offsets, data)
     d.perform_chunked_integrity_check()
     assert d._next_integrity_chunk == 1
     assert len(d._unchecked_chunks) == 0

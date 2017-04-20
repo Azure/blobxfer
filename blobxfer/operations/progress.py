@@ -132,6 +132,8 @@ def output_download_parameters(general_options, spec):
         spec.options.overwrite))
     log.append('            recursive: {}'.format(
         spec.options.recursive))
+    log.append('        rename single: {}'.format(
+        spec.options.rename))
     log.append('      file attributes: {}'.format(
         spec.options.restore_file_attributes))
     log.append('      rsa private key: {}'.format(

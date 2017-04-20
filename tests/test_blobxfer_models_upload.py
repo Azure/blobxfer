@@ -25,7 +25,7 @@ def test_localsourcepaths_files(tmpdir):
     defpath.join('world.txt').write('world')
     defpath.join('moo.cow').write('y')
 
-    a = upload.LocalSourcePaths()
+    a = upload.LocalSourcePath()
     a.add_include('*.txt')
     a.add_includes(['moo.cow', '*blah*'])
     with pytest.raises(ValueError):
@@ -45,7 +45,7 @@ def test_localsourcepaths_files(tmpdir):
     assert str(defpath.join('world.txt')) in a_set
     assert str(defpath.join('moo.cow')) not in a_set
 
-    b = upload.LocalSourcePaths()
+    b = upload.LocalSourcePath()
     b.add_includes(['moo.cow', '*blah*'])
     b.add_include('*.txt')
     b.add_excludes(['world.txt'])

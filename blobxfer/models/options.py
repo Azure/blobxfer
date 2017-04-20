@@ -65,6 +65,7 @@ Upload = collections.namedtuple(
         'mode',
         'overwrite',
         'recursive',
+        'rename',
         'rsa_private_key',
         'rsa_public_key',
         'store_file_attributes',
@@ -82,6 +83,7 @@ Download = collections.namedtuple(
         'mode',
         'overwrite',
         'recursive',
+        'rename',
         'restore_file_attributes',
         'rsa_private_key',
     ]

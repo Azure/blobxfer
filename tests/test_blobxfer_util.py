@@ -215,9 +215,10 @@ def test_blob_is_snapshot():
 
 
 def test_parse_blob_snapshot_parameter():
+    base = '/cont/a'
     param = '2017-02-23T22:21:14.8121864Z'
-    a = '/cont/a?snapshot=' + param
-    assert blobxfer.util.parse_blob_snapshot_parameter(a) == param
+    a = base + '?snapshot=' + param
+    assert blobxfer.util.parse_blob_snapshot_parameter(a) == (base, param)
 
     a = '/cont/a?snapshot='
     assert blobxfer.util.parse_blob_snapshot_parameter(a) is None

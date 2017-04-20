@@ -78,9 +78,10 @@ def list_blobs(client, container, prefix, mode, recursive, timeout=None):
     if mode == blobxfer.models.azure.StorageModes.File:
         raise RuntimeError('cannot list Azure Files from blob client')
     if blobxfer.util.blob_is_snapshot(prefix):
-        snapshot = blobxfer.util.parse_blob_snapshot_parameter(prefix)
+        base_blob, snapshot = blobxfer.util.parse_blob_snapshot_parameter(
+            prefix)
         blob = client.get_blob_properties(
-            container_name=container, blob_name=prefix, snapshot=snapshot,
+            container_name=container, blob_name=base_blob, snapshot=snapshot,
             timeout=timeout)
         yield blob
         return

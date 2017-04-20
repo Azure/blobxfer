@@ -54,12 +54,12 @@ LocalPath = collections.namedtuple(
 )
 
 
-class LocalSourcePaths(blobxfer.models._BaseSourcePaths):
-    """Local Source Paths"""
+class LocalSourcePath(blobxfer.models._BaseSourcePaths):
+    """Local Source Path"""
     def files(self):
         # type: (LocalSourcePaths) -> LocalPath
         """Generator for files in paths
-        :param LocalSourcePaths self: this
+        :param LocalSourcePath self: this
         :rtype: LocalPath
         :return: LocalPath
         """
@@ -73,3 +73,29 @@ class LocalSourcePaths(blobxfer.models._BaseSourcePaths):
                         'skipping file {} due to filters'.format(_rpath))
                     continue
                 yield LocalPath(parent_path=_expath, relative_path=_rpath)
+
+
+class Specification(object):
+    """Upload Specification"""
+    def __init__(
+            self, upload_options, skip_on_options, remote_destination_path):
+        # type: (Specification, blobxfer.models.options.Upload,
+        #        blobxfer.models.options.SkipOn, RemoteDestinationPath) -> None
+        """Ctor for Specification
+        :param UploadSpecification self: this
+        :param blobxfer.models.options.Upload upload_options: upload options
+        :param blobxfer.models.options.SkipOn skip_on_options: skip on options
+        :param RemoteDestinationPath remote_destination_path: remote dest path
+        """
+        self.options = upload_options
+        self.skip_on = skip_on_options
+        self.destination = remote_destination_path
+        self.sources = []
+
+    def add_local_source_path(self, source):
+        # type: (Specification, LocalSourcePath) -> None
+        """Add a Local Source Path
+        :param UploadSpecification self: this
+        :param LocalSourcePath source: Local source path to add
+        """
+        self.sources.append(source)
