@@ -35,6 +35,7 @@ import collections
 import hashlib
 import hmac
 import json
+import os
 # non-stdlib imports
 # local imports
 import blobxfer.models.offload
@@ -126,6 +127,7 @@ class EncryptionMetadata(object):
         self.encryption_metadata_authentication = None
         self._symkey = None
         self._signkey = None
+        self._rsa_public_key = None
 
     @property
     def symmetric_key(self):
@@ -162,6 +164,27 @@ class EncryptionMetadata(object):
         except (KeyError, TypeError):
             pass
         return False
+
+    def create_new_metadata(self, rsa_public_key):
+        # type: (EncryptionMetadata,
+        #        cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey)
+        #        -> None
+        """Create new metadata entries for encryption (upload)
+        :param EncryptionMetadata self: this
+        :param cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey:
+            rsa public key
+        """
+        self._rsa_public_key = rsa_public_key
+        self._symkey = os.urandom(
+            blobxfer.operations.crypto._AES256_KEYLENGTH_BYTES)
+        self._signkey = os.urandom(
+            blobxfer.operations.crypto._AES256_KEYLENGTH_BYTES)
+        self.content_encryption_iv = os.urandom(AES256_BLOCKSIZE_BYTES)
+        self.encryption_agent = EncryptionAgent(
+            encryption_algorithm=EncryptionMetadata._ENCRYPTION_ALGORITHM,
+            protocol=EncryptionMetadata._ENCRYPTION_PROTOCOL_VERSION,
+        )
+        self.encryption_mode = EncryptionMetadata._ENCRYPTION_MODE
 
     def convert_from_json(self, md, blobname, rsaprivatekey):
         # type: (EncryptionMetadata, dict, str,

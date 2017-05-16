@@ -192,8 +192,8 @@ class Downloader(object):
             return DownloadAction.Download
         if not self._spec.options.overwrite:
             logger.info(
-                'not overwriting local file: {} (remote: {}/{})'.format(
-                    lpath, rfile.container, rfile.name))
+                'not overwriting local file: {} (remote: {})'.format(
+                    lpath, rfile.path))
             return DownloadAction.Skip
         # check skip on options, MD5 match takes priority
         if (self._spec.skip_on.md5_match and
@@ -355,7 +355,7 @@ class Downloader(object):
 
     def _wait_for_download_threads(self, terminate):
         # type: (Downloader, bool) -> None
-        """Terminate download threads
+        """Wait for download threads
         :param Downloader self: this
         :param bool terminate: terminate threads
         """
@@ -623,7 +623,7 @@ class Downloader(object):
         :param Downloader self: this
         """
         try:
-            blobxfer.operations.progress.output_download_parameters(
+            blobxfer.operations.progress.output_parameters(
                 self._general_options, self._spec)
             self._run()
         except (KeyboardInterrupt, Exception) as ex:

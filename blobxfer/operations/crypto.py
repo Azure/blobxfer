@@ -38,6 +38,7 @@ try:
     import queue
 except ImportError:  # noqa
     import Queue as queue
+import tempfile
 # non-stdlib imports
 import cryptography.hazmat.backends
 import cryptography.hazmat.primitives.asymmetric.padding
@@ -78,7 +79,7 @@ def load_rsa_private_key_file(rsakeyfile, passphrase):
         return cryptography.hazmat.primitives.serialization.\
             load_pem_private_key(
                 keyfile.read(),
-                passphrase,
+                passphrase.encode('utf8') if passphrase is not None else None,
                 backend=cryptography.hazmat.backends.default_backend()
             )
 
@@ -245,8 +246,18 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
             except queue.Empty:
                 continue
             if inst[0] == CryptoAction.Encrypt:
-                # TODO on upload
-                raise NotImplementedError()
+                local_file, offsets, symkey, iv = \
+                    inst[1], inst[2], inst[3], inst[4]
+                with open(local_file, 'rb') as fd:
+                    data = fd.read()
+                encdata = blobxfer.operations.crypto.aes_cbc_encrypt_data(
+                    symkey, iv, data, offsets.pad)
+                with tempfile.NamedTemporaryFile(
+                        mode='wb', delete=False) as fd:
+                    fpath = fd.name
+                    fd.write(encdata)
+                self._done_cv.acquire()
+                self._done_queue.put(fpath)
             elif inst[0] == CryptoAction.Decrypt:
                 final_path, local_path, offsets, symkey, iv, hmac_datafile = \
                     inst[1], inst[2], inst[3], inst[4], inst[5], inst[6]
@@ -260,8 +271,9 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
                     with open(local_path, 'r+b') as fd:
                         fd.seek(offsets.fd_start, 0)
                         fd.write(data)
-            self._done_cv.acquire()
-            self._done_queue.put(final_path)
+                self._done_cv.acquire()
+                self._done_queue.put(final_path)
+            # notify and release condition var
             self._done_cv.notify()
             self._done_cv.release()
 
@@ -281,4 +293,18 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
         self._task_queue.put(
             (CryptoAction.Decrypt, final_path, local_path, offsets, symkey,
              iv, hmac_datafile)
+        )
+
+    def add_encrypt_chunk(self, local_file, offsets, symkey, iv):
+        # type: (CryptoOffload, pathlib.Path, blobxfer.models.upload.Offsets,
+        #        bytes, bytes) -> None
+        """Add a chunk to encrypt
+        :param CryptoOffload self: this
+        :param pathlib.Path local_file: local file
+        :param blobxfer.models.upload.Offsets offsets: offsets
+        :param bytes symkey: symmetric key
+        :param bytes iv: initialization vector
+        """
+        self._task_queue.put(
+            (CryptoAction.Encrypt, str(local_file), offsets, symkey, iv)
         )

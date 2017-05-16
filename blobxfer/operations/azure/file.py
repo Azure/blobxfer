@@ -89,6 +89,29 @@ def parse_file_path(filepath):
     return (dirname, fname)
 
 
+def get_file_properties(client, fileshare, prefix, timeout=None):
+    # type: (azure.storage.file.FileService, str, str, int) ->
+    #        azure.storage.file.models.File
+    """Get file properties
+    :param FileService client: blob client
+    :param str fileshare: file share name
+    :param str prefix: path prefix
+    :param int timeout: timeout
+    :rtype: azure.storage.file.models.File
+    :return: file properties
+    """
+    dirname, fname = parse_file_path(prefix)
+    try:
+        return client.get_file_properties(
+            share_name=fileshare,
+            directory_name=dirname,
+            file_name=fname,
+            timeout=timeout,
+        )
+    except azure.common.AzureMissingResourceHttpError:
+        return None
+
+
 def check_if_single_file(client, fileshare, prefix, timeout=None):
     # type: (azure.storage.file.FileService, str, str, int) ->
     #        Tuple[bool, azure.storage.file.models.File]
@@ -100,20 +123,13 @@ def check_if_single_file(client, fileshare, prefix, timeout=None):
     :rtype: tuple
     :return: (if prefix in fileshare is a single file, file)
     """
-    file = None
     if blobxfer.util.is_none_or_empty(prefix):
+        return (False, None)
+    file = get_file_properties(client, fileshare, prefix, timeout)
+    if file is None:
         return (False, file)
-    dirname, fname = parse_file_path(prefix)
-    try:
-        file = client.get_file_properties(
-            share_name=fileshare,
-            directory_name=dirname,
-            file_name=fname,
-            timeout=timeout,
-        )
-    except azure.common.AzureMissingResourceHttpError:
-        return (False, file)
-    return (True, file)
+    else:
+        return (True, file)
 
 
 def list_files(client, fileshare, prefix, recursive, timeout=None):
@@ -178,3 +194,85 @@ def get_file_range(ase, offsets, timeout=None):
         validate_content=False,  # HTTPS takes care of integrity during xfer
         timeout=timeout,
     ).content
+
+
+def create_share(ase, containers_created, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Create file share
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict containers_created: containers already created map
+    :param int timeout: timeout
+    """
+    key = ase.client.account_name + ':file=' + ase.container
+    if key not in containers_created:
+        ase.client.create_share(
+            share_name=ase.container,
+            fail_on_exist=False,
+            timeout=timeout)
+        containers_created.add(key)
+        logger.info('created file share {} on storage account {}'.format(
+            ase.container, ase.client.account_name))
+
+
+def create_all_parent_directories(ase, dirs_created, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Create all parent directories for a file
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict dirs_created: directories already created map
+    :param int timeout: timeout
+    """
+    dirs = pathlib.Path(ase.name).parts
+    if len(dirs) <= 1:
+        return
+    dk = ase.client.account_name + ':' + ase.container
+    for i in range(0, len(dirs)):
+        dir = str(pathlib.Path(*(dirs[0:i + 1])))
+        if dk not in dirs_created or dir not in dirs_created[dk]:
+            ase.client.create_directory(
+                share_name=ase.container,
+                directory_name=dir,
+                fail_on_exist=False,
+                timeout=timeout)
+            if dk not in dirs_created:
+                dirs_created[dk] = set()
+            dirs_created[dk].add(dir)
+
+
+def create_file(ase, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+    """Create file remotely
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    """
+    dir, fpath = parse_file_path(ase.name)
+    ase.client.create_file(
+        share_name=ase.container,
+        directory_name=dir,
+        file_name=fpath,
+        content_length=ase.size,
+        content_settings=None,
+        timeout=timeout)
+
+
+def put_file_range(ase, local_file, offsets, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, pathlib.path,
+    #        blobxfer.models.upload.Offsets, int) -> None
+    """Puts a range of bytes into the remote file
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param pathlib.Path local_file: local file
+    :param blobxfer.models.upload.Offsets offsets: upload offsets
+    :param int timeout: timeout
+    """
+    dir, fpath = parse_file_path(ase.name)
+    with local_file.open('rb') as fd:
+        fd.seek(offsets.range_start, 0)
+        data = fd.read(offsets.num_bytes)
+    ase.client.update_range(
+        share_name=ase.container,
+        directory_name=dir,
+        file_name=fpath,
+        data=data,
+        start_range=offsets.range_start,
+        end_range=offsets.range_end,
+        validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)

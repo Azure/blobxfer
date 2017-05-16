@@ -158,12 +158,17 @@ class Specification(object):
         self.skip_on = skip_on_options
         self.destination = local_destination_path
         self.sources = []
+        # validate compatible options
+        if not self.options.check_file_md5 and self.skip_on.md5_match:
+            raise ValueError(
+                'Cannot specify skip on MD5 match without file MD5 enabled')
 
     def add_azure_source_path(self, source):
-        # type: (Specification, AzureSourcePath) -> None
+        # type: (Specification, blobxfer.operations.azure.SourcePath) -> None
         """Add an Azure Source Path
         :param DownloadSpecification self: this
-        :param AzureSourcePath source: Azure source path to add
+        :param blobxfer.operations.Azure.SourcePath source:
+            Azure source path to add
         """
         self.sources.append(source)
 
@@ -174,7 +179,7 @@ class Descriptor(object):
     _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
     def __init__(self, lpath, ase, options, resume_mgr):
-        # type: (DownloadDescriptior, pathlib.Path,
+        # type: (Descriptior, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity,
         #        blobxfer.models.options.Download,
         #        blobxfer.operations.resume.DownloadResumeManager) -> None
@@ -362,8 +367,8 @@ class Descriptor(object):
             return self._ase.size
         # encrypted files are not resumable due to hmac requirement
         if self._ase.is_encrypted:
-            logger.debug('cannot resume encrypted entity {}/{}'.format(
-                self._ase.container, self._ase.name))
+            logger.debug('cannot resume encrypted entity {}'.format(
+                self._ase.path))
             return None
         # check if intermediate (blobtmp) exists
         if not self.local_path.exists():
@@ -372,8 +377,7 @@ class Descriptor(object):
             return None
         if self.hmac is not None:
             raise RuntimeError(
-                'unexpected hmac object for entity {}/{}'.format(
-                    self._ase.container, self._ase.name))
+                'unexpected hmac object for entity {}'.format(self._ase.path))
         # re-hash from 0 to offset if needed
         _fd_offset = 0
         _end_offset = min((curr_chunk * rr.chunk_size, rr.length))
@@ -623,7 +627,7 @@ class Descriptor(object):
                 self._ase.encryption_metadata.encryption_authentication.
                 algorithm,
                 'OK' if check else 'MISMATCH',
-                self._ase.name,
+                self._ase.path,
                 digest,
                 mac,
             )
@@ -633,14 +637,14 @@ class Descriptor(object):
                 check = True
             msg = 'MD5: {}, {} {} <L..R> {}'.format(
                 'OK' if check else 'MISMATCH',
-                self._ase.name,
+                self._ase.path,
                 digest,
                 self._ase.md5,
             )
         else:
             check = True
             msg = 'MD5: SKIPPED, {} None <L..R> {}'.format(
-                self._ase.name,
+                self._ase.path,
                 self._ase.md5
             )
         # cleanup if download failed

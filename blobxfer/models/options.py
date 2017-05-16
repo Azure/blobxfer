@@ -58,6 +58,12 @@ SkipOn = collections.namedtuple(
         'md5_match',
     ]
 )
+FileProperties = collections.namedtuple(
+    'FileProperties', [
+        'attributes',
+        'md5',
+    ]
+)
 Upload = collections.namedtuple(
     'Upload', [
         'chunk_size_bytes',
@@ -66,13 +72,10 @@ Upload = collections.namedtuple(
         'overwrite',
         'recursive',
         'rename',
-        'rsa_private_key',
         'rsa_public_key',
-        'store_file_attributes',
-        'store_file_md5',
+        'store_file_properties',
         'strip_components',
         'vectored_io',
-        'split_size_bytes',
     ]
 )
 Download = collections.namedtuple(

@@ -98,6 +98,16 @@ class StorageEntity(object):
         return self._name
 
     @property
+    def path(self):
+        # type: (StorageEntity) -> str
+        """Entity path
+        :param StorageEntity self: this
+        :rtype: str
+        :return: remote path of entity
+        """
+        return '{}/{}'.format(self._container, self._name)
+
+    @property
     def lmt(self):
         # type: (StorageEntity) -> datetime.datetime
         """Entity last modified time
@@ -116,6 +126,15 @@ class StorageEntity(object):
         :return: size of entity
         """
         return self._size
+
+    @size.setter
+    def size(self, value):
+        # type: (StorageEntity, int) -> None
+        """Set entity size
+        :param StorageEntity self: this
+        :param int value: value
+        """
+        self._size = value
 
     @property
     def snapshot(self):
@@ -161,12 +180,22 @@ class StorageEntity(object):
     def encryption_metadata(self):
         # type: (StorageEntity) ->
         #        blobxfer.models.crypto.EncryptionMetadata
-        """Entity metadata (type)
+        """Get encryption metadata
         :param StorageEntity self: this
         :rtype: blobxfer.models.crypto.EncryptionMetadata
         :return: encryption metadata of entity
         """
         return self._encryption
+
+    @encryption_metadata.setter
+    def encryption_metadata(self, value):
+        # type: (StorageEntity,
+        #        blobxfer.models.crypto.EncryptionMetadata) -> None
+        """Set encryption metadata
+        :param StorageEntity self: this
+        :param blobxfer.models.crypto.EncryptionMetadata value: value
+        """
+        self._encryption = value
 
     def populate_from_blob(self, sa, blob):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
@@ -206,3 +235,33 @@ class StorageEntity(object):
         self._md5 = file.properties.content_settings.content_md5
         self._mode = StorageModes.File
         self._client = sa.file_client
+
+    def populate_from_local(self, sa, container, name, mode):
+        # type: (StorageEntity, blobxfer.operations.azure.StorageAccount
+        #        str, str, blobxfer.models.azure.StorageModes) -> None
+        """Populate properties from local
+        :param StorageEntity self: this
+        :param blobxfer.operations.azure.StorageAccount sa: storage account
+        :param str container: container
+        :param str name: name
+        :param blobxfer.models.azure.StorageModes mode: storage mode
+        """
+        self._container = container
+        self._name = name
+        self._mode = mode
+        if mode == StorageModes.Append:
+            self._client = sa.append_blob_client
+        elif mode == StorageModes.Block:
+            self._client = sa.block_blob_client
+        elif mode == StorageModes.File:
+            self._client = sa.file_client
+        elif mode == StorageModes.Page:
+            self._client = sa.page_blob_client
+        elif mode == StorageModes.Auto:
+            name = self.name.lower()
+            if name.endswith('.vhd') or name.endswith('.vhdx'):
+                self._client = sa.page_blob_client
+                self._mode = StorageModes.Page
+            else:
+                self._client = sa.block_blob_client
+                self._mode = StorageModes.Block

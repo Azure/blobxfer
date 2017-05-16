@@ -301,3 +301,52 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 ase = blobxfer.models.azure.StorageEntity(cont, ed)
                 ase.populate_from_blob(sa, blob)
                 yield ase
+
+
+class DestinationPath(blobxfer.models._BaseSourcePaths):
+    """Azure Destination Path"""
+    def __init__(self):
+        # type: (SourcePath) -> None
+        """Ctor for SourcePath
+        :param SourcePath self: this
+        """
+        super(DestinationPath, self).__init__()
+        self._path_map = {}
+
+    def add_path_with_storage_account(self, remote_path, storage_account):
+        # type: (SourcePath, str, str) -> None
+        """Add a path with an associated storage account
+        :param SourcePath self: this
+        :param str remote_path: remote path
+        :param str storage_account: storage account to associate with path
+        """
+        if len(self._path_map) >= 1:
+            raise RuntimeError(
+                'cannot add multiple remote paths to SourcePath objects')
+        rpath = blobxfer.util.normalize_azure_path(remote_path)
+        self.add_path(rpath)
+        self._path_map[rpath] = storage_account
+
+    def lookup_storage_account(self, remote_path):
+        # type: (SourcePath, str) -> str
+        """Lookup the storage account associated with the remote path
+        :param SourcePath self: this
+        :param str remote_path: remote path
+        :rtype: str
+        :return: storage account associated with path
+        """
+        return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
+
+    # TODO IS THIS NEEDED?
+    def generate_entities_for_mode(self, creds, options):
+        for _path in self._paths:
+            rpath = str(_path)
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            sa = creds.get_storage_account(self.lookup_storage_account(rpath))
+
+            if options.rsa_public_key is not None:
+                ed = blobxfer.models.crypto.EncryptionMetadata()
+            else:
+                ed = None
+            ase = blobxfer.models.azure.StorageEntity(cont, ed)
+            ase.populate_from_blob(sa, blob)

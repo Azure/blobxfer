@@ -368,6 +368,7 @@ def _file_attributes(f):
     return click.option(
         '--file-attributes',
         expose_value=False,
+        default=False,
         is_flag=False,
         help='Store or restore file attributes [False]',
         callback=callback)(f)
@@ -412,6 +413,20 @@ def _mode_option(f):
         callback=callback)(f)
 
 
+def _multi_storage_account_distribution_mode(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options[
+            'multi_storage_account_distribution_mode'] = value.lower()
+        return value
+    return click.option(
+        '--multi-storage-account-distribution-mode',
+        expose_value=False,
+        default='disabled',
+        help='Multiple storage account distribution mode [stripe]',
+        callback=callback)(f)
+
+
 def _overwrite_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -435,6 +450,20 @@ def _recursive_option(f):
         expose_value=False,
         default=True,
         help='Recursive [True]',
+        callback=callback)(f)
+
+
+def _rename_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['rename'] = value
+        return value
+    return click.option(
+        '--rename',
+        expose_value=False,
+        is_flag=True,
+        default=False,
+        help='Rename a single file upload or download [False]',
         callback=callback)(f)
 
 
@@ -572,7 +601,22 @@ def _sync_copy_dest_sas_option(f):
         callback=callback)(f)
 
 
+def _stripe_chunk_size_bytes_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['stripe_chunk_size_bytes'] = value
+        return value
+    return click.option(
+        '--stripe-chunk-size-bytes',
+        expose_value=False,
+        type=int,
+        default=1073741824,
+        help='Stripe width in bytes [1073741824]',
+        callback=callback)(f)
+
+
 def upload_options(f):
+    f = _stripe_chunk_size_bytes_option(f)
     f = _strip_components_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
@@ -581,8 +625,10 @@ def upload_options(f):
     f = _rsa_public_key_option(f)
     f = _rsa_private_key_passphrase_option(f)
     f = _rsa_private_key_option(f)
+    f = _rename_option(f)
     f = _recursive_option(f)
     f = _overwrite_option(f)
+    f = _multi_storage_account_distribution_mode(f)
     f = _mode_option(f)
     f = _include_option(f)
     f = _file_md5_option(f)
@@ -602,6 +648,7 @@ def download_options(f):
     f = _sas_option(f)
     f = _rsa_private_key_passphrase_option(f)
     f = _rsa_private_key_option(f)
+    f = _rename_option(f)
     f = _recursive_option(f)
     f = _overwrite_option(f)
     f = _mode_option(f)
@@ -702,7 +749,11 @@ def upload(ctx, local_resource, storage_account, remote_path):
         ctx.cli_options, settings.TransferAction.Upload, local_resource,
         storage_account, remote_path)
     ctx.initialize()
-    blobxfer.api.upload_block()
+    specs = settings.create_upload_specifications(ctx.config)
+    for spec in specs:
+        blobxfer.api.Uploader(
+            ctx.general_options, ctx.credentials, spec
+        ).start()
 
 
 @cli.group()

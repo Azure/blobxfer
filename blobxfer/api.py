@@ -48,3 +48,6 @@ from .operations.azure.file import (  # noqa
 from .operations.download import (  # noqa
     Downloader
 )
+from .operations.upload import (  # noqa
+    Uploader
+)

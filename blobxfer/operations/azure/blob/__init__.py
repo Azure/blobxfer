@@ -61,6 +61,35 @@ def check_if_single_blob(client, container, prefix, timeout=None):
     return True
 
 
+def get_blob_properties(client, container, prefix, mode, timeout=None):
+    if mode == blobxfer.models.azure.StorageModes.File:
+        raise RuntimeError('cannot list Azure Files from blob client')
+    try:
+        blob = client.get_blob_properties(
+            container_name=container, blob_name=prefix, timeout=timeout)
+    except azure.common.AzureMissingResourceHttpError:
+        return None
+    if (mode == blobxfer.models.azure.StorageModes.Append and
+            blob.properties.blob_type !=
+            azure.storage.blob.models._BlobTypes.AppendBlob):
+        raise RuntimeError(
+            'existing blob type {} mismatch with mode {}'.format(
+                blob.properties.blob_type, mode))
+    elif (mode == blobxfer.models.azure.StorageModes.Block and
+            blob.properties.blob_type !=
+            azure.storage.blob.models._BlobTypes.BlockBlob):
+        raise RuntimeError(
+            'existing blob type {} mismatch with mode {}'.format(
+                blob.properties.blob_type, mode))
+    elif (mode == blobxfer.models.azure.StorageModes.Page and
+            blob.properties.blob_type !=
+            azure.storage.blob.models._BlobTypes.PageBlob):
+        raise RuntimeError(
+            'existing blob type {} mismatch with mode {}'.format(
+                blob.properties.blob_type, mode))
+    return blob
+
+
 def list_blobs(client, container, prefix, mode, recursive, timeout=None):
     # type: (azure.storage.blob.BaseBlobService, str, str,
     #        blobxfer.models.azure.StorageModes, bool, int) ->

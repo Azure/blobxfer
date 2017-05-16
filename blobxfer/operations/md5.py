@@ -120,6 +120,9 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
         :param str remote_md5: remote MD5 to compare against
         :param blobxfer.models.azure.StorageModes mode: mode
         """
+        if blobxfer.util.is_none_or_empty(remote_md5):
+            raise ValueError('comparison MD5 is empty for file {}'.format(
+                filename))
         if mode == blobxfer.models.azure.StorageModes.Page:
             pagealign = True
         else:
