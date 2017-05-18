@@ -261,6 +261,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             for file in blobxfer.operations.azure.file.list_files(
                     sa.file_client, cont, dir, options.recursive,
                     general_options.timeout_sec):
+                if not self._inclusion_check(file.name):
+                    continue
                 if blobxfer.models.crypto.EncryptionMetadata.\
                         encryption_metadata_exists(file.metadata):
                     ed = blobxfer.models.crypto.EncryptionMetadata()
@@ -291,6 +293,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             for blob in blobxfer.operations.azure.blob.list_blobs(
                     sa.block_blob_client, cont, dir, options.mode,
                     options.recursive, general_options.timeout_sec):
+                if not self._inclusion_check(blob.name):
+                    continue
                 if blobxfer.models.crypto.EncryptionMetadata.\
                         encryption_metadata_exists(blob.metadata):
                     ed = blobxfer.models.crypto.EncryptionMetadata()
@@ -336,17 +340,3 @@ class DestinationPath(blobxfer.models._BaseSourcePaths):
         :return: storage account associated with path
         """
         return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
-
-    # TODO IS THIS NEEDED?
-    def generate_entities_for_mode(self, creds, options):
-        for _path in self._paths:
-            rpath = str(_path)
-            cont, dir = blobxfer.util.explode_azure_path(rpath)
-            sa = creds.get_storage_account(self.lookup_storage_account(rpath))
-
-            if options.rsa_public_key is not None:
-                ed = blobxfer.models.crypto.EncryptionMetadata()
-            else:
-                ed = None
-            ase = blobxfer.models.azure.StorageEntity(cont, ed)
-            ase.populate_from_blob(sa, blob)

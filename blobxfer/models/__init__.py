@@ -67,7 +67,7 @@ class _BaseSourcePaths(object):
         :param str incl: include filter
         """
         if self._include is None:
-            self._include = [incl]
+            self._include = list(incl)
         else:
             self._include.append(incl)
 
@@ -78,7 +78,7 @@ class _BaseSourcePaths(object):
         :param list includes: list of includes
         """
         if not isinstance(includes, list):
-            raise ValueError('includes is not of type list')
+            includes = list(includes)
         if self._include is None:
             self._include = includes
         else:
@@ -91,7 +91,7 @@ class _BaseSourcePaths(object):
         :param str excl: exclude filter
         """
         if self._exclude is None:
-            self._exclude = [excl]
+            self._exclude = list(excl)
         else:
             self._exclude.append(excl)
 
@@ -102,7 +102,7 @@ class _BaseSourcePaths(object):
         :param list excludes: list of excludes
         """
         if not isinstance(excludes, list):
-            raise ValueError('excludes is not of type list')
+            excludes = list(excludes)
         if self._exclude is None:
             self._exclude = excludes
         else:

@@ -123,17 +123,16 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
             # check if path is a single file
             tmp = pathlib.Path(_ppath)
             if tmp.is_file():
-                yield LocalPath(
-                    parent_path=tmp.parent,
-                    relative_path=pathlib.Path(tmp.name)
-                )
+                if self._inclusion_check(tmp.name):
+                    yield LocalPath(
+                        parent_path=tmp.parent,
+                        relative_path=pathlib.Path(tmp.name)
+                    )
                 continue
             del tmp
             for entry in blobxfer.util.scantree(_ppath):
                 _rpath = pathlib.Path(entry.path).relative_to(_ppath)
                 if not self._inclusion_check(_rpath):
-                    logger.debug(
-                        'skipping file {} due to filters'.format(_rpath))
                     continue
                 yield LocalPath(parent_path=_expath, relative_path=_rpath)
 

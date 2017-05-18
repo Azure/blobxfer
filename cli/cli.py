@@ -356,6 +356,7 @@ def _exclude_option(f):
         '--exclude',
         expose_value=False,
         default=None,
+        multiple=True,
         help='Exclude pattern',
         callback=callback)(f)
 
@@ -396,6 +397,7 @@ def _include_option(f):
         '--include',
         expose_value=False,
         default=None,
+        multiple=True,
         help='Include pattern',
         callback=callback)(f)
 
