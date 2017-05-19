@@ -96,6 +96,7 @@ def add_cli_options(
                     'chunk_size_bytes': cli_options['chunk_size_bytes'],
                     'delete_extraneous_destination': cli_options['delete'],
                     'mode': cli_options['mode'],
+                    'one_shot_bytes': cli_options['one_shot_bytes'],
                     'overwrite': cli_options['overwrite'],
                     'recursive': cli_options['recursive'],
                     'rename': cli_options['rename'],
@@ -117,8 +118,7 @@ def add_cli_options(
                     'vectored_io': {
                         'stripe_chunk_size_bytes': cli_options[
                             'stripe_chunk_size_bytes'],
-                        'multi_storage_account_distribution_mode': cli_options[
-                            'multi_storage_account_distribution_mode'],
+                        'distribution_mode': cli_options['distribution_mode'],
                     },
                 },
             }
@@ -392,6 +392,7 @@ def create_upload_specifications(config):
                 delete_extraneous_destination=conf[
                     'options']['delete_extraneous_destination'],
                 mode=mode,
+                one_shot_bytes=conf['options']['one_shot_bytes'],
                 overwrite=conf['options']['overwrite'],
                 recursive=conf['options']['recursive'],
                 rename=conf['options']['rename'],
@@ -405,11 +406,10 @@ def create_upload_specifications(config):
                 vectored_io=blobxfer.models.options.VectoredIo(
                     stripe_chunk_size_bytes=conf[
                         'options']['vectored_io']['stripe_chunk_size_bytes'],
-                    multi_storage_account_distribution_mode=blobxfer.
+                    distribution_mode=blobxfer.
                     models.upload.VectoredIoDistributionMode(
                         conf['options']['vectored_io'][
-                            'multi_storage_account_distribution_mode'].lower(
-                            )),
+                            'distribution_mode'].lower()),
                 ),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(

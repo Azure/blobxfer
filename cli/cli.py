@@ -334,6 +334,20 @@ def _delete_option(f):
         callback=callback)(f)
 
 
+def _distribution_mode(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['distribution_mode'] = value.lower()
+        return value
+    return click.option(
+        '--distribution-mode',
+        expose_value=False,
+        default='disabled',
+        help='Vectored IO distribution mode: disabled, replica, '
+        'stripe [disabled]',
+        callback=callback)(f)
+
+
 def _endpoint_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -415,17 +429,19 @@ def _mode_option(f):
         callback=callback)(f)
 
 
-def _multi_storage_account_distribution_mode(f):
+def _one_shot_bytes_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options[
-            'multi_storage_account_distribution_mode'] = value.lower()
+        clictx.cli_options['one_shot_bytes'] = value
         return value
     return click.option(
-        '--multi-storage-account-distribution-mode',
+        '--one-shot-bytes',
         expose_value=False,
-        default='disabled',
-        help='Multiple storage account distribution mode [stripe]',
+        type=int,
+        default=0,
+        help='File sizes less than or equal to the specified byte threshold '
+        'will be uploaded as one-shot for block blobs; the valid range that '
+        'can be specified is 0 to 256MiB [0]',
         callback=callback)(f)
 
 
@@ -577,6 +593,20 @@ def _strip_components_option(f):
         callback=callback)(f)
 
 
+def _stripe_chunk_size_bytes_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['stripe_chunk_size_bytes'] = value
+        return value
+    return click.option(
+        '--stripe-chunk-size-bytes',
+        expose_value=False,
+        type=int,
+        default=1073741824,
+        help='Vectored IO stripe width in bytes [1073741824]',
+        callback=callback)(f)
+
+
 def _sync_copy_dest_access_key_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -603,20 +633,6 @@ def _sync_copy_dest_sas_option(f):
         callback=callback)(f)
 
 
-def _stripe_chunk_size_bytes_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['stripe_chunk_size_bytes'] = value
-        return value
-    return click.option(
-        '--stripe-chunk-size-bytes',
-        expose_value=False,
-        type=int,
-        default=1073741824,
-        help='Stripe width in bytes [1073741824]',
-        callback=callback)(f)
-
-
 def upload_options(f):
     f = _stripe_chunk_size_bytes_option(f)
     f = _strip_components_option(f)
@@ -630,13 +646,14 @@ def upload_options(f):
     f = _rename_option(f)
     f = _recursive_option(f)
     f = _overwrite_option(f)
-    f = _multi_storage_account_distribution_mode(f)
+    f = _one_shot_bytes_option(f)
     f = _mode_option(f)
     f = _include_option(f)
     f = _file_md5_option(f)
     f = _file_attributes(f)
     f = _exclude_option(f)
     f = _endpoint_option(f)
+    f = _distribution_mode(f)
     f = _delete_option(f)
     f = _chunk_size_bytes_option(f)
     f = _access_key_option(f)

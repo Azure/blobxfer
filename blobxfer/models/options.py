@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 VectoredIo = collections.namedtuple(
     'VectoredIoOptions', [
         'stripe_chunk_size_bytes',
-        'multi_storage_account_distribution_mode',
+        'distribution_mode',
     ]
 )
 SkipOn = collections.namedtuple(
@@ -69,6 +69,7 @@ Upload = collections.namedtuple(
         'chunk_size_bytes',
         'delete_extraneous_destination',
         'mode',
+        'one_shot_bytes',
         'overwrite',
         'recursive',
         'rename',

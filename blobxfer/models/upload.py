@@ -49,8 +49,9 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
-_MAX_BLOCK_CHUNKSIZE_BYTES = 268435456
-_MAX_NONBLOCK_CHUNKSIZE_BYTES = 4194304
+_MAX_BLOCK_BLOB_ONESHOT_BYTES = 268435456
+_MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 268435456
+_MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 
 
 # named tuples
@@ -65,6 +66,13 @@ Offsets = collections.namedtuple(
         'pad',
     ]
 )
+LocalPathView = collections.namedtuple(
+    'LocalPathView', [
+        'fd_end',
+        'fd_start',
+        'slice_num',
+    ]
+)
 
 
 class VectoredIoDistributionMode(enum.Enum):
@@ -77,11 +85,19 @@ class VectoredIoDistributionMode(enum.Enum):
 
 
 class LocalPath(object):
-    def __init__(self, parent_path, relative_path):
+    def __init__(self, parent_path, relative_path, view=None):
         self.parent_path = parent_path
         self.relative_path = relative_path
         # populate properties
         self._stat = self.absolute_path.stat()
+        if view is None:
+            self.view = LocalPathView(
+                fd_start=0,
+                fd_end=self.size,
+                slice_num=0,
+            )
+        else:
+            self.view = view
 
     @property
     def absolute_path(self):
@@ -90,6 +106,10 @@ class LocalPath(object):
     @property
     def size(self):
         return self._stat.st_size
+
+    @property
+    def lmt(self):
+        return self._stat.st_mtime
 
     @property
     def mode(self):
@@ -164,21 +184,22 @@ class Specification(object):
             if self.sources.paths[0].is_dir():
                 raise ValueError(
                     'cannot rename a directory of files to upload')
-        if (self.options.rsa_public_key and
-                self.options.vectored_io.
-                multi_storage_account_distribution_mode ==
-                VectoredIoDistributionMode.Stripe):
-            raise ValueError(
-                'cannot enable encryption and multi-storage account '
-                'vectored IO in stripe mode')
         if self.options.chunk_size_bytes <= 0:
             raise ValueError('chunk size must be positive')
-        if self.options.chunk_size_bytes > _MAX_BLOCK_CHUNKSIZE_BYTES:
+        if self.options.chunk_size_bytes > _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
             raise ValueError(
                 ('chunk size value of {} exceeds maximum allowable '
                  'of {}').format(
                      self.options.chunk_size_bytes,
-                     _MAX_BLOCK_CHUNKSIZE_BYTES))
+                     _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES))
+        if self.options.one_shot_bytes < 0:
+            raise ValueError('one shot bytes value must be at least 0')
+        if self.options.one_shot_bytes > _MAX_BLOCK_BLOB_ONESHOT_BYTES:
+            raise ValueError(
+                ('one shot bytes value of {} exceeds maximum allowable '
+                 'of {}').format(
+                     self.options.chunk_size_bytes,
+                     _MAX_BLOCK_BLOB_ONESHOT_BYTES))
 
     def add_azure_destination_path(self, dest):
         # type: (Specification,
@@ -267,12 +288,23 @@ class Descriptor(object):
     @property
     def is_resumable(self):
         # type: (Descriptor) -> bool
-        """Download is resume capable
+        """Upload is resume capable
         :param Descriptor self: this
         :rtype: bool
         :return: if resumable
         """
         return self._resume_mgr is not None and self.hmac is None
+
+    @property
+    def one_shot(self):
+        # type: (Descriptor) -> bool
+        """Upload is a one-shot block upload
+        :param Descriptor self: this
+        :rtype: bool
+        :return: is one-shot capable
+        """
+        return (self._ase.mode == blobxfer.models.azure.StorageModes.Block and
+                self._total_chunks == 1)
 
     def hmac_iv(self, iv):
         # type: (Descriptor, bytes) -> None
@@ -327,26 +359,29 @@ class Descriptor(object):
         self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
         # ensure chunk sizes are compatible with mode
         if self._ase.mode == blobxfer.models.azure.StorageModes.Append:
-            if self._chunk_size > _MAX_NONBLOCK_CHUNKSIZE_BYTES:
-                self._chunk_size = _MAX_NONBLOCK_CHUNKSIZE_BYTES
+            if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
+                self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
                     'adjusting chunk size to {} for append blobs'.format(
                         self._chunk_size))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Block:
-            if self._chunk_size > _MAX_BLOCK_CHUNKSIZE_BYTES:
-                self._chunk_size = _MAX_BLOCK_CHUNKSIZE_BYTES
-                logger.debug(
-                    'adjusting chunk size to {} for block blobs'.format(
-                        self._chunk_size))
+            if self._ase.size <= options.one_shot_bytes:
+                self._chunk_size = options.one_shot_bytes
+            else:
+                if self._chunk_size > _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
+                    self._chunk_size = _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
+                    logger.debug(
+                        'adjusting chunk size to {} for block blobs'.format(
+                            self._chunk_size))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.File:
-            if self._chunk_size > _MAX_NONBLOCK_CHUNKSIZE_BYTES:
-                self._chunk_size = _MAX_NONBLOCK_CHUNKSIZE_BYTES
+            if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
+                self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
                     'adjusting chunk size to {} for files'.format(
                         self._chunk_size))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Page:
-            if self._chunk_size > _MAX_NONBLOCK_CHUNKSIZE_BYTES:
-                self._chunk_size = _MAX_NONBLOCK_CHUNKSIZE_BYTES
+            if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
+                self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
                     'adjusting chunk size to {} for page blobs'.format(
                         self._chunk_size))

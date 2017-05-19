@@ -66,6 +66,7 @@ class StorageEntity(object):
         self._md5 = None
         self._encryption = ed
         self._vio = None
+        self.replica_targets = None
 
     @property
     def client(self):

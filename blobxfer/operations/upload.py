@@ -32,6 +32,7 @@ from builtins import (  # noqa
 # stdlib imports
 import enum
 import logging
+import math
 try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
@@ -318,9 +319,9 @@ class Uploader(object):
             blobxfer.operations.azure.file.put_file_range(
                 ud.entity, ud.local_path.absolute_path, offsets,
                 self._general_options.timeout_sec)
-
         else:
             # TODO all upload types
+            # TODO handle one-shot uploads for block blobs
             data = blobxfer.operations.azure.blob.get_blob_range(
                 dd.entity, offsets, self._general_options.timeout_sec)
 
@@ -353,7 +354,7 @@ class Uploader(object):
                 self._upload_set.remove(ud.unique_id)
                 self._upload_sofar += 1
             return
-        # re-enqueue for other threads to download
+        # re-enqueue for other threads to upload
         self._upload_queue.put(ud)
         if offsets is None:
             return
@@ -412,17 +413,18 @@ class Uploader(object):
             except OSError:
                 pass
 
-    def _check_upload_conditions(self, lpath, rfile):
-        # type: (Uploader, pathlib.Path,
+    def _check_upload_conditions(self, local_path, rfile):
+        # type: (Uploader, blobxfer.models.upload.LocalPath,
         #        blobxfer.models.azure.StorageEntity) -> UploadAction
         """Check for upload conditions
         :param Uploader self: this
-        :param pathlib.Path lpath: local path
+        :param blobxfer.models.LocalPath local_path: local path
         :param blobxfer.models.azure.StorageEntity rfile: remote file
         :rtype: UploadAction
         :return: upload action
         """
-        # check if file still exists
+        lpath = local_path.absolute_path
+        # check if local file still exists
         if not lpath.exists():
             return UploadAction.Skip
         # if remote file doesn't exist, upload
@@ -445,7 +447,7 @@ class Uploader(object):
         # check skip on file size match
         ul_fs = None
         if self._spec.skip_on.filesize_match:
-            lsize = lpath.stat().st_size
+            lsize = local_path.size
             if rfile.mode == blobxfer.models.azure.StorageModes.Page:
                 lsize = blobxfer.util.page_align_content_length(lsize)
             if rfile.size == lsize:
@@ -455,8 +457,7 @@ class Uploader(object):
         # check skip on lmt ge
         ul_lmt = None
         if self._spec.skip_on.lmt_ge:
-            mtime = blobxfer.util.datetime_from_timestamp(
-                lpath.stat().st_mtime)
+            mtime = blobxfer.util.datetime_from_timestamp(local_path.lmt)
             if rfile.lmt >= mtime:
                 ul_lmt = False
             else:
@@ -467,7 +468,33 @@ class Uploader(object):
         else:
             return UploadAction.Skip
 
-    def _generate_entity_for_source(self, local_path):
+    def _check_for_existing_remote(self, sa, cont, name):
+        if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
+            fp = blobxfer.operations.azure.file.get_file_properties(
+                sa.file_client, cont, name,
+                timeout=self._general_options.timeout_sec)
+        else:
+            fp = blobxfer.operations.azure.blob.get_blob_properties(
+                sa.block_blob_client, cont, name, self._spec.options.mode,
+                timeout=self._general_options.timeout_sec)
+        if fp is not None:
+            if blobxfer.models.crypto.EncryptionMetadata.\
+                    encryption_metadata_exists(fp.metadata):
+                ed = blobxfer.models.crypto.EncryptionMetadata()
+                ed.convert_from_json(fp.metadata, fp.name, None)
+            else:
+                ed = None
+            ase = blobxfer.models.azure.StorageEntity(cont, ed)
+            if (self._spec.options.mode ==
+                    blobxfer.models.azure.StorageModes.File):
+                ase.populate_from_file(sa, fp)
+            else:
+                ase.populate_from_blob(sa, fp)
+        else:
+            ase = None
+        return ase
+
+    def _generate_destination_for_source(self, local_path):
         # type: (Uploader, blobxfer.models.upload.LocalSourcePath) -> ???
         """Generate entities for source path
         :param Uploader self: this
@@ -500,36 +527,16 @@ class Uploader(object):
                         'must specify a container for destination: {}'.format(
                             dpath))
                 # apply strip components
-                print(cont, name)
                 sa = self._creds.get_storage_account(
                     dst.lookup_storage_account(sdpath))
-                if (self._spec.options.mode ==
-                        blobxfer.models.azure.StorageModes.File):
-                    fp = blobxfer.operations.azure.file.get_file_properties(
-                        sa.file_client, cont, name,
-                        timeout=self._general_options.timeout_sec)
-                else:
-                    fp = blobxfer.operations.azure.blob.get_blob_properties(
-                        sa.block_blob_client, cont, name,
-                        self._spec.options.mode,
-                        timeout=self._general_options.timeout_sec)
-                if fp is not None:
-                    if blobxfer.models.crypto.EncryptionMetadata.\
-                            encryption_metadata_exists(fp.metadata):
-                        ed = blobxfer.models.crypto.EncryptionMetadata()
-                        ed.convert_from_json(fp.metadata, fp.name, None)
-                    else:
-                        ed = None
-                    ase = blobxfer.models.azure.StorageEntity(cont, ed)
-                    if (self._spec.options.mode ==
-                            blobxfer.models.azure.StorageModes.File):
-                        ase.populate_from_file(sa, fp)
-                    else:
-                        ase.populate_from_blob(sa, fp)
-                else:
+                # do not check for existing remote right now if striped
+                # vectored io mode
+                if (self._spec.options.vectored_io.distribution_mode ==
+                        blobxfer.models.upload.
+                        VectoredIoDistributionMode.Stripe):
                     ase = None
-                lpath = local_path.parent_path / local_path.relative_path
-                action = self._check_upload_conditions(lpath, ase)
+                else:
+                    ase = self._check_for_existing_remote(sa, cont, name)
                 if ase is None:
                     if self._spec.options.rsa_public_key:
                         ed = blobxfer.models.crypto.EncryptionMetadata()
@@ -538,12 +545,86 @@ class Uploader(object):
                     ase = blobxfer.models.azure.StorageEntity(cont, ed)
                     ase.populate_from_local(
                         sa, cont, name, self._spec.options.mode)
-                yield action, ase
+                yield sa, ase
 
     def _create_unique_id(self, src, ase):
         return ';'.join(
             (str(src.absolute_path), ase._client.account_name, ase.path)
         )
+
+    def append_slice_suffix_to_name(self, name, slice):
+        return '{}.bxslice-{}'.format(name, slice)
+
+    def _vectorize_and_bind(self, local_path, dest):
+        # type: (Uploader, blobxfer.models.upload.LocalPath,
+        #        List[blobxfer.models.azure.StorageEntity]) -> None
+        """Vectorize local path to destinations and bind
+        :param Uploader self: this
+        :param blobxfer.models.LocalPath local_path: local path
+        :param list rfile: remote file
+        """
+        if (self._spec.options.vectored_io.distribution_mode ==
+                blobxfer.models.upload.VectoredIoDistributionMode.Stripe):
+            num_dest = len(dest)
+            # compute total number of slices
+            slices = int(math.ceil(
+                local_path.size /
+                self._spec.options.vectored_io.stripe_chunk_size_bytes))
+            logger.debug(
+                '{} slices for vectored out of {} to {} destinations'.format(
+                    slices, local_path.absolute_path, num_dest))
+            # create new local path to ase mappings
+            curr = 0
+            slice = 0
+            for i in range(0, slices):
+                start = curr
+                end = (
+                    curr +
+                    self._spec.options.vectored_io.stripe_chunk_size_bytes
+                )
+                if end > local_path.size:
+                    end = local_path.size
+                sa, ase = dest[i % num_dest]
+                name = self.append_slice_suffix_to_name(ase.name, slice)
+                ase = self._check_for_existing_remote(sa, ase.container, name)
+                lp_slice = blobxfer.models.upload.LocalPath(
+                    parent_path=local_path.parent_path,
+                    relative_path=local_path.relative_path,
+                    view=blobxfer.models.upload.LocalPathView(
+                        fd_start=start,
+                        fd_end=end,
+                        slice_num=slice,
+                    )
+                )
+                action = self._check_upload_conditions(lp_slice, ase)
+                yield action, lp_slice, ase
+                start += curr
+                slice += 1
+        elif (self._spec.options.vectored_io.distribution_mode ==
+                blobxfer.models.upload.VectoredIoDistributionMode.Replica):
+            action_map = {}
+            for _, ase in dest:
+                action = self._check_upload_conditions(local_path, ase)
+                if action not in action_map:
+                    action_map[action] = []
+                action_map[action].append(ase)
+            for action in action_map:
+                dst = action_map[action]
+                if len(dst) == 1:
+                    yield action, local_path, dst[0]
+                else:
+                    if (action == UploadAction.CheckMd5 or
+                            action == UploadAction.Skip):
+                        for ase in dst:
+                            yield action, local_path, ase
+                    else:
+                        primary_ase = dst[0]
+                        primary_ase.replica_targets.extend(dst[1:])
+                        yield action, local_path, primary_ase
+        else:
+            for _, ase in dest:
+                action = self._check_upload_conditions(local_path, ase)
+                yield action, local_path, ase
 
     def _run(self):
         # type: (Uploader) -> None
@@ -582,27 +663,32 @@ class Uploader(object):
             raise RuntimeError(
                 'cannot rename to specified destination with multiple sources')
         # iterate through source paths to upload
-        for sfile in self._spec.sources.files():
-            # create associated storage entity (destination) for file
-            for action, ase in self._generate_entity_for_source(sfile):
-                print(sfile.parent_path, sfile.relative_path, sfile.absolute_path, action, ase.container, ase.name)
-                print(sfile.size, sfile.mode, sfile.uid, sfile.gid)
-                print(self._create_unique_id(sfile, ase))
+        for src in self._spec.sources.files():
+            # create a destination array for the source
+            dest = [
+                (sa, ase) for sa, ase in
+                self._generate_destination_for_source(src)
+            ]
+            for action, lp, ase in self._vectorize_and_bind(src, dest):
+                print(lp.parent_path, lp.relative_path, lp.absolute_path, action, ase.container, ase.name)
+                print(lp.size, lp.mode, lp.uid, lp.gid)
+                print(self._create_unique_id(lp, ase))
+                print('replicas', len(ase.replica_targets) if ase.replica_targets is not None else 'none')
                 if action == UploadAction.Skip:
                     skipped_files += 1
                     skipped_size += ase.size if ase.size is not None else 0
                     continue
                 # add to potential upload set
-                uid = self._create_unique_id(sfile, ase)
+                uid = self._create_unique_id(lp, ase)
                 with self._upload_lock:
                     self._upload_set.add(uid)
                 if action == UploadAction.CheckMd5:
-                    self._pre_md5_skip_on_check(sfile, ase)
+                    self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
-                    self._add_to_upload_queue(sfile, ase, uid)
+                    self._add_to_upload_queue(lp, ase, uid)
 
                     nfiles += 1
-                    total_size += sfile.size
+                    total_size += lp.size
 
         self._upload_total = nfiles - skipped_files
         self._upload_bytes_total = total_size - skipped_size
