@@ -248,6 +248,8 @@ class Descriptor(object):
         self._adjust_chunk_size(options)
         self._total_chunks = self._compute_total_chunks(self._chunk_size)
         self._outstanding_ops = self._total_chunks
+        if blobxfer.util.is_not_empty(self._ase.replica_targets):
+            self._outstanding_ops *= len(self._ase.replica_targets)
         # initialize integrity checkers
         self.hmac = None
         self.md5 = None
@@ -282,8 +284,7 @@ class Descriptor(object):
         :return: if all operations completed
         """
         with self._meta_lock:
-            return (self._outstanding_ops == 0 and
-                    len(self._unchecked_chunks) == 0)
+            return self._outstanding_ops == 0
 
     @property
     def is_resumable(self):
@@ -296,24 +297,51 @@ class Descriptor(object):
         return self._resume_mgr is not None and self.hmac is None
 
     @property
-    def one_shot(self):
+    def requires_put_block_list(self):
         # type: (Descriptor) -> bool
-        """Upload is a one-shot block upload
+        """Requires a put block list operation to finalize
         :param Descriptor self: this
         :rtype: bool
-        :return: is one-shot capable
+        :return: if finalize requires a put block list
         """
         return (self._ase.mode == blobxfer.models.azure.StorageModes.Block and
-                self._total_chunks == 1)
+                self._total_chunks > 1)
 
-    def hmac_iv(self, iv):
-        # type: (Descriptor, bytes) -> None
-        """Send IV through hasher
+    @property
+    def requires_set_blob_properties_md5(self):
+        # type: (Descriptor) -> bool
+        """Requires a set file properties for md5 to finalize
         :param Descriptor self: this
-        :param bytes iv: iv
+        :rtype: bool
+        :return: if finalize requires a put file properties
+        """
+        return (not self.entity.is_encrypted and self.must_compute_md5 and
+                self.entity.mode == blobxfer.models.azure.StorageModes.Page)
+
+    @property
+    def requires_set_file_properties_md5(self):
+        # type: (Descriptor) -> bool
+        """Requires a set file properties for md5 to finalize
+        :param Descriptor self: this
+        :rtype: bool
+        :return: if finalize requires a put file properties
+        """
+        return (not self.entity.is_encrypted and self.must_compute_md5 and
+                self.entity.mode == blobxfer.models.azure.StorageModes.File)
+
+    def complete_offset_upload(self):
+        with self._meta_lock:
+            self._outstanding_ops -= 1
+        # TODO save resume state
+
+    def hmac_data(self, data):
+        # type: (Descriptor, bytes) -> None
+        """Send data through hmac hasher
+        :param Descriptor self: this
+        :param bytes data: data
         """
         with self._hasher_lock:
-            self.hmac.update(iv)
+            self.hmac.update(data)
 
     def _initialize_encryption(self, options):
         # type: (Descriptor, blobxfer.models.options.Upload) -> None
@@ -321,7 +349,10 @@ class Descriptor(object):
         :param Descriptor self: this
         :param blobxfer.models.options.Upload options: upload options
         """
-        if options.rsa_public_key is not None:
+        # TODO support append blobs?
+        if (options.rsa_public_key is not None and
+                (self._ase.mode == blobxfer.models.azure.StorageModes.Block or
+                 self._ase.mode == blobxfer.models.azure.StorageModes.File)):
             em = blobxfer.models.crypto.EncryptionMetadata()
             em.create_new_metadata(options.rsa_public_key)
             self.current_iv = em.content_encryption_iv
@@ -413,7 +444,8 @@ class Descriptor(object):
                     'symmetric key is invalid: provide RSA private key '
                     'or metadata corrupt')
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
-        if self.hmac is None and options.store_file_properties.md5:
+        # both hmac and md5 can be enabled
+        if options.store_file_properties.md5:
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def next_offsets(self):
@@ -424,13 +456,13 @@ class Descriptor(object):
         :return: upload offsets
         """
         # TODO RESUME
-#         resume_bytes = self._resume()
         resume_bytes = None
+#         resume_bytes = self._resume()
         with self._meta_lock:
-#             if self._offset >= self._ase.size:
-#                 return None, resume_bytes
-            if self._offset + self._chunk_size > self._ase.size:
-                chunk = self._ase.size - self._offset
+            if self._offset >= self.local_path.view.fd_end:
+                return None, resume_bytes
+            if self._offset + self._chunk_size > self.local_path.view.fd_end:
+                chunk = self.local_path.view.fd_end - self._offset
             else:
                 chunk = self._chunk_size
             num_bytes = chunk
@@ -440,7 +472,8 @@ class Descriptor(object):
             range_end = self._offset + num_bytes - 1
             self._offset += chunk
             self._chunk_num += 1
-            if self._ase.is_encrypted and self._offset >= self._ase.size:
+            if (self._ase.is_encrypted and
+                    self._offset >= self.local_path.view.fd_end):
                 pad = True
             else:
                 pad = False
@@ -453,3 +486,14 @@ class Descriptor(object):
                 range_end=range_end,
                 pad=pad,
             ), resume_bytes
+
+    def read_data(self, offsets):
+        # compute start from view
+        start = self.local_path.view.fd_start + offsets.range_start
+        with self.local_path.absolute_path.open('rb') as fd:
+            fd.seek(start, 0)
+            data = fd.read(offsets.num_bytes)
+        if self.must_compute_md5:
+            with self._hasher_lock:
+                self.md5.update(data)
+        return data

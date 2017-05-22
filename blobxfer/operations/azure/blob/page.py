@@ -62,3 +62,56 @@ def create_client(storage_account):
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
+
+
+def create_blob(ase, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+    """Create page blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    """
+    ase.client.create_blob(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_length=ase.size,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name)
+        ),
+        timeout=timeout)
+
+
+def put_page(ase, page_start, page_end, data, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        int, int, bytes, int) -> None
+    """Puts a page into remote blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int page_start: page range start
+    :param int page_end: page range end
+    :param bytes data: data
+    :param int timeout: timeout
+    """
+    ase.client.update_page(
+        container_name=ase.container,
+        blob_name=ase.name,
+        page=data,
+        start_range=page_start,
+        end_range=page_end,
+        validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)
+
+
+def set_blob_md5(ase, md5, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, str, int) -> None
+    """Set blob properties MD5
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param str md5: md5 as base64
+    :param int timeout: timeout
+    """
+    ase.client.set_blob_properties(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_md5=md5,
+        ),
+        timeout=timeout)

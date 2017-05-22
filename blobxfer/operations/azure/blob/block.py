@@ -64,6 +64,19 @@ def create_client(storage_account):
     return client
 
 
-def upload_block():
-    logger.info('upload block')
-    print('upload')
+def create_blob(ase, data, md5, encmeta, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+    """Create one shot block blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    """
+    if encmeta is not None:
+        raise NotImplementedError()
+    ase.client._put_blob(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_md5=md5,
+        ),
+        timeout=timeout)

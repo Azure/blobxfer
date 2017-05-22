@@ -62,3 +62,18 @@ def create_client(storage_account):
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
+
+
+def create_blob(ase, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+    """Create append blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    """
+    ase.client.create_blob(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name)
+        ),
+        timeout=timeout)

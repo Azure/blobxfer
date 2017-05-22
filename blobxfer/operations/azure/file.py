@@ -250,23 +250,22 @@ def create_file(ase, timeout=None):
         directory_name=dir,
         file_name=fpath,
         content_length=ase.size,
-        content_settings=None,
+        content_settings=azure.storage.file.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(fpath)
+        ),
         timeout=timeout)
 
 
-def put_file_range(ase, local_file, offsets, timeout=None):
-    # type: (blobxfer.models.azure.StorageEntity, pathlib.path,
-    #        blobxfer.models.upload.Offsets, int) -> None
+def put_file_range(ase, offsets, data, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.upload.Offsets, bytes, int) -> None
     """Puts a range of bytes into the remote file
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
-    :param pathlib.Path local_file: local file
     :param blobxfer.models.upload.Offsets offsets: upload offsets
+    :param bytes data: data
     :param int timeout: timeout
     """
     dir, fpath = parse_file_path(ase.name)
-    with local_file.open('rb') as fd:
-        fd.seek(offsets.range_start, 0)
-        data = fd.read(offsets.num_bytes)
     ase.client.update_range(
         share_name=ase.container,
         directory_name=dir,
@@ -275,4 +274,23 @@ def put_file_range(ase, local_file, offsets, timeout=None):
         start_range=offsets.range_start,
         end_range=offsets.range_end,
         validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)
+
+
+def set_file_md5(ase, md5, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, str, int) -> None
+    """Set file properties MD5
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param str md5: md5 as base64
+    :param int timeout: timeout
+    """
+    dir, fpath = parse_file_path(ase.name)
+    ase.client.set_file_properties(
+        share_name=ase.container,
+        directory_name=dir,
+        file_name=fpath,
+        content_settings=azure.storage.file.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(fpath),
+            content_md5=md5,
+        ),
         timeout=timeout)

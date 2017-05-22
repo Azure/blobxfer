@@ -42,6 +42,9 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
+# global defines
+_EMPTY_MAX_PAGE_SIZE_MD5 = 'tc+p1sj+vWGPkawoQ9UKHA=='
+_MAX_PAGE_SIZE_BYTES = 4194304
 
 
 def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
@@ -78,6 +81,25 @@ def compute_md5_for_data_asbase64(data):
     hasher = blobxfer.util.new_md5_hasher()
     hasher.update(data)
     return blobxfer.util.base64_encode_as_string(hasher.digest())
+
+
+def check_data_is_empty(data):
+    # type: (bytes) -> bool
+    """Check if data is empty via MD5
+    :param bytes data: data to check
+    :rtype: bool
+    :return: if data is empty
+    """
+    contentmd5 = compute_md5_for_data_asbase64(data)
+    datalen = len(data)
+    if datalen == _MAX_PAGE_SIZE_BYTES:
+        if contentmd5 == _EMPTY_MAX_PAGE_SIZE_MD5:
+            return True
+    else:
+        data_chk = b'\0' * datalen
+        if compute_md5_for_data_asbase64(data_chk) == contentmd5:
+            return True
+    return False
 
 
 class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):

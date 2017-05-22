@@ -158,3 +158,21 @@ def get_blob_range(ase, offsets, timeout=None):
         validate_content=False,  # HTTPS takes care of integrity during xfer
         timeout=timeout,
     ).content
+
+
+def create_container(ase, containers_created, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Create blob container
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict containers_created: containers already created map
+    :param int timeout: timeout
+    """
+    key = ase.client.account_name + ':blob=' + ase.container
+    if key not in containers_created:
+        ase.client.create_container(
+            container_name=ase.container,
+            fail_on_exist=False,
+            timeout=timeout)
+        containers_created.add(key)
+        logger.info('created blob container {} on storage account {}'.format(
+            ase.container, ase.client.account_name))
