@@ -317,7 +317,8 @@ def _chunk_size_bytes_option(f):
         expose_value=False,
         type=int,
         default=4194304,
-        help='Block or chunk size in bytes [4194304]',
+        help='Block or chunk size in bytes; set to 0 for auto-select '
+        'on upload [0]',
         callback=callback)(f)
 
 
@@ -381,10 +382,9 @@ def _file_attributes(f):
         clictx.cli_options['file_attributes'] = value
         return value
     return click.option(
-        '--file-attributes',
+        '--file-attributes/--no-file-attributes',
         expose_value=False,
         default=False,
-        is_flag=False,
         help='Store or restore file attributes [False]',
         callback=callback)(f)
 

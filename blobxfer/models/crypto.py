@@ -186,14 +186,14 @@ class EncryptionMetadata(object):
         )
         self.encryption_mode = EncryptionMetadata._ENCRYPTION_MODE
 
-    def convert_from_json(self, md, blobname, rsaprivatekey):
+    def convert_from_json(self, md, entityname, rsaprivatekey):
         # type: (EncryptionMetadata, dict, str,
         #        cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey)
         #        -> None
         """Read metadata json into objects
         :param EncryptionMetadata self: this
         :param dict md: metadata dictionary
-        :param str blobname: blob name
+        :param str entityname: entity name
         :param rsaprivatekey: RSA private key
         :type rsaprivatekey:
             cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey
@@ -221,11 +221,11 @@ class EncryptionMetadata(object):
         if (self.encryption_agent.encryption_algorithm !=
                 EncryptionMetadata._ENCRYPTION_ALGORITHM):
             raise RuntimeError('{}: unknown block cipher: {}'.format(
-                blobname, self.encryption_agent.encryption_algorithm))
+                entityname, self.encryption_agent.encryption_algorithm))
         if (self.encryption_agent.protocol !=
                 EncryptionMetadata._ENCRYPTION_PROTOCOL_VERSION):
             raise RuntimeError('{}: unknown encryption protocol: {}'.format(
-                blobname, self.encryption_agent.protocol))
+                entityname, self.encryption_agent.protocol))
         self.encryption_authentication = EncryptionAuthentication(
             algorithm=ed[
                 EncryptionMetadata._JSON_KEY_INTEGRITY_AUTH][
@@ -238,13 +238,13 @@ class EncryptionMetadata(object):
                 EncryptionMetadata._AUTH_ALGORITHM):
             raise RuntimeError(
                 '{}: unknown integrity/auth method: {}'.format(
-                    blobname, self.encryption_authentication.algorithm))
+                    entityname, self.encryption_authentication.algorithm))
         self.encryption_mode = ed[
             EncryptionMetadata._JSON_KEY_ENCRYPTION_MODE]
         if self.encryption_mode != EncryptionMetadata._ENCRYPTION_MODE:
             raise RuntimeError(
                 '{}: unknown encryption mode: {}'.format(
-                    blobname, self.encryption_mode))
+                    entityname, self.encryption_mode))
         try:
             _eak = ed[EncryptionMetadata._JSON_KEY_WRAPPEDCONTENTKEY][
                 EncryptionMetadata._JSON_KEY_ENCRYPTED_AUTHKEY]
@@ -265,7 +265,7 @@ class EncryptionMetadata(object):
         if (self.wrapped_content_key.algorithm !=
                 EncryptionMetadata._ENCRYPTED_KEY_SCHEME):
             raise RuntimeError('{}: unknown key encryption scheme: {}'.format(
-                blobname, self.wrapped_content_key.algorithm))
+                entityname, self.wrapped_content_key.algorithm))
         # if RSA key is a public key, stop here as keys cannot be decrypted
         if rsaprivatekey is None:
             return
@@ -304,7 +304,7 @@ class EncryptionMetadata(object):
                     EncryptionMetadata._AUTH_ALGORITHM):
                 raise RuntimeError(
                     '{}: unknown integrity/auth method: {}'.format(
-                        blobname,
+                        entityname,
                         self.encryption_metadata_authentication.algorithm))
             # verify hmac
             authhmac = base64.b64decode(
@@ -317,7 +317,7 @@ class EncryptionMetadata(object):
             if hmacsha256.digest() != authhmac:
                 raise RuntimeError(
                     '{}: encryption metadata authentication failed'.format(
-                        blobname))
+                        entityname))
 
     def convert_to_json_with_mac(self):
         # TODO

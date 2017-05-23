@@ -139,6 +139,41 @@ def list_blobs(client, container, prefix, mode, recursive, timeout=None):
         yield blob
 
 
+def list_all_blobs(client, container, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, int) ->
+    #        azure.storage.blob.models.Blob
+    """List all blobs in a container
+    :param azure.storage.blob.BaseBlobService client: blob client
+    :param str container: container
+    :param int timeout: timeout
+    :rtype: azure.storage.blob.models.Blob
+    :return: generator of blobs
+    """
+    blobs = client.list_blobs(
+        container_name=container,
+        prefix=None,
+        timeout=timeout,
+    )
+    for blob in blobs:
+        yield blob
+
+
+def delete_blob(client, container, name, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, str, int) -> None
+    """Delete blob, including all associated snapshots
+    :param azure.storage.blob.BaseBlobService client: blob client
+    :param str container: container
+    :param str name: blob name
+    :param int timeout: timeout
+    """
+    client.delete_blob(
+        container_name=container,
+        blob_name=name,
+        delete_snapshots=azure.storage.blob.models.DeleteSnapshot.Include,
+        timeout=timeout,
+    )
+
+
 def get_blob_range(ase, offsets, timeout=None):
     # type: (blobxfer.models.azure.StorageEntity,
     #        blobxfer.models.download.Offsets, int) -> bytes
@@ -167,6 +202,9 @@ def create_container(ase, containers_created, timeout=None):
     :param dict containers_created: containers already created map
     :param int timeout: timeout
     """
+    # check if auth allows create container
+    if not ase.create_containers:
+        return
     key = ase.client.account_name + ':blob=' + ase.container
     if key not in containers_created:
         ase.client.create_container(

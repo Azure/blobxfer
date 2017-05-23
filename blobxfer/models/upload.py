@@ -32,6 +32,7 @@ from builtins import (  # noqa
 # stdlib imports
 import collections
 import enum
+import json
 import logging
 import math
 import os
@@ -43,7 +44,9 @@ import threading
 # non-stdlib imports
 # local imports
 import blobxfer.models
+import blobxfer.models.azure
 import blobxfer.models.crypto
+import blobxfer.models.metadata
 import blobxfer.util
 
 # create logger
@@ -52,14 +55,14 @@ logger = logging.getLogger(__name__)
 _MAX_BLOCK_BLOB_ONESHOT_BYTES = 268435456
 _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 268435456
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
+_MAX_NUM_CHUNKS = 50000
+_DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
 
 
 # named tuples
 Offsets = collections.namedtuple(
     'Offsets', [
         'chunk_num',
-        'block_id',
-        'fd_start',
         'num_bytes',
         'range_end',
         'range_start',
@@ -70,7 +73,10 @@ LocalPathView = collections.namedtuple(
     'LocalPathView', [
         'fd_end',
         'fd_start',
+        'mode',
+        'next',
         'slice_num',
+        'total_slices',
     ]
 )
 
@@ -93,11 +99,15 @@ class LocalPath(object):
         if view is None:
             self.view = LocalPathView(
                 fd_start=0,
-                fd_end=self.size,
+                fd_end=self._stat.st_size,
                 slice_num=0,
+                mode=VectoredIoDistributionMode.Disabled,
+                total_slices=1,
+                next=None,
             )
         else:
             self.view = view
+        self._size = self.view.fd_end - self.view.fd_start
 
     @property
     def absolute_path(self):
@@ -105,6 +115,10 @@ class LocalPath(object):
 
     @property
     def size(self):
+        return self._size
+
+    @property
+    def total_size(self):
         return self._stat.st_size
 
     @property
@@ -184,8 +198,8 @@ class Specification(object):
             if self.sources.paths[0].is_dir():
                 raise ValueError(
                     'cannot rename a directory of files to upload')
-        if self.options.chunk_size_bytes <= 0:
-            raise ValueError('chunk size must be positive')
+        if self.options.chunk_size_bytes < 0:
+            raise ValueError('chunk size cannot be negative')
         if self.options.chunk_size_bytes > _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
             raise ValueError(
                 ('chunk size value of {} exceeds maximum allowable '
@@ -241,6 +255,7 @@ class Descriptor(object):
         self._hasher_lock = threading.Lock()
         self._resume_mgr = resume_mgr
         self._ase = ase
+        self._store_file_attr = options.store_file_properties.attributes
         self.current_iv = None
         self._initialize_encryption(options)
         # calculate the total number of ops required for transfer
@@ -287,6 +302,18 @@ class Descriptor(object):
             return self._outstanding_ops == 0
 
     @property
+    def last_block_num(self):
+        # type: (Descriptor) -> bool
+        """Last used block number for block id, should only be called for
+        finalize operation
+        :param Descriptor self: this
+        :rtype: int
+        :return: block number
+        """
+        with self._meta_lock:
+            return self._chunk_num - 1
+
+    @property
     def is_resumable(self):
         # type: (Descriptor) -> bool
         """Upload is resume capable
@@ -295,6 +322,37 @@ class Descriptor(object):
         :return: if resumable
         """
         return self._resume_mgr is not None and self.hmac is None
+
+    @property
+    def remote_is_file(self):
+        # type: (Descriptor) -> bool
+        """Remote destination is an Azure File
+        :param Descriptor self: this
+        :rtype: bool
+        :return: remote is an Azure File
+        """
+        return self.entity.mode == blobxfer.models.azure.StorageModes.File
+
+    @property
+    def remote_is_page_blob(self):
+        # type: (Descriptor) -> bool
+        """Remote destination is an Azure Page Blob
+        :param Descriptor self: this
+        :rtype: bool
+        :return: remote is an Azure Page Blob
+        """
+        return self.entity.mode == blobxfer.models.azure.StorageModes.Page
+
+    @property
+    def is_one_shot_block_blob(self):
+        # type: (Descriptor) -> bool
+        """Is one shot block blob
+        :param Descriptor self: this
+        :rtype: bool
+        :return: if upload is a one-shot block blob
+        """
+        return (self._ase.mode == blobxfer.models.azure.StorageModes.Block and
+                self._total_chunks == 1)
 
     @property
     def requires_put_block_list(self):
@@ -308,15 +366,14 @@ class Descriptor(object):
                 self._total_chunks > 1)
 
     @property
-    def requires_set_blob_properties_md5(self):
+    def requires_non_encrypted_md5_put(self):
         # type: (Descriptor) -> bool
         """Requires a set file properties for md5 to finalize
         :param Descriptor self: this
         :rtype: bool
         :return: if finalize requires a put file properties
         """
-        return (not self.entity.is_encrypted and self.must_compute_md5 and
-                self.entity.mode == blobxfer.models.azure.StorageModes.Page)
+        return not self.entity.is_encrypted and self.must_compute_md5
 
     @property
     def requires_set_file_properties_md5(self):
@@ -327,7 +384,7 @@ class Descriptor(object):
         :return: if finalize requires a put file properties
         """
         return (not self.entity.is_encrypted and self.must_compute_md5 and
-                self.entity.mode == blobxfer.models.azure.StorageModes.File)
+                self.remote_is_file)
 
     def complete_offset_upload(self):
         with self._meta_lock:
@@ -350,7 +407,7 @@ class Descriptor(object):
         :param blobxfer.models.options.Upload options: upload options
         """
         # TODO support append blobs?
-        if (options.rsa_public_key is not None and
+        if (options.rsa_public_key is not None and self._ase.size > 0 and
                 (self._ase.mode == blobxfer.models.azure.StorageModes.Block or
                  self._ase.mode == blobxfer.models.azure.StorageModes.File)):
             em = blobxfer.models.crypto.EncryptionMetadata()
@@ -387,35 +444,57 @@ class Descriptor(object):
         :param Descriptor self: this
         :param blobxfer.models.options.Upload options: upload options
         """
-        self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
+        chunk_size = options.chunk_size_bytes
+        # auto-select chunk size
+        if chunk_size == 0:
+            if self._ase.mode != blobxfer.models.azure.StorageModes.Block:
+                chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
+            else:
+                if self._ase.size == 0:
+                    chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
+                else:
+                    chunk_size = _DEFAULT_AUTO_CHUNKSIZE_BYTES
+                    while chunk_size < _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
+                        chunks = int(math.ceil(self._ase.size / chunk_size))
+                        if chunks <= _MAX_NUM_CHUNKS:
+                            break
+                        chunk_size = chunk_size << 1
+            logger.debug(
+                'auto-selected chunk size of {} for {}'.format(
+                    chunk_size, self.local_path.absolute_path))
+        self._chunk_size = min((chunk_size, self._ase.size))
         # ensure chunk sizes are compatible with mode
         if self._ase.mode == blobxfer.models.azure.StorageModes.Append:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
-                    'adjusting chunk size to {} for append blobs'.format(
-                        self._chunk_size))
+                    ('adjusting chunk size to {} for append blob '
+                     'from {}').format(
+                         self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Block:
             if self._ase.size <= options.one_shot_bytes:
-                self._chunk_size = options.one_shot_bytes
+                self._chunk_size = min(
+                    (self._ase.size, options.one_shot_bytes)
+                )
             else:
                 if self._chunk_size > _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
                     self._chunk_size = _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
                     logger.debug(
-                        'adjusting chunk size to {} for block blobs'.format(
-                            self._chunk_size))
+                        ('adjusting chunk size to {} for block blob '
+                         'from {}').format(
+                            self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.File:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
-                    'adjusting chunk size to {} for files'.format(
-                        self._chunk_size))
+                    'adjusting chunk size to {} for file from {}'.format(
+                        self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Page:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
-                    'adjusting chunk size to {} for page blobs'.format(
-                        self._chunk_size))
+                    'adjusting chunk size to {} for page blob from {}'.format(
+                        self._chunk_size, self.local_path.absolute_path))
 
     def _compute_total_chunks(self, chunk_size):
         # type: (Descriptor, int) -> int
@@ -426,9 +505,30 @@ class Descriptor(object):
         :return: num chunks
         """
         try:
-            return int(math.ceil(self._ase.size / chunk_size))
+            chunks = int(math.ceil(self._ase.size / chunk_size))
         except ZeroDivisionError:
-            return 0
+            chunks = 1
+        if chunks > 50000:
+            max_vector = False
+            if self._ase.mode == blobxfer.models.azure.StorageModes.Block:
+                if self._chunk_size == _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
+                    max_vector = True
+            elif self._chunk_size == _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
+                max_vector = True
+            if max_vector:
+                raise RuntimeError(
+                    ('number of chunks {} exceeds maximum permissible '
+                     'limit and chunk size is set at the maximum value '
+                     'for {}. Please try using stripe mode '
+                     'vectorization to overcome this limitation').format(
+                        chunks, self.local_path.absolute_path))
+            else:
+                raise RuntimeError(
+                    ('number of chunks {} exceeds maximum permissible '
+                     'limit for {}, please adjust chunk size higher or '
+                     'set to -1 for automatic chunk size selection').format(
+                         chunks, self.local_path.absolute_path))
+        return chunks
 
     def _initialize_integrity_checkers(self, options):
         # type: (Descriptor, blobxfer.models.options.Upload) -> None
@@ -459,35 +559,32 @@ class Descriptor(object):
         resume_bytes = None
 #         resume_bytes = self._resume()
         with self._meta_lock:
-            if self._offset >= self.local_path.view.fd_end:
+            if self._chunk_num >= self._total_chunks:
                 return None, resume_bytes
-            if self._offset + self._chunk_size > self.local_path.view.fd_end:
-                chunk = self.local_path.view.fd_end - self._offset
+            if self._offset + self._chunk_size > self._ase.size:
+                num_bytes = self._ase.size - self._offset
             else:
-                chunk = self._chunk_size
-            num_bytes = chunk
+                num_bytes = self._chunk_size
             chunk_num = self._chunk_num
-            fd_start = self._offset
             range_start = self._offset
             range_end = self._offset + num_bytes - 1
-            self._offset += chunk
+            self._offset += num_bytes
             self._chunk_num += 1
-            if (self._ase.is_encrypted and
-                    self._offset >= self.local_path.view.fd_end):
+            if self._ase.is_encrypted and self._offset >= self._ase.size:
                 pad = True
             else:
                 pad = False
             return Offsets(
                 chunk_num=chunk_num,
-                block_id='{0:08d}'.format(chunk_num),
-                fd_start=fd_start,
-                num_bytes=chunk,
+                num_bytes=num_bytes,
                 range_start=range_start,
                 range_end=range_end,
                 pad=pad,
             ), resume_bytes
 
     def read_data(self, offsets):
+        if offsets.num_bytes == 0:
+            return None
         # compute start from view
         start = self.local_path.view.fd_start + offsets.range_start
         with self.local_path.absolute_path.open('rb') as fd:
@@ -497,3 +594,31 @@ class Descriptor(object):
             with self._hasher_lock:
                 self.md5.update(data)
         return data
+
+    def generate_metadata(self):
+        genmeta = {}
+        encmeta = {}
+        # generate encryption metadata
+        if self._ase.is_encrypted:
+            raise NotImplementedError()
+        # generate file attribute metadata
+        if self._store_file_attr:
+            merged = blobxfer.models.metadata.generate_fileattr_metadata(
+                self.local_path, genmeta)
+            if merged is not None:
+                genmeta = merged
+        # generate vectored io metadata
+        if self.local_path.view.mode == VectoredIoDistributionMode.Stripe:
+            merged = blobxfer.models.metadata.\
+                generate_vectored_io_stripe_metadata(self.local_path, genmeta)
+            if merged is not None:
+                genmeta = merged
+        metadata = {}
+        if len(genmeta) > 0:
+            metadata[blobxfer.models.metadata.JSON_KEY_BLOBXFER_METADATA] = \
+                json.dumps(genmeta, ensure_ascii=False, sort_keys=True)
+        if len(encmeta) > 0:
+            raise NotImplementedError()
+        if len(metadata) == 0:
+            return None
+        return metadata

@@ -115,3 +115,17 @@ def set_blob_md5(ase, md5, timeout=None):
             content_md5=md5,
         ),
         timeout=timeout)
+
+
+def set_blob_metadata(ase, metadata, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Set blob metadata
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict metadata: metadata kv pairs
+    :param int timeout: timeout
+    """
+    ase.client.set_blob_metadata(
+        container_name=ase.container,
+        blob_name=ase.name,
+        metadata=metadata,
+        timeout=timeout)

@@ -40,6 +40,7 @@ try:
     from os import scandir as scandir
 except ImportError:  # noqa
     from scandir import scandir as scandir
+import platform
 import re
 import sys
 # non-stdlib imports
@@ -50,6 +51,7 @@ import future.utils
 
 # global defines
 MEGABYTE = 1048576
+_ON_WINDOWS = platform.system() == 'Windows'
 _REGISTERED_LOGGER_HANDLERS = []
 _PAGEBLOB_BOUNDARY = 512
 
@@ -61,6 +63,15 @@ def on_python2():
     :return: if on Python2
     """
     return future.utils.PY2
+
+
+def on_windows():
+    # type: (None) -> bool
+    """Execution on Windows
+    :rtype: bool
+    :return: if on Windows
+    """
+    return _ON_WINDOWS
 
 
 def setup_logger(logger, logfile):  # noqa

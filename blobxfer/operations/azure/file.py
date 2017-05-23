@@ -174,6 +174,49 @@ def list_files(client, fileshare, prefix, recursive, timeout=None):
                     dirs.append(fspath)
 
 
+def list_all_files(client, fileshare, timeout=None):
+    # type: (azure.storage.file.FileService, str, int) -> str
+    """List all files in share
+    :param azure.storage.file.FileService client: file client
+    :param str fileshare: file share
+    :param int timeout: timeout
+    :rtype: str
+    :return: file name
+    """
+    dirs = [None]
+    while len(dirs) > 0:
+        dir = dirs.pop()
+        files = client.list_directories_and_files(
+            share_name=fileshare,
+            directory_name=dir,
+            timeout=timeout,
+        )
+        for file in files:
+            fspath = str(
+                pathlib.Path(dir if dir is not None else '') / file.name)
+            if type(file) == azure.storage.file.models.File:
+                yield fspath
+            else:
+                dirs.append(fspath)
+
+
+def delete_file(client, fileshare, name, timeout=None):
+    # type: (azure.storage.file.FileService, str, str, int) -> None
+    """Delete file from share
+    :param azure.storage.file.FileService client: file client
+    :param str fileshare: file share
+    :param str name: file name
+    :param int timeout: timeout
+    """
+    dir, fpath = parse_file_path(name)
+    client.delete_file(
+        share_name=fileshare,
+        directory_name=dir,
+        file_name=fpath,
+        timeout=timeout,
+    )
+
+
 def get_file_range(ase, offsets, timeout=None):
     # type: (blobxfer.models.azure.StorageEntity,
     #        blobxfer.models.download.Offsets, int) -> bytes
@@ -203,6 +246,9 @@ def create_share(ase, containers_created, timeout=None):
     :param dict containers_created: containers already created map
     :param int timeout: timeout
     """
+    # check if auth allows create container
+    if not ase.create_containers:
+        return
     key = ase.client.account_name + ':file=' + ase.container
     if key not in containers_created:
         ase.client.create_share(
@@ -224,6 +270,8 @@ def create_all_parent_directories(ase, dirs_created, timeout=None):
     dirs = pathlib.Path(ase.name).parts
     if len(dirs) <= 1:
         return
+    # remove last part (which is the file)
+    dirs = dirs[:-1]
     dk = ase.client.account_name + ':' + ase.container
     for i in range(0, len(dirs)):
         dir = str(pathlib.Path(*(dirs[0:i + 1])))
@@ -293,4 +341,20 @@ def set_file_md5(ase, md5, timeout=None):
             content_type=blobxfer.util.get_mime_type(fpath),
             content_md5=md5,
         ),
+        timeout=timeout)
+
+
+def set_file_metadata(ase, metadata, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Set file metadata
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict metadata: metadata kv pairs
+    :param int timeout: timeout
+    """
+    dir, fpath = parse_file_path(ase.name)
+    ase.client.set_file_metadata(
+        share_name=ase.container,
+        directory_name=dir,
+        file_name=fpath,
+        metadata=metadata,
         timeout=timeout)

@@ -95,7 +95,8 @@ class StorageAccount(object):
         self.name = name
         self.key = key
         self.endpoint = endpoint
-        self.is_sas = self._key_is_sas(self.key)
+        self.is_sas = StorageAccount._key_is_sas(self.key)
+        self.create_containers = self._container_creation_allowed()
         # normalize sas keys
         if self.is_sas and self.key.startswith('?'):
             self.key = self.key[1:]
@@ -131,6 +132,26 @@ class StorageAccount(object):
                 return False
             elif any(x.startswith('sig=') for x in tmp):
                 return True
+        return False
+
+    def _container_creation_allowed(self):
+        # # type: (StorageAccount) -> bool
+        """Check if container creation is allowed
+        :param StorageAccount self: this
+        :rtype: bool
+        :return: if container creation is allowed
+        """
+        if self.is_sas:
+            # search for account sas "c" resource
+            sasparts = self.key.split('&')
+            for part in sasparts:
+                tmp = part.split('=')
+                if tmp[0] == 'srt':
+                    if 'c' in tmp[1]:
+                        return True
+        else:
+            # storage account key always allows container creation
+            return True
         return False
 
     def _create_clients(self):
@@ -271,7 +292,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 else:
                     ed = None
                 ase = blobxfer.models.azure.StorageEntity(cont, ed)
-                ase.populate_from_file(sa, file)
+                ase.populate_from_file(sa, file, dir)
                 yield ase
 
     def _populate_from_list_blobs(self, creds, options, general_options):
@@ -303,7 +324,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 else:
                     ed = None
                 ase = blobxfer.models.azure.StorageEntity(cont, ed)
-                ase.populate_from_blob(sa, blob)
+                ase.populate_from_blob(sa, blob, dir)
                 yield ase
 
 

@@ -64,19 +64,80 @@ def create_client(storage_account):
     return client
 
 
-def create_blob(ase, data, md5, encmeta, timeout=None):
-    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+def create_blob(ase, data, md5, metadata, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, bytes, str, dict,
+    #        int) -> None
     """Create one shot block blob
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param bytes data: blob data
+    :param str md5: md5 as base64
+    :param dict metadata: metadata kv pairs
     :param int timeout: timeout
     """
-    if encmeta is not None:
-        raise NotImplementedError()
     ase.client._put_blob(
         container_name=ase.container,
         blob_name=ase.name,
+        blob=data,
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name),
             content_md5=md5,
         ),
+        metadata=metadata,
+        validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)
+
+
+def _format_block_id(chunk_num):
+    # type: (int) -> str
+    """Create a block id given a block (chunk) number
+    :param int chunk_num: chunk number
+    :rtype: str
+    :return: block id
+    """
+    return '{0:08d}'.format(chunk_num)
+
+
+def put_block(ase, offsets, data, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.upload.Offsets, bytes, int) -> None
+    """Puts a block into remote blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param blobxfer.models.upload.Offsets offsets: upload offsets
+    :param bytes data: data
+    :param int timeout: timeout
+    """
+    ase.client.put_block(
+        container_name=ase.container,
+        blob_name=ase.name,
+        block=data,
+        block_id=_format_block_id(offsets.chunk_num),
+        validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)
+
+
+def put_block_list(ase, last_block_num, md5, metadata, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, bytes, str, dict,
+    #        int) -> None
+    """Create block blob from blocks
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int last_block_num: last block number (chunk_num)
+    :param str md5: md5 as base64
+    :param dict metadata: metadata kv pairs
+    :param int timeout: timeout
+    """
+    # construct block list
+    block_list = [
+        azure.storage.blob.BlobBlock(id=_format_block_id(x))
+        for x in range(0, last_block_num + 1)
+    ]
+    ase.client.put_block_list(
+        container_name=ase.container,
+        blob_name=ase.name,
+        block_list=block_list,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_md5=md5,
+        ),
+        metadata=metadata,
+        validate_content=False,  # integrity is enforced with HTTPS
         timeout=timeout)
