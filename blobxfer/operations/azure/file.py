@@ -251,13 +251,17 @@ def create_share(ase, containers_created, timeout=None):
         return
     key = ase.client.account_name + ':file=' + ase.container
     if key not in containers_created:
-        ase.client.create_share(
-            share_name=ase.container,
-            fail_on_exist=False,
-            timeout=timeout)
-        containers_created.add(key)
-        logger.info('created file share {} on storage account {}'.format(
-            ase.container, ase.client.account_name))
+        try:
+            ase.client.create_share(
+                share_name=ase.container,
+                fail_on_exist=True,
+                timeout=timeout)
+        except azure.common.AzureConflictHttpError:
+            pass
+        else:
+            containers_created.add(key)
+            logger.info('created file share {} on storage account {}'.format(
+                ase.container, ase.client.account_name))
 
 
 def create_all_parent_directories(ase, dirs_created, timeout=None):

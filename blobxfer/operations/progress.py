@@ -110,19 +110,23 @@ def output_parameters(general_options, spec):
     # specific preamble
     if isinstance(spec, blobxfer.models.download.Specification):
         log.append('   transfer direction: {}'.format('Azure -> local'))
-        log.append('              workers: xfer={} md5={} crypto={}'.format(
-            general_options.concurrency.transfer_threads,
-            general_options.concurrency.md5_processes
-            if spec.options.check_file_md5 else 0,
-            general_options.concurrency.crypto_processes))
+        log.append(
+            '              workers: disk={} xfer={} md5={} crypto={}'.format(
+                general_options.concurrency.disk_threads,
+                general_options.concurrency.transfer_threads,
+                general_options.concurrency.md5_processes
+                if spec.options.check_file_md5 else 0,
+                general_options.concurrency.crypto_processes))
     elif isinstance(spec, blobxfer.models.upload.Specification):
         log.append('   transfer direction: {}'.format('local -> Azure'))
-        log.append('              workers: xfer={} md5={} crypto={}'.format(
-            general_options.concurrency.transfer_threads,
-            general_options.concurrency.md5_processes
-            if spec.skip_on.md5_match or spec.options.store_file_properties.md5
-            else 0,
-            general_options.concurrency.crypto_processes))
+        log.append(
+            '              workers: disk={} xfer={} md5={} crypto={}'.format(
+                general_options.concurrency.disk_threads,
+                general_options.concurrency.transfer_threads,
+                general_options.concurrency.md5_processes
+                if spec.skip_on.md5_match or
+                spec.options.store_file_properties.md5 else 0,
+                0))
 
     # TODO handle synccopy spec
 
@@ -161,6 +165,8 @@ def output_parameters(general_options, spec):
         log.append('    local destination: {}'.format(
             spec.destination.path))
     elif isinstance(spec, blobxfer.models.upload.Specification):
+        log.append('       one shot bytes: {}'.format(
+            spec.options.one_shot_bytes))
         log.append('     store properties: attr={} md5={}'.format(
             spec.options.store_file_properties.attributes,
             spec.options.store_file_properties.md5))

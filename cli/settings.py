@@ -225,6 +225,7 @@ def merge_settings(config, cli_options):
     config['options']['progress_bar'] = cli_options['progress_bar']
     config['options']['resume_file'] = cli_options['resume_file']
     config['options']['timeout_sec'] = cli_options['timeout']
+    config['options']['disk_threads'] = cli_options['disk_threads']
     config['options']['transfer_threads'] = cli_options['transfer_threads']
     config['options']['verbose'] = cli_options['verbose']
 
@@ -256,6 +257,7 @@ def create_general_options(config):
     return blobxfer.models.options.General(
         concurrency=blobxfer.models.options.Concurrency(
             crypto_processes=config['options']['crypto_processes'],
+            disk_threads=config['options']['disk_threads'],
             md5_processes=config['options']['md5_processes'],
             transfer_threads=config['options']['transfer_threads'],
         ),

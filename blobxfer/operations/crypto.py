@@ -242,10 +242,11 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
         """
         while not self.terminated:
             try:
-                inst = self._task_queue.get(True, 0.25)
+                inst = self._task_queue.get(True, 0.1)
             except queue.Empty:
                 continue
-            if inst[0] == CryptoAction.Encrypt:
+            # UNUSED due to AES256-CBC FullBlob mode
+            if inst[0] == CryptoAction.Encrypt:  # noqa
                 local_file, offsets, symkey, iv = \
                     inst[1], inst[2], inst[3], inst[4]
                 with open(local_file, 'rb') as fd:
@@ -295,7 +296,8 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
              iv, hmac_datafile)
         )
 
-    def add_encrypt_chunk(self, local_file, offsets, symkey, iv):
+    # UNUSED due to AES256-CBC FullBlob mode
+    def add_encrypt_chunk(self, local_file, offsets, symkey, iv):  # noqa
         # type: (CryptoOffload, pathlib.Path, blobxfer.models.upload.Offsets,
         #        bytes, bytes) -> None
         """Add a chunk to encrypt

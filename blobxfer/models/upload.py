@@ -387,6 +387,10 @@ class Descriptor(object):
                 self.remote_is_file)
 
     def complete_offset_upload(self):
+        # type: (Descriptor) -> None
+        """Complete the upload for the offset
+        :param Descriptor self: this
+        """
         with self._meta_lock:
             self._outstanding_ops -= 1
         # TODO save resume state
@@ -407,7 +411,7 @@ class Descriptor(object):
         :param blobxfer.models.options.Upload options: upload options
         """
         # TODO support append blobs?
-        if (options.rsa_public_key is not None and self._ase.size > 0 and
+        if (options.rsa_public_key is not None and self.local_path.size > 0 and
                 (self._ase.mode == blobxfer.models.azure.StorageModes.Block or
                  self._ase.mode == blobxfer.models.azure.StorageModes.File)):
             em = blobxfer.models.crypto.EncryptionMetadata()
@@ -426,7 +430,7 @@ class Descriptor(object):
         if size > 0:
             if self._ase.is_encrypted:
                 # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
-                allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
+                allocatesize = (size // self._AES_BLOCKSIZE + 1) * \
                     self._AES_BLOCKSIZE
             else:
                 allocatesize = size
@@ -541,8 +545,9 @@ class Descriptor(object):
             if blobxfer.util.is_none_or_empty(
                     self._ase.encryption_metadata.symmetric_key):
                 raise RuntimeError(
-                    'symmetric key is invalid: provide RSA private key '
-                    'or metadata corrupt')
+                    ('symmetric key is invalid: provide RSA private key '
+                     'or metadata corrupt for {}').format(
+                         self.local_path.absolute_path))
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
         # both hmac and md5 can be enabled
         if options.store_file_properties.md5:
@@ -583,10 +588,19 @@ class Descriptor(object):
             ), resume_bytes
 
     def read_data(self, offsets):
+        # type: (Descriptor, Offsets) -> bytes
+        """Read data from file
+        :param Descriptor self: this
+        :param Offsets offsets: offsets
+        :rtype: bytes
+        :return: file data
+        """
         if offsets.num_bytes == 0:
             return None
         # compute start from view
         start = self.local_path.view.fd_start + offsets.range_start
+        # encrypted offsets will read past the end of the file due
+        # to padding, but will be accounted for after encryption+padding
         with self.local_path.absolute_path.open('rb') as fd:
             fd.seek(start, 0)
             data = fd.read(offsets.num_bytes)
@@ -596,11 +610,28 @@ class Descriptor(object):
         return data
 
     def generate_metadata(self):
+        # type: (Descriptor) -> dict
+        """Generate metadata for descriptor
+        :param Descriptor self: this
+        :rtype: dict or None
+        :return: kv metadata dict
+        """
         genmeta = {}
         encmeta = {}
         # generate encryption metadata
         if self._ase.is_encrypted:
-            raise NotImplementedError()
+            if self.must_compute_md5:
+                md5digest = blobxfer.util.base64_encode_as_string(
+                    self.md5.digest())
+            else:
+                md5digest = None
+            if self.hmac is not None:
+                hmacdigest = blobxfer.util.base64_encode_as_string(
+                    self.hmac.digest())
+            else:
+                hmacdigest = None
+            encmeta = self._ase.encryption_metadata.convert_to_json_with_mac(
+                md5digest, hmacdigest)
         # generate file attribute metadata
         if self._store_file_attr:
             merged = blobxfer.models.metadata.generate_fileattr_metadata(
@@ -613,12 +644,13 @@ class Descriptor(object):
                 generate_vectored_io_stripe_metadata(self.local_path, genmeta)
             if merged is not None:
                 genmeta = merged
-        metadata = {}
+        if len(encmeta) > 0:
+            metadata = encmeta
+        else:
+            metadata = {}
         if len(genmeta) > 0:
             metadata[blobxfer.models.metadata.JSON_KEY_BLOBXFER_METADATA] = \
                 json.dumps(genmeta, ensure_ascii=False, sort_keys=True)
-        if len(encmeta) > 0:
-            raise NotImplementedError()
         if len(metadata) == 0:
             return None
         return metadata

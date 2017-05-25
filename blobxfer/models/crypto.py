@@ -106,6 +106,7 @@ class EncryptionMetadata(object):
     _JSON_KEY_ENCRYPTED_AUTHKEY = 'EncryptedAuthenticationKey'
     _JSON_KEY_CONTENT_IV = 'ContentEncryptionIV'
     _JSON_KEY_KEYID = 'KeyId'
+    _JSON_KEY_KEY_WRAPPING_METADATA = 'KeyWrappingMetadata'
     _JSON_KEY_BLOBXFER_EXTENSIONS = 'BlobxferExtensions'
     _JSON_KEY_PREENCRYPTED_MD5 = 'PreEncryptedContentMD5'
 
@@ -319,9 +320,76 @@ class EncryptionMetadata(object):
                     '{}: encryption metadata authentication failed'.format(
                         entityname))
 
-    def convert_to_json_with_mac(self):
-        # TODO
-        pass
+    def convert_to_json_with_mac(self, md5digest, hmacdigest):
+        # type: (EncryptionMetadata, str, str) -> dict
+        """Constructs metadata for encryption
+        :param EncryptionMetadata self: this
+        :param str md5digest: md5 digest
+        :param str hmacdigest: hmac-sha256 digest (data)
+        :rtype: dict
+        :return: encryption metadata
+        """
+        enc_content_key = blobxfer.operations.crypto.\
+            rsa_encrypt_key_base64_encoded(
+                None, self._rsa_public_key, self.symmetric_key)
+        enc_sign_key = blobxfer.operations.crypto.\
+            rsa_encrypt_key_base64_encoded(
+                None, self._rsa_public_key, self.signing_key)
+
+        encjson = {
+            EncryptionMetadata._JSON_KEY_ENCRYPTION_MODE:
+            EncryptionMetadata._ENCRYPTION_MODE,
+            EncryptionMetadata._JSON_KEY_CONTENT_IV:
+            blobxfer.util.base64_encode_as_string(self.content_encryption_iv),
+            EncryptionMetadata._JSON_KEY_WRAPPEDCONTENTKEY: {
+                EncryptionMetadata._JSON_KEY_KEYID: 'private:pem',
+                EncryptionMetadata._JSON_KEY_ENCRYPTED_KEY: enc_content_key,
+                EncryptionMetadata._JSON_KEY_ENCRYPTED_AUTHKEY: enc_sign_key,
+                EncryptionMetadata._JSON_KEY_ALGORITHM:
+                EncryptionMetadata._ENCRYPTED_KEY_SCHEME,
+            },
+            EncryptionMetadata._JSON_KEY_ENCRYPTION_AGENT: {
+                EncryptionMetadata._JSON_KEY_PROTOCOL:
+                EncryptionMetadata._ENCRYPTION_PROTOCOL_VERSION,
+                EncryptionMetadata._JSON_KEY_ENCRYPTION_ALGORITHM:
+                EncryptionMetadata._ENCRYPTION_ALGORITHM,
+            },
+            EncryptionMetadata._JSON_KEY_INTEGRITY_AUTH: {
+                EncryptionMetadata._JSON_KEY_ALGORITHM:
+                EncryptionMetadata._AUTH_ALGORITHM,
+            },
+            EncryptionMetadata._JSON_KEY_KEY_WRAPPING_METADATA: {},
+        }
+        if md5digest is not None:
+            encjson[EncryptionMetadata._JSON_KEY_BLOBXFER_EXTENSIONS] = {
+                EncryptionMetadata._JSON_KEY_PREENCRYPTED_MD5: md5digest
+            }
+        if hmacdigest is not None:
+            encjson[EncryptionMetadata._JSON_KEY_INTEGRITY_AUTH][
+                EncryptionMetadata._JSON_KEY_MAC] = hmacdigest
+        bencjson = json.dumps(
+            encjson, sort_keys=True, ensure_ascii=False).encode(
+                EncryptionMetadata._AUTH_ENCODING_TYPE)
+        encjson = {
+            EncryptionMetadata._METADATA_KEY_NAME:
+            json.dumps(encjson, sort_keys=True)
+        }
+        # compute MAC over encjson
+        hmacsha256 = hmac.new(self._signkey, digestmod=hashlib.sha256)
+        hmacsha256.update(bencjson)
+        authjson = {
+            EncryptionMetadata._JSON_KEY_AUTH_METAAUTH: {
+                EncryptionMetadata._JSON_KEY_ALGORITHM:
+                EncryptionMetadata._AUTH_ALGORITHM,
+                EncryptionMetadata._JSON_KEY_AUTH_ENCODING:
+                EncryptionMetadata._AUTH_ENCODING_TYPE,
+                EncryptionMetadata._JSON_KEY_MAC:
+                blobxfer.util.base64_encode_as_string(hmacsha256.digest()),
+            }
+        }
+        encjson[EncryptionMetadata._METADATA_KEY_AUTH_NAME] = json.dumps(
+            authjson, sort_keys=True)
+        return encjson
 
     def initialize_hmac(self):
         # type: (EncryptionMetadata) -> hmac.HMAC

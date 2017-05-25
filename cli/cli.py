@@ -120,7 +120,21 @@ def _crypto_processes_option(f):
         expose_value=False,
         type=int,
         default=0,
-        help='Concurrent crypto processes',
+        help='Concurrent crypto processes (download only)',
+        callback=callback)(f)
+
+
+def _disk_threads_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['disk_threads'] = value
+        return value
+    return click.option(
+        '--disk-threads',
+        expose_value=False,
+        type=int,
+        default=0,
+        help='Concurrent disk threads',
         callback=callback)(f)
 
 
@@ -225,6 +239,7 @@ def common_options(f):
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
     f = _log_file_option(f)
+    f = _disk_threads_option(f)
     f = _crypto_processes_option(f)
     return f
 

@@ -73,7 +73,7 @@ def create_blob(ase, timeout=None):
     ase.client.create_blob(
         container_name=ase.container,
         blob_name=ase.name,
-        content_length=ase.size,
+        content_length=blobxfer.util.page_align_content_length(ase.size),
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name)
         ),

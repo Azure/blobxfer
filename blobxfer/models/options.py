@@ -103,15 +103,19 @@ SyncCopy = collections.namedtuple(
 
 class Concurrency(object):
     """Concurrency Options"""
-    def __init__(self, crypto_processes, md5_processes, transfer_threads):
+    def __init__(
+            self, crypto_processes, md5_processes, disk_threads,
+            transfer_threads):
         """Ctor for Concurrency Options
         :param Concurrency self: this
         :param int crypto_processes: number of crypto procs
         :param int md5_processes: number of md5 procs
+        :param int disk_threads: number of disk threads
         :param int transfer_threads: number of transfer threads
         """
         self.crypto_processes = crypto_processes
         self.md5_processes = md5_processes
+        self.disk_threads = disk_threads
         self.transfer_threads = transfer_threads
         # allow crypto processes to be zero (which will inline crypto
         # routines with main process)
@@ -121,11 +125,21 @@ class Concurrency(object):
             self.md5_processes = multiprocessing.cpu_count() // 2
         if self.md5_processes < 1:
             self.md5_processes = 1
-        if self.transfer_threads is None or self.transfer_threads < 1:
-            self.transfer_threads = multiprocessing.cpu_count() * 4
-            # cap maximum number of threads from cpu count to 96
-            if self.transfer_threads > 96:
+        auto_disk = False
+        if self.disk_threads is None or self.disk_threads < 1:
+            self.disk_threads = multiprocessing.cpu_count() * 4
+            # cap maximum number of disk threads from cpu count to 96
+            if self.disk_threads > 96:
                 self.transfer_threads = 96
+            auto_disk = True
+        if self.transfer_threads is None or self.transfer_threads < 1:
+            if auto_disk:
+                self.transfer_threads = self.disk_threads << 1
+            else:
+                self.transfer_threads = multiprocessing.cpu_count() * 2
+            # cap maximum number of threads from cpu count to 64
+            if self.transfer_threads > 64:
+                self.transfer_threads = 64
 
 
 class General(object):

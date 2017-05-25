@@ -42,6 +42,7 @@ try:
 except ImportError:  # noqa
     import Queue as queue
 import threading
+import time
 # non-stdlib imports
 # local imports
 import blobxfer.models.crypto
@@ -84,7 +85,7 @@ class Uploader(object):
         self._upload_queue = queue.Queue()
         self._upload_set = set()
         self._upload_start_time = None
-        self._upload_threads = []
+        self._disk_threads = []
         self._upload_total = None
         self._upload_sofar = 0
         self._upload_bytes_total = None
@@ -137,6 +138,59 @@ class Uploader(object):
                          len(self._md5_map) == 0 and
                          len(self._upload_set) == 0))
 
+    @staticmethod
+    def create_unique_id(src, ase):
+        # type: (blobxfer.models.upload.LocalPath,
+        #        blobxfer.models.azure.StorageEntity) -> str
+        """Create a unique id given a LocalPath and StorageEntity
+        :param blobxfer.models.upload.LocalPath src: local path
+        :param blobxfer.models.azure.StorageEntity ase: azure storage entity
+        :rtype: str
+        :return: unique id for pair
+        """
+        return ';'.join(
+            (str(src.absolute_path), ase._client.primary_endpoint, ase.path)
+        )
+
+    @staticmethod
+    def create_unique_transfer_id(local_path, ase, offsets):
+        # type: (blobxfer.models.upload.LocalPath,
+        #        blobxfer.models.azure.StorageEntity) -> str
+        """Create a unique transfer id given a offsets
+        :param blobxfer.models.upload.LocalPath local_path: local path
+        :param blobxfer.models.azure.StorageEntity ase: azure storage entity
+        :param blobxfer.models.upload.Offsets offsets: upload offsets
+        :rtype: str
+        :return: unique id for transfer
+        """
+        return ';'.join(
+            (str(local_path.absolute_path), ase._client.primary_endpoint,
+             ase.path, str(local_path.view.fd_start), str(offsets.range_start))
+        )
+
+    @staticmethod
+    def create_deletion_id(client, container, name):
+        # type: (azure.storage.StorageClient, str, str) -> str
+        """Create a unique deletion id
+        :param azure.storage.StorageClient client: storage client
+        :param str container: container name
+        :param str name: entity name
+        :rtype: str
+        :return: unique id for deletion
+        """
+        return ';'.join((client.primary_endpoint, container, name))
+
+    @staticmethod
+    def append_slice_suffix_to_name(name, slice):
+        # type: (str, int) -> str
+        """Append a vectored io (stripe) slice suffix to a given name
+        :param str name: entity name
+        :param int slice: slice num
+        :rtype: str
+        :return: name with appended suffix
+        """
+        return '{}.bxslice-{}'.format(name, slice)
+
     def _update_progress_bar(self):
         # type: (Uploader) -> None
         """Update progress bar
@@ -180,9 +234,9 @@ class Uploader(object):
         :param str filename: local filename
         :param bool md5_match: if MD5 matches
         """
-        uid = self._create_unique_id(src, rfile)
         with self._md5_meta_lock:
             src, rfile = self._md5_map.pop(filename)
+        uid = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
         if md5_match:
             with self._upload_lock:
                 self._upload_set.remove(uid)
@@ -214,36 +268,6 @@ class Uploader(object):
             if result is not None:
                 self._post_md5_skip_on_check(result[0], result[1])
 
-    def _check_for_crypto_done(self):
-        # type: (Uploader) -> None
-        """Check queue for crypto done
-        :param Uploader self: this
-        """
-        cv = self._crypto_offload.done_cv
-        while not self.termination_check:
-            result = None
-            cv.acquire()
-            while True:
-                result = self._crypto_offload.pop_done_queue()
-                if result is None:
-                    # use cv timeout due to possible non-wake while running
-                    cv.wait(1)
-                    # check for terminating conditions
-                    if self.termination_check:
-                        break
-                else:
-                    break
-            cv.release()
-            if result is not None:
-                try:
-                    with self._upload_lock:
-                        dd = self._ud_map[result]
-                    dd.perform_chunked_integrity_check()
-                except KeyError:
-                    # this can happen if all of the last integrity
-                    # chunks are processed at once
-                    pass
-
     def _add_to_upload_queue(self, src, rfile, uid):
         # type: (Uploader, blobxfer.models.upload.LocalPath,
         #        blobxfer.models.azure.StorageEntity, str) -> None
@@ -266,16 +290,16 @@ class Uploader(object):
                 if self._upload_start_time is None:
                     self._upload_start_time = blobxfer.util.datetime_now()
 
-    def _initialize_upload_threads(self):
+    def _initialize_disk_threads(self):
         # type: (Uploader) -> None
-        """Initialize upload threads
+        """Initialize disk threads
         :param Uploader self: this
         """
-        logger.debug('spawning {} transfer threads'.format(
+        logger.debug('spawning {} disk threads'.format(
             self._general_options.concurrency.transfer_threads))
         for _ in range(self._general_options.concurrency.transfer_threads):
             thr = threading.Thread(target=self._worker_thread_upload)
-            self._upload_threads.append(thr)
+            self._disk_threads.append(thr)
             thr.start()
 
     def _initialize_transfer_threads(self):
@@ -290,15 +314,15 @@ class Uploader(object):
             self._transfer_threads.append(thr)
             thr.start()
 
-    def _wait_for_upload_threads(self, terminate):
+    def _wait_for_disk_threads(self, terminate):
         # type: (Uploader, bool) -> None
-        """Wait for upload threads
+        """Wait for disk threads
         :param Uploader self: this
         :param bool terminate: terminate threads
         """
         if terminate:
             self._upload_terminate = terminate
-        for thr in self._upload_threads:
+        for thr in self._disk_threads:
             thr.join()
 
     def _wait_for_transfer_threads(self, terminate):
@@ -320,7 +344,7 @@ class Uploader(object):
         while not self.termination_check:
             try:
                 ud, ase, offsets, data = self._transfer_queue.get(
-                    block=False, timeout=0.03)
+                    block=False, timeout=0.1)
             except queue.Empty:
                 continue
             try:
@@ -330,17 +354,40 @@ class Uploader(object):
                     self._exceptions.append(e)
 
     def _process_transfer(self, ud, ase, offsets, data):
+        # type: (Uploader, blobxfer.models.upload.Descriptor,
+        #        blobxfer.models.azure.StorageEntity,
+        #        blobxfer.models.upload.Offsets, bytes) -> None
+        """Process transfer instructions
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param blobxfer.models.azure.StorageEntity ase: Storage entity
+        :param blobxfer.models.upload.Offsets offsets: offsets
+        :param bytes data: data to upload
+        """
         # issue put range
         self._put_data(ud, ase, offsets, data)
         # accounting
         with self._transfer_lock:
             self._transfer_set.remove(
-                self._create_unique_transfer_id(ud.local_path, ase, offsets))
+                blobxfer.operations.upload.Uploader.create_unique_transfer_id(
+                    ud.local_path, ase, offsets))
             self._upload_bytes_sofar += offsets.num_bytes
+            if offsets.chunk_num == 0:
+                self._upload_bytes_total += ase.size
         ud.complete_offset_upload()
 
     def _put_data(self, ud, ase, offsets, data):
-        print('UL', offsets)
+        # type: (Uploader, blobxfer.models.upload.Descriptor,
+        #        blobxfer.models.azure.StorageEntity,
+        #        blobxfer.models.upload.Offsets, bytes) -> None
+        """Put data in Azure
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param blobxfer.models.azure.StorageEntity ase: Storage entity
+        :param blobxfer.models.upload.Offsets offsets: offsets
+        :param bytes data: data to upload
+        """
+        print('UL', offsets, ase.path, len(data) if data is not None else None)
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             raise NotImplementedError()
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
@@ -352,7 +399,7 @@ class Uploader(object):
                 # handle one-shot uploads
                 if ud.is_one_shot_block_blob:
                     metadata = ud.generate_metadata()
-                    if ud.must_compute_md5:
+                    if not ud.entity.is_encrypted and ud.must_compute_md5:
                         digest = blobxfer.util.base64_encode_as_string(
                             ud.md5.digest())
                     else:
@@ -385,6 +432,7 @@ class Uploader(object):
                     ase, offsets, data,
                     timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
+            # compute aligned size
             if offsets.chunk_num == 0:
                 # create container if necessary
                 blobxfer.operations.azure.blob.create_container(
@@ -412,15 +460,15 @@ class Uploader(object):
         """Worker thread upload
         :param Uploader self: this
         """
-        import time
         while not self.termination_check:
             try:
-                if (len(self._transfer_set) >=
-                        self._general_options.concurrency.transfer_threads * 2):
-                    time.sleep(0.5)
+                if (len(self._transfer_set) >
+                        self._general_options.concurrency.
+                        transfer_threads * 4):
+                    time.sleep(0.2)
                     continue
                 else:
-                    ud = self._upload_queue.get(False, 0.03)
+                    ud = self._upload_queue.get(False, 0.1)
             except queue.Empty:
                 continue
             try:
@@ -461,23 +509,13 @@ class Uploader(object):
         if offsets is None:
             self._upload_queue.put(ud)
             return
-
-        # TODO encryption
-
         # encrypt if necessary
-        if ud.entity.is_encrypted:
-            # send iv through hmac
-            ud.hmac_data(ud.current_iv)
+        if ud.entity.is_encrypted and ud.entity.size > 0:
+            # send iv through hmac if first chunk
+            if offsets.chunk_num == 0:
+                ud.hmac_data(ud.current_iv)
             # encrypt data
-            if self._crypto_offload is not None:
-                self._crypto_offload.add_encrypt_chunk(
-                    str(ud.local_path.absolute_path), offsets,
-                    ud.entity.encryption_metadata.symmetric_key,
-                    ud.current_iv)
-                # encrypted data will be retrieved from a temp file once
-                # retrieved from crypto queue
-                return
-            else:
+            if self._crypto_offload is None:
                 # read data from file and encrypt
                 data = ud.read_data(offsets)
                 encdata = blobxfer.operations.crypto.aes_cbc_encrypt_data(
@@ -486,7 +524,19 @@ class Uploader(object):
                 # send encrypted data through hmac
                 ud.hmac_data(encdata)
                 data = encdata
-                # TODO save last 16 encrypted bytes for next IV
+                # save last 16 encrypted bytes for next IV
+                ud.current_iv = \
+                    encdata[-blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES:]
+            else:  # noqa
+                # crypto offload is not supported with AES256-CBC FullBlob
+                raise NotImplementedError()
+                # self._crypto_offload.add_encrypt_chunk(
+                #     str(ud.local_path.absolute_path), offsets,
+                #     ud.entity.encryption_metadata.symmetric_key,
+                #     ud.current_iv)
+                # encrypted data will be retrieved from a temp file once
+                # retrieved from crypto queue
+                # return_early = True
         else:
             data = ud.read_data(offsets)
         # re-enqueue for other threads to upload
@@ -494,7 +544,7 @@ class Uploader(object):
         # add data to transfer queue
         with self._transfer_lock:
             self._transfer_set.add(
-                self._create_unique_transfer_id(
+                blobxfer.operations.upload.Uploader.create_unique_transfer_id(
                     ud.local_path, ud.entity, offsets))
         self._transfer_queue.put((ud, ud.entity, offsets, data))
         # iterate replicas
@@ -502,15 +552,21 @@ class Uploader(object):
             for ase in ud.entity.replica_targets:
                 with self._transfer_lock:
                     self._transfer_set.add(
-                        self._create_unique_transfer_id(
-                            ud.local_path, ase, offsets))
+                        blobxfer.operations.upload.Uploader.
+                        create_unique_transfer_id(ud.local_path, ase, offsets)
+                    )
                 self._transfer_queue.put((ud, ase, offsets, data))
 
     def _finalize_file(self, ud):
+        # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
+        """Finalize file upload
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor: upload descriptor
+        """
         metadata = ud.generate_metadata()
         # put block list for non one-shot block blobs
         if ud.requires_put_block_list:
-            if ud.must_compute_md5:
+            if not ud.entity.is_encrypted and ud.must_compute_md5:
                 digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
             else:
                 digest = None
@@ -569,20 +625,6 @@ class Uploader(object):
                             ase, metadata,
                             timeout=self._general_options.timeout_sec)
 
-    def _cleanup_temporary_files(self):
-        # type: (Uploader) -> None
-        """Cleanup temporary files in case of an exception or interrupt.
-        This function is not thread-safe.
-        :param Uploader self: this
-        """
-        # iterate through dd map and cleanup files
-        for key in self._ud_map:
-            dd = self._ud_map[key]
-            try:
-                dd.cleanup_all_temporary_files()
-            except Exception as e:
-                logger.exception(e)
-
     def _get_destination_paths(self):
         # type: (Uploader) ->
         #        Tuple[blobxfer.operations.azure.StorageAccount, str, str]
@@ -609,7 +651,6 @@ class Uploader(object):
         # list blobs for all destinations
         checked = set()
         deleted = 0
-        print(self._delete_exclude)
         for sa, container, _, _ in self._get_destination_paths():
             key = ';'.join((sa.name, sa.endpoint, container))
             if key in checked:
@@ -623,9 +664,8 @@ class Uploader(object):
                     sa.file_client, container,
                     timeout=self._general_options.timeout_sec)
                 for file in files:
-                    id = self._create_deletion_id(
-                        sa.file_client, container, file)
-                    print(id)
+                    id = blobxfer.operations.upload.Uploader.\
+                        create_deletion_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.file.delete_file(
                             sa.file_client, container, file,
@@ -636,8 +676,9 @@ class Uploader(object):
                     sa.block_blob_client, container,
                     timeout=self._general_options.timeout_sec)
                 for blob in blobs:
-                    id = self._create_deletion_id(
-                        sa.block_blob_client, container, blob.name)
+                    id = blobxfer.operations.upload.Uploader.\
+                        create_deletion_id(
+                            sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.blob.delete_blob(
                             sa.block_blob_client, container, blob.name,
@@ -702,6 +743,14 @@ class Uploader(object):
             return UploadAction.Skip
 
     def _check_for_existing_remote(self, sa, cont, name):
+        # type: (Uploader, blobxfer.operations.azure.StorageAccount,
+        #        str, str) -> bobxfer.models.azure.StorageEntity
+        """Check for an existing remote file
+        :param Uploader self: this
+        :param blobxfer.operations.azure.StorageAccount sa: storage account
+        :param str cont: container
+        :param str name: entity name
+        """
         if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
                 sa.file_client, cont, name,
@@ -728,10 +777,14 @@ class Uploader(object):
         return ase
 
     def _generate_destination_for_source(self, local_path):
-        # type: (Uploader, blobxfer.models.upload.LocalSourcePath) -> ???
+        # type: (Uploader, blobxfer.models.upload.LocalSourcePath) ->
+        #        Tuple[blobxfer.operations.azure.StorageAccount,
+        #        blobxfer.models.azure.StorageEntity)
         """Generate entities for source path
         :param Uploader self: this
         :param blobxfer.models.upload.LocalSourcePath local_path: local path
+        :rtype: tuple
+        :return: storage account, storage entity
         """
         # construct stripped destination path
         spath = local_path.relative_path
@@ -761,41 +814,24 @@ class Uploader(object):
             else:
                 ase = self._check_for_existing_remote(sa, cont, name)
             if ase is None:
-                if self._spec.options.rsa_public_key:
-                    ed = blobxfer.models.crypto.EncryptionMetadata()
-                else:
-                    ed = None
-                ase = blobxfer.models.azure.StorageEntity(cont, ed)
+                # encryption metadata will be populated later, if required
+                ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 ase.populate_from_local(
                     sa, cont, name, self._spec.options.mode)
             yield sa, ase
 
-    def _create_unique_id(self, src, ase):
-        return ';'.join(
-            (str(src.absolute_path), ase._client.primary_endpoint, ase.path)
-        )
-
-    def _create_unique_transfer_id(self, local_path, ase, offsets):
-        return ';'.join(
-            (str(local_path.absolute_path), ase._client.primary_endpoint,
-             ase.path, str(local_path.view.fd_start), str(offsets.range_start))
-        )
-
-    def _create_deletion_id(self, client, container, name):
-        return ';'.join(
-            (client.primary_endpoint, container, name)
-        )
-
-    def append_slice_suffix_to_name(self, name, slice):
-        return '{}.bxslice-{}'.format(name, slice)
-
     def _vectorize_and_bind(self, local_path, dest):
         # type: (Uploader, blobxfer.models.upload.LocalPath,
-        #        List[blobxfer.models.azure.StorageEntity]) -> None
-        """Vectorize local path to destinations and bind
+        #        List[blobxfer.models.azure.StorageEntity]) ->
+        #        Tuple[blobxfer.operations.upload.UploadAction,
+        #        blobxfer.models.upload.LocalPath,
+        #        blobxfer.models.azure.StorageEntity]
+        """Vectorize local path to destinations, if necessary, and bind
         :param Uploader self: this
         :param blobxfer.models.LocalPath local_path: local path
-        :param list rfile: remote file
+        :param list dest: list of destination tuples (sa, ase)
+        :rtype: tuple
+        :return: action, LocalPath, ase
         """
         if (self._spec.options.vectored_io.distribution_mode ==
                 blobxfer.models.upload.VectoredIoDistributionMode.Stripe):
@@ -817,15 +853,13 @@ class Uploader(object):
             slice_map = {}
             for i in range(0, slices):
                 sa, ase = dest[i % num_dest]
-                name = self.append_slice_suffix_to_name(ase.name, i)
+                name = blobxfer.operations.upload.Uploader.\
+                    append_slice_suffix_to_name(ase.name, i)
                 sase = self._check_for_existing_remote(sa, ase.container, name)
                 if sase is None:
-                    if self._spec.options.rsa_public_key:
-                        ed = blobxfer.models.crypto.EncryptionMetadata()
-                    else:
-                        ed = None
+                    # encryption metadata will be populated later, if required
                     sase = blobxfer.models.azure.StorageEntity(
-                        ase.container, ed)
+                        ase.container, ed=None)
                     sase.populate_from_local(
                         sa, ase.container, name, self._spec.options.mode)
                 slice_map[i] = sase
@@ -857,7 +891,6 @@ class Uploader(object):
                         next=next_entry,
                     )
                 )
-                print(lp_slice.view)
                 action = self._check_upload_conditions(lp_slice, ase)
                 yield action, lp_slice, ase
                 curr = end
@@ -909,18 +942,21 @@ class Uploader(object):
                 self._check_for_uploads_from_md5)
         # initialize crypto processes
         if self._general_options.concurrency.crypto_processes > 0:
-            self._crypto_offload = blobxfer.operations.crypto.CryptoOffload(
-                num_workers=self._general_options.concurrency.crypto_processes)
-            self._crypto_offload.initialize_check_thread(
-                self._check_for_crypto_done)
-        # initialize upload threads
-        self._initialize_upload_threads()
+            logger.warning(
+                'crypto offload for upload is not possible due to '
+                'sequential nature of {} and FullBlob encryption mode'.format(
+                    blobxfer.models.crypto.EncryptionMetadata.
+                    _ENCRYPTION_ALGORITHM)
+            )
+        # initialize worker threads
+        self._initialize_disk_threads()
         self._initialize_transfer_threads()
         # initialize local counters
-        nfiles = 0
-        total_size = 0
         skipped_files = 0
         skipped_size = 0
+        approx_total_bytes = 0
+        self._upload_total = 0
+        self._upload_bytes_total = 0
         if not self._spec.sources.can_rename() and self._spec.options.rename:
             raise RuntimeError(
                 'cannot rename to specified destination with multiple sources')
@@ -932,46 +968,43 @@ class Uploader(object):
                 self._generate_destination_for_source(src)
             ]
             for action, lp, ase in self._vectorize_and_bind(src, dest):
-                print(lp.parent_path, lp.relative_path, lp.absolute_path, action, ase.container, ase.name)
-                print(lp.total_size, lp.size, lp.mode, lp.uid, lp.gid)
-                print(self._create_unique_id(lp, ase))
-                print('replicas', len(ase.replica_targets) if ase.replica_targets is not None else 'none')
                 if self._spec.options.delete_extraneous_destination:
                     self._delete_exclude.add(
-                        self._create_deletion_id(
+                        blobxfer.operations.upload.Uploader.create_deletion_id(
                             ase._client, ase.container, ase.name)
                     )
                 if action == UploadAction.Skip:
                     skipped_files += 1
                     skipped_size += ase.size if ase.size is not None else 0
                     continue
+                approx_total_bytes += lp.size
                 # add to potential upload set
-                uid = self._create_unique_id(lp, ase)
+                uid = blobxfer.operations.upload.Uploader.create_unique_id(
+                    lp, ase)
                 with self._upload_lock:
                     self._upload_set.add(uid)
+                    self._upload_total += 1
                 if action == UploadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
                     self._add_to_upload_queue(lp, ase, uid)
-
-                    nfiles += 1
-                    total_size += lp.size
-
-        self._upload_total = nfiles - skipped_files
-        self._upload_bytes_total = total_size - skipped_size
-        upload_size_mib = self._upload_bytes_total / blobxfer.util.MEGABYTE
         # set remote files processed
         with self._md5_meta_lock:
             self._all_local_files_processed = True
-        logger.debug(
-            ('{0} local files processed, waiting for upload completion '
-             'of {1:.4f} MiB').format(nfiles, upload_size_mib))
-        del nfiles
-        del total_size
+        with self._upload_lock:
+            self._upload_total -= skipped_files
+            self._upload_bytes_total -= skipped_size
+            upload_size_mib = approx_total_bytes / blobxfer.util.MEGABYTE
+            logger.debug(
+                ('{0} local/remote files processed, waiting for upload '
+                 'completion of approx. {1:.4f} MiB').format(
+                     self._upload_total, upload_size_mib))
         del skipped_files
         del skipped_size
+        del upload_size_mib
+        del approx_total_bytes
         # wait for uploads to complete
-        self._wait_for_upload_threads(terminate=False)
+        self._wait_for_disk_threads(terminate=False)
         self._wait_for_transfer_threads(terminate=False)
         end_time = blobxfer.util.datetime_now()
         # update progress bar
@@ -997,11 +1030,12 @@ class Uploader(object):
         # output throughput
         if self._upload_start_time is not None:
             ultime = (end_time - self._upload_start_time).total_seconds()
-            mibps = upload_size_mib / ultime
+            mibup = self._upload_bytes_total / blobxfer.util.MEGABYTE
+            mibps = mibup / ultime
             logger.info(
-                ('elapsed upload + verify time and throughput: {0:.3f} sec, '
-                 '{1:.4f} Mbps ({2:.3f} MiB/s)').format(
-                     ultime, mibps * 8, mibps))
+                ('elapsed upload + verify time and throughput of {0:.4f} '
+                 'GiB: {1:.3f} sec, {2:.4f} Mbps ({3:.3f} MiB/s)').format(
+                     mibup / 1024, ultime, mibps * 8, mibps))
         end_time = blobxfer.util.datetime_now()
         logger.info('blobxfer end time: {0} (elapsed: {1:.3f} sec)'.format(
             end_time, (end_time - self._start_time).total_seconds()))
@@ -1022,10 +1056,9 @@ class Uploader(object):
                     'processes and threads (this may take a while)...')
             try:
                 self._wait_for_transfer_threads(terminate=True)
-                self._wait_for_upload_threads(terminate=True)
+                self._wait_for_disk_threads(terminate=True)
             finally:
-                self._cleanup_temporary_files()
-            raise
+                raise
         finally:
             # shutdown processes
             if self._md5_offload is not None:
