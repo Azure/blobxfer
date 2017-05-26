@@ -41,6 +41,7 @@ try:
 except ImportError:  # noqa
     import Queue as queue
 import threading
+import time
 # non-stdlib imports
 # local imports
 import blobxfer.models.crypto
@@ -79,11 +80,15 @@ class Downloader(object):
         self._md5_meta_lock = threading.Lock()
         self._md5_map = {}
         self._md5_offload = None
-        self._download_lock = threading.Lock()
-        self._download_queue = queue.Queue()
-        self._download_set = set()
+        self._transfer_lock = threading.Lock()
+        self._transfer_queue = queue.Queue()
+        self._transfer_set = set()
+        self._transfer_threads = []
+        self._disk_operation_lock = threading.Lock()
+        self._disk_queue = queue.Queue()
+        self._disk_set = set()
+        self._disk_threads = []
         self._download_start_time = None
-        self._download_threads = []
         self._download_total = None
         self._download_sofar = 0
         self._download_bytes_total = None
@@ -106,11 +111,13 @@ class Downloader(object):
         :rtype: bool
         :return: if terminated
         """
-        with self._download_lock:
-            return (self._download_terminate or
-                    len(self._exceptions) > 0 or
-                    (self._all_remote_files_processed and
-                     len(self._download_set) == 0))
+        with self._transfer_lock:
+            with self._disk_operation_lock:
+                return (self._download_terminate or
+                        len(self._exceptions) > 0 or
+                        (self._all_remote_files_processed and
+                         len(self._transfer_set) == 0 and
+                         len(self._disk_set) == 0))
 
     @property
     def termination_check_md5(self):
@@ -121,11 +128,11 @@ class Downloader(object):
         :return: if terminated from MD5 context
         """
         with self._md5_meta_lock:
-            with self._download_lock:
+            with self._transfer_lock:
                 return (self._download_terminate or
                         (self._all_remote_files_processed and
                          len(self._md5_map) == 0 and
-                         len(self._download_set) == 0))
+                         len(self._transfer_set) == 0))
 
     @staticmethod
     def ensure_local_destination(creds, spec):
@@ -162,6 +169,20 @@ class Downloader(object):
             spec.destination.is_dir, len(spec.sources)))
         # ensure destination path
         spec.destination.ensure_path_exists()
+
+    @staticmethod
+    def create_unique_disk_operation_id(dd, offsets):
+        # type: (blobxfer.models.download.Descriptor,
+        #        blobxfer.models.download.Offsets) -> None
+        """Create a unique disk operation id
+        :param blobxfer.models.download.Descriptor dd: download descriptor
+        :param blobxfer.models.download.Offsets offsets: download offsets
+        """
+        # TODO add local view offset or slice num with stripe support
+        return ';'.join(
+            (str(dd.local_path), dd.entity._client.primary_endpoint,
+             dd.entity.path, str(offsets.range_start))
+        )
 
     def _update_progress_bar(self):
         # type: (Downloader) -> None
@@ -260,8 +281,8 @@ class Downloader(object):
             rfile = self._md5_map.pop(filename)
         lpath = pathlib.Path(filename)
         if md5_match:
-            with self._download_lock:
-                self._download_set.remove(lpath)
+            with self._transfer_lock:
+                self._transfer_set.remove(lpath)
                 self._download_total -= 1
                 self._download_bytes_total -= lpath.stat().st_size
         else:
@@ -303,7 +324,7 @@ class Downloader(object):
                 result = self._crypto_offload.pop_done_queue()
                 if result is None:
                     # use cv timeout due to possible non-wake while running
-                    cv.wait(1)
+                    cv.wait(0.1)
                     # check for terminating conditions
                     if self.termination_check:
                         break
@@ -312,9 +333,10 @@ class Downloader(object):
             cv.release()
             if result is not None:
                 try:
-                    with self._download_lock:
-                        dd = self._dd_map[result]
-                    dd.perform_chunked_integrity_check()
+                    final_path, offsets = result
+                    with self._transfer_lock:
+                        dd = self._dd_map[final_path]
+                    self._finalize_chunk(dd, offsets)
                 except KeyError:
                     # this can happen if all of the last integrity
                     # chunks are processed at once
@@ -332,28 +354,51 @@ class Downloader(object):
         dd = blobxfer.models.download.Descriptor(
             lpath, rfile, self._spec.options, self._resume)
         if dd.entity.is_encrypted:
-            with self._download_lock:
+            with self._transfer_lock:
                 self._dd_map[str(dd.final_path)] = dd
         # add download descriptor to queue
-        self._download_queue.put(dd)
+        self._transfer_queue.put(dd)
         if self._download_start_time is None:
-            with self._download_lock:
+            with self._transfer_lock:
                 if self._download_start_time is None:
                     self._download_start_time = blobxfer.util.datetime_now()
 
-    def _initialize_download_threads(self):
+    def _initialize_disk_threads(self):
         # type: (Downloader) -> None
         """Initialize download threads
+        :param Downloader self: this
+        """
+        logger.debug('spawning {} disk threads'.format(
+            self._general_options.concurrency.disk_threads))
+        for _ in range(self._general_options.concurrency.disk_threads):
+            thr = threading.Thread(target=self._worker_thread_disk)
+            self._disk_threads.append(thr)
+            thr.start()
+
+    def _initialize_transfer_threads(self):
+        # type: (Downloader) -> None
+        """Initialize transfer threads
         :param Downloader self: this
         """
         logger.debug('spawning {} transfer threads'.format(
             self._general_options.concurrency.transfer_threads))
         for _ in range(self._general_options.concurrency.transfer_threads):
-            thr = threading.Thread(target=self._worker_thread_download)
-            self._download_threads.append(thr)
+            thr = threading.Thread(target=self._worker_thread_transfer)
+            self._transfer_threads.append(thr)
             thr.start()
 
-    def _wait_for_download_threads(self, terminate):
+    def _wait_for_disk_threads(self, terminate):
+        # type: (Downloader, bool) -> None
+        """Wait for disk threads
+        :param Downloader self: this
+        :param bool terminate: terminate threads
+        """
+        if terminate:
+            self._download_terminate = terminate
+        for thr in self._disk_threads:
+            thr.join()
+
+    def _wait_for_transfer_threads(self, terminate):
         # type: (Downloader, bool) -> None
         """Wait for download threads
         :param Downloader self: this
@@ -361,30 +406,53 @@ class Downloader(object):
         """
         if terminate:
             self._download_terminate = terminate
-        for thr in self._download_threads:
+        for thr in self._transfer_threads:
             thr.join()
 
-    def _worker_thread_download(self):
+    def _worker_thread_transfer(self):
         # type: (Downloader) -> None
         """Worker thread download
         :param Downloader self: this
         """
         while not self.termination_check:
             try:
-                dd = self._download_queue.get(False, 0.25)
+                if (len(self._disk_set) >
+                        self._general_options.concurrency.
+                        disk_threads * 4):
+                    time.sleep(0.2)
+                    continue
+                else:
+                    dd = self._transfer_queue.get(block=False, timeout=0.1)
             except queue.Empty:
                 continue
             try:
                 self._process_download_descriptor(dd)
             except Exception as e:
-                with self._download_lock:
+                with self._transfer_lock:
+                    self._exceptions.append(e)
+
+    def _worker_thread_disk(self):
+        # type: (Downloader) -> None
+        """Worker thread for disk
+        :param Downloader self: this
+        """
+        while not self.termination_check:
+            try:
+                dd, offsets, data = self._disk_queue.get(
+                    block=False, timeout=0.1)
+            except queue.Empty:
+                continue
+            try:
+                self._process_data(dd, offsets, data)
+            except Exception as e:
+                with self._transfer_lock:
                     self._exceptions.append(e)
 
     def _process_download_descriptor(self, dd):
         # type: (Downloader, blobxfer.models.download.Descriptor) -> None
         """Process download descriptor
         :param Downloader self: this
-        :param blobxfer.models.download.Descriptor: download descriptor
+        :param blobxfer.models.download.Descriptor dd: download descriptor
         """
         # update progress bar
         self._update_progress_bar()
@@ -392,7 +460,7 @@ class Downloader(object):
         offsets, resume_bytes = dd.next_offsets()
         # add resume bytes to counter
         if resume_bytes is not None:
-            with self._download_lock:
+            with self._disk_operation_lock:
                 self._download_bytes_sofar += resume_bytes
                 logger.debug('adding {} sofar {} from {}'.format(
                     resume_bytes, self._download_bytes_sofar, dd._ase.name))
@@ -402,14 +470,14 @@ class Downloader(object):
             # finalize file
             dd.finalize_file()
             # accounting
-            with self._download_lock:
+            with self._transfer_lock:
                 if dd.entity.is_encrypted:
                     self._dd_map.pop(str(dd.final_path))
-                self._download_set.remove(dd.final_path)
+                self._transfer_set.remove(dd.final_path)
                 self._download_sofar += 1
             return
         # re-enqueue for other threads to download
-        self._download_queue.put(dd)
+        self._transfer_queue.put(dd)
         if offsets is None:
             return
         # issue get range
@@ -419,9 +487,22 @@ class Downloader(object):
         else:
             data = blobxfer.operations.azure.blob.get_blob_range(
                 dd.entity, offsets, self._general_options.timeout_sec)
-        # accounting
-        with self._download_lock:
-            self._download_bytes_sofar += offsets.num_bytes
+        # enqueue data for processing
+        with self._disk_operation_lock:
+            self._disk_set.add(
+                blobxfer.operations.download.Downloader.
+                create_unique_disk_operation_id(dd, offsets))
+        self._disk_queue.put((dd, offsets, data))
+
+    def _process_data(self, dd, offsets, data):
+        # type: (Downloader, blobxfer.models.download.Descriptor,
+        #        blobxfer.models.download.Offsets, bytes) -> None
+        """Process downloaded data for disk
+        :param Downloader self: this
+        :param blobxfer.models.download.Descriptor dd: download descriptor
+        :param blobxfer.models.download.Offsets offsets: offsets
+        :param bytes data: data to process
+        """
         # decrypt if necessary
         if dd.entity.is_encrypted:
             # slice data to proper bounds and get iv for chunk
@@ -457,9 +538,28 @@ class Downloader(object):
         else:
             # write data to disk
             dd.write_unchecked_data(offsets, data)
+        # finalize chunk
+        self._finalize_chunk(dd, offsets)
+
+    def _finalize_chunk(self, dd, offsets):
+        # type: (Downloader, blobxfer.models.download.Descriptor,
+        #        blobxfer.models.download.Offsets) -> None
+        """Finalize written chunk
+        :param Downloader self: this
+        :param blobxfer.models.download.Descriptor dd: download descriptor
+        :param blobxfer.models.download.Offsets offsets: offsets
+        """
+        if dd.entity.is_encrypted:
+            dd.mark_unchecked_chunk_decrypted(offsets.chunk_num)
         # integrity check data and write to disk (this is called
         # regardless of md5/hmac enablement for resume purposes)
         dd.perform_chunked_integrity_check()
+        # remove from disk set and add bytes to counter
+        with self._disk_operation_lock:
+            self._disk_set.remove(
+                blobxfer.operations.download.Downloader.
+                create_unique_disk_operation_id(dd, offsets))
+            self._download_bytes_sofar += offsets.num_bytes
 
     def _cleanup_temporary_files(self):
         # type: (Downloader) -> None
@@ -532,7 +632,8 @@ class Downloader(object):
             self._crypto_offload.initialize_check_thread(
                 self._check_for_crypto_done)
         # initialize download threads
-        self._initialize_download_threads()
+        self._initialize_transfer_threads()
+        self._initialize_disk_threads()
         # initialize local counters
         nfiles = 0
         total_size = 0
@@ -563,8 +664,8 @@ class Downloader(object):
                     skipped_size += rfile.size
                     continue
                 # add potential download to set
-                with self._download_lock:
-                    self._download_set.add(lpath)
+                with self._transfer_lock:
+                    self._transfer_set.add(lpath)
                 # either MD5 check or download now
                 if action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)
@@ -584,7 +685,8 @@ class Downloader(object):
         del skipped_files
         del skipped_size
         # wait for downloads to complete
-        self._wait_for_download_threads(terminate=False)
+        self._wait_for_transfer_threads(terminate=False)
+        self._wait_for_disk_threads(terminate=False)
         end_time = blobxfer.util.datetime_now()
         # update progress bar
         self._update_progress_bar()
@@ -609,10 +711,12 @@ class Downloader(object):
         # output throughput
         if self._download_start_time is not None:
             dltime = (end_time - self._download_start_time).total_seconds()
+            dlmibspeed = download_size_mib / dltime
             logger.info(
-                ('elapsed download + verify time and throughput: {0:.3f} sec, '
-                 '{1:.4f} Mbps').format(
-                     dltime, download_size_mib * 8 / dltime))
+                ('elapsed download + verify time and throughput of {0:.4f} '
+                 'GiB: {1:.3f} sec, {2:.4f} Mbps ({3:.3f} MiB/sec)').format(
+                     download_size_mib / 1024, dltime, dlmibspeed * 8,
+                     dlmibspeed))
         end_time = blobxfer.util.datetime_now()
         logger.info('blobxfer end time: {0} (elapsed: {1:.3f} sec)'.format(
             end_time, (end_time - self._start_time).total_seconds()))
@@ -632,7 +736,8 @@ class Downloader(object):
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
             try:
-                self._wait_for_download_threads(terminate=True)
+                self._wait_for_transfer_threads(terminate=True)
+                self._wait_for_disk_threads(terminate=True)
             finally:
                 self._cleanup_temporary_files()
             raise

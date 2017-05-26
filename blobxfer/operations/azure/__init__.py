@@ -292,6 +292,9 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 else:
                     ed = None
                 ase = blobxfer.models.azure.StorageEntity(cont, ed)
+                if dir is not None:
+                    dir, _ = blobxfer.operations.azure.file.parse_file_path(
+                        dir)
                 ase.populate_from_file(sa, file, dir)
                 yield ase
 

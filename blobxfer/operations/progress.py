@@ -66,7 +66,7 @@ def update_progress_bar(
     if diff <= 0:
         # arbitrarily give a small delta
         diff = 1e-9
-    if total_bytes is None:
+    if total_bytes is None or total_bytes == 0 or bytes_sofar > total_bytes:
         done = 0
     else:
         done = float(bytes_sofar) / total_bytes

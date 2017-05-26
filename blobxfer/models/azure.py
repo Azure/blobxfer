@@ -31,6 +31,10 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import enum
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 # non-stdlib imports
 from azure.storage.blob.models import _BlobTypes as BlobTypes
 # local imports
@@ -219,7 +223,7 @@ class StorageEntity(object):
         :param str path: full path to blob
         """
         self._create_containers = sa.create_containers
-        self._name = path
+        self._name = str(pathlib.Path(path) / blob.name)
         self._snapshot = blob.snapshot
         self._lmt = blob.properties.last_modified
         self._size = blob.properties.content_length
@@ -244,7 +248,10 @@ class StorageEntity(object):
         :param str path: full path to file
         """
         self._create_containers = sa.create_containers
-        self._name = path
+        if path is not None:
+            self._name = str(pathlib.Path(path) / file.name)
+        else:
+            self._name = file.name
         self._snapshot = None
         self._lmt = file.properties.last_modified
         self._size = file.properties.content_length

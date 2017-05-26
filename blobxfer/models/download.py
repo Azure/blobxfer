@@ -517,7 +517,10 @@ class Descriptor(object):
             temp=False,
         )
         with self._meta_lock:
-            self._unchecked_chunks[offsets.chunk_num] = unchecked
+            self._unchecked_chunks[offsets.chunk_num] = {
+                'ucc': unchecked,
+                'decrypted': True,
+            }
 
     def write_unchecked_hmac_data(self, offsets, data):
         # type: (Descriptor, Offsets, bytes) -> None
@@ -537,8 +540,20 @@ class Descriptor(object):
             temp=True,
         )
         with self._meta_lock:
-            self._unchecked_chunks[offsets.chunk_num] = unchecked
+            self._unchecked_chunks[offsets.chunk_num] = {
+                'ucc': unchecked,
+                'decrypted': False,
+            }
         return str(unchecked.file_path)
+
+    def mark_unchecked_chunk_decrypted(self, chunk_num):
+        # type: (Descriptor, int) -> None
+        """Mark an unchecked chunk as decrypted
+        :param Descriptor self: this
+        :param int chunk_num: unchecked chunk number
+        """
+        with self._meta_lock:
+            self._unchecked_chunks[chunk_num]['decrypted'] = True
 
     def perform_chunked_integrity_check(self):
         # type: (Descriptor) -> None
@@ -552,8 +567,9 @@ class Descriptor(object):
             with self._meta_lock:
                 chunk_num = self._next_integrity_chunk
                 # check if the next chunk is ready
-                if chunk_num in self._unchecked_chunks:
-                    ucc = self._unchecked_chunks.pop(chunk_num)
+                if (chunk_num in self._unchecked_chunks and
+                        self._unchecked_chunks[chunk_num]['decrypted']):
+                    ucc = self._unchecked_chunks.pop(chunk_num)['ucc']
                 else:
                     break
             # hash data and set next integrity chunk
@@ -653,7 +669,7 @@ class Descriptor(object):
             # delete temp download file
             self.local_path.unlink()
             return
-        logger.debug(msg)
+        logger.info(msg)
 
         # TODO set file uid/gid and mode
 

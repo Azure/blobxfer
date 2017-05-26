@@ -273,7 +273,7 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
                         fd.seek(offsets.fd_start, 0)
                         fd.write(data)
                 self._done_cv.acquire()
-                self._done_queue.put(final_path)
+                self._done_queue.put((final_path, offsets))
             # notify and release condition var
             self._done_cv.notify()
             self._done_cv.release()

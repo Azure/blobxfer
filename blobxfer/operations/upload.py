@@ -76,7 +76,7 @@ class Uploader(object):
         :param blobxfer.operations.azure.StorageCredentials creds: creds
         :param blobxfer.models.uplaod.Specification spec: upload spec
         """
-        self._all_local_files_processed = False
+        self._all_files_processed = False
         self._crypto_offload = None
         self._md5_meta_lock = threading.Lock()
         self._md5_map = {}
@@ -119,7 +119,7 @@ class Uploader(object):
             with self._transfer_lock:
                 return (self._upload_terminate or
                         len(self._exceptions) > 0 or
-                        (self._all_local_files_processed and
+                        (self._all_files_processed and
                          len(self._upload_set) == 0 and
                          len(self._transfer_set) == 0))
 
@@ -134,7 +134,7 @@ class Uploader(object):
         with self._md5_meta_lock:
             with self._upload_lock:
                 return (self._upload_terminate or
-                        (self._all_local_files_processed and
+                        (self._all_files_processed and
                          len(self._md5_map) == 0 and
                          len(self._upload_set) == 0))
 
@@ -196,6 +196,8 @@ class Uploader(object):
         """Update progress bar
         :param Uploader self: this
         """
+        if not self._all_files_processed:
+            return
         blobxfer.operations.progress.update_progress_bar(
             self._general_options,
             'upload',
@@ -297,7 +299,7 @@ class Uploader(object):
         """
         logger.debug('spawning {} disk threads'.format(
             self._general_options.concurrency.transfer_threads))
-        for _ in range(self._general_options.concurrency.transfer_threads):
+        for _ in range(self._general_options.concurrency.disk_threads):
             thr = threading.Thread(target=self._worker_thread_upload)
             self._disk_threads.append(thr)
             thr.start()
@@ -368,13 +370,15 @@ class Uploader(object):
         self._put_data(ud, ase, offsets, data)
         # accounting
         with self._transfer_lock:
+            if offsets.chunk_num == 0:
+                self._upload_bytes_total += ase.size
+            self._upload_bytes_sofar += offsets.num_bytes
             self._transfer_set.remove(
                 blobxfer.operations.upload.Uploader.create_unique_transfer_id(
                     ud.local_path, ase, offsets))
-            self._upload_bytes_sofar += offsets.num_bytes
-            if offsets.chunk_num == 0:
-                self._upload_bytes_total += ase.size
         ud.complete_offset_upload()
+        # update progress bar
+        self._update_progress_bar()
 
     def _put_data(self, ud, ase, offsets, data):
         # type: (Uploader, blobxfer.models.upload.Descriptor,
@@ -391,61 +395,34 @@ class Uploader(object):
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             raise NotImplementedError()
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
-            if offsets.chunk_num == 0:
-                # create container if necessary
-                blobxfer.operations.azure.blob.create_container(
-                    ase, self._containers_created,
+            # handle one-shot uploads
+            if ud.is_one_shot_block_blob:
+                metadata = ud.generate_metadata()
+                if not ud.entity.is_encrypted and ud.must_compute_md5:
+                    digest = blobxfer.util.base64_encode_as_string(
+                        ud.md5.digest())
+                else:
+                    digest = None
+                blobxfer.operations.azure.blob.block.create_blob(
+                    ase, data, digest, metadata,
                     timeout=self._general_options.timeout_sec)
-                # handle one-shot uploads
-                if ud.is_one_shot_block_blob:
-                    metadata = ud.generate_metadata()
-                    if not ud.entity.is_encrypted and ud.must_compute_md5:
-                        digest = blobxfer.util.base64_encode_as_string(
-                            ud.md5.digest())
-                    else:
-                        digest = None
-                    blobxfer.operations.azure.blob.block.create_blob(
-                        ase, data, digest, metadata,
-                        timeout=self._general_options.timeout_sec)
-                    return
+                return
             # upload block
             blobxfer.operations.azure.blob.block.put_block(
                 ase, offsets, data, timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
-            if offsets.chunk_num == 0:
-                # create container if necessary
-                blobxfer.operations.azure.file.create_share(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
-                # create parent directories
-                with self._fileshare_dir_lock:
-                    blobxfer.operations.azure.file.\
-                        create_all_parent_directories(
-                            ase, self._dirs_created,
-                            timeout=self._general_options.timeout_sec)
-                # create remote file
-                blobxfer.operations.azure.file.create_file(
-                    ase, timeout=self._general_options.timeout_sec)
             # upload range
             if data is not None:
                 blobxfer.operations.azure.file.put_file_range(
                     ase, offsets, data,
                     timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
-            # compute aligned size
-            if offsets.chunk_num == 0:
-                # create container if necessary
-                blobxfer.operations.azure.blob.create_container(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
-                # create remote blob
-                blobxfer.operations.azure.blob.page.create_blob(
-                    ase, timeout=self._general_options.timeout_sec)
             if data is None:
                 return
-            # align page
+            # compute aligned size
             aligned = blobxfer.util.page_align_content_length(
                 offsets.num_bytes)
+            # align page
             if aligned != offsets.num_bytes:
                 data = data.ljust(aligned, b'\0')
             if blobxfer.operations.md5.check_data_is_empty(data):
@@ -477,14 +454,48 @@ class Uploader(object):
                 with self._upload_lock:
                     self._exceptions.append(e)
 
+    def _prepare_upload(self, ase, offsets):
+        # type: (Uploader, blobxfer.models.azure.StorageEntity,
+        #        blobxfer.models.upload.Offsets) -> None
+        """Prepare upload
+        :param Uploader self: this
+        :param blobxfer.models.azure.StorageEntity ase: Storage entity
+        :param blobxfer.models.upload.Offsets offsets: offsets
+        """
+        if ase.mode == blobxfer.models.azure.StorageModes.Block:
+            # create container if necessary
+            blobxfer.operations.azure.blob.create_container(
+                ase, self._containers_created,
+                timeout=self._general_options.timeout_sec)
+        elif ase.mode == blobxfer.models.azure.StorageModes.File:
+            # create share directory structure
+            with self._fileshare_dir_lock:
+                # create container if necessary
+                blobxfer.operations.azure.file.create_share(
+                    ase, self._containers_created,
+                    timeout=self._general_options.timeout_sec)
+                # create parent directories
+                blobxfer.operations.azure.file.create_all_parent_directories(
+                    ase, self._dirs_created,
+                    timeout=self._general_options.timeout_sec)
+            # create remote file
+            blobxfer.operations.azure.file.create_file(
+                ase, timeout=self._general_options.timeout_sec)
+        elif ase.mode == blobxfer.models.azure.StorageModes.Page:
+            # create container if necessary
+            blobxfer.operations.azure.blob.create_container(
+                ase, self._containers_created,
+                timeout=self._general_options.timeout_sec)
+            # create remote blob
+            blobxfer.operations.azure.blob.page.create_blob(
+                ase, timeout=self._general_options.timeout_sec)
+
     def _process_upload_descriptor(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
         """Process upload descriptor
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor: upload descriptor
         """
-        # update progress bar
-        self._update_progress_bar()
         # get download offsets
         offsets, resume_bytes = ud.next_offsets()
         # add resume bytes to counter
@@ -509,6 +520,9 @@ class Uploader(object):
         if offsets is None:
             self._upload_queue.put(ud)
             return
+        # prepare upload
+        if offsets.chunk_num == 0:
+            self._prepare_upload(ud.entity, offsets)
         # encrypt if necessary
         if ud.entity.is_encrypted and ud.entity.size > 0:
             # send iv through hmac if first chunk
@@ -769,9 +783,11 @@ class Uploader(object):
             ase = blobxfer.models.azure.StorageEntity(cont, ed)
             if (self._spec.options.mode ==
                     blobxfer.models.azure.StorageModes.File):
-                ase.populate_from_file(sa, fp, name)
+                dir, _ = blobxfer.operations.azure.file.parse_file_path(name)
+                ase.populate_from_file(sa, fp, dir)
             else:
-                ase.populate_from_blob(sa, fp, name)
+                # blob.name contains full path, no need to specify dir
+                ase.populate_from_blob(sa, fp, '')
         else:
             ase = None
         return ase
@@ -990,7 +1006,7 @@ class Uploader(object):
                     self._add_to_upload_queue(lp, ase, uid)
         # set remote files processed
         with self._md5_meta_lock:
-            self._all_local_files_processed = True
+            self._all_files_processed = True
         with self._upload_lock:
             self._upload_total -= skipped_files
             self._upload_bytes_total -= skipped_size
