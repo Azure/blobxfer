@@ -162,6 +162,9 @@ class Specification(object):
         if not self.options.check_file_md5 and self.skip_on.md5_match:
             raise ValueError(
                 'Cannot specify skip on MD5 match without file MD5 enabled')
+        if (self.options.restore_file_attributes and
+                not blobxfer.util.on_windows() and os.getuid() != 0):
+            logger.warning('Cannot set file uid/gid without root privileges')
 
     def add_azure_source_path(self, source):
         # type: (Specification, blobxfer.operations.azure.SourcePath) -> None
@@ -670,9 +673,19 @@ class Descriptor(object):
             self.local_path.unlink()
             return
         logger.info(msg)
-
-        # TODO set file uid/gid and mode
-
+        # set file uid/gid and mode
+        if self._ase.file_attributes is not None:
+            if blobxfer.util.on_windows():
+                # TODO not implemented yet
+                pass
+            else:
+                self.local_path.chmod(int(self._ase.file_attributes.mode, 8))
+                if os.getuid() == 0:
+                    os.chown(
+                        str(self.local_path),
+                        self._ase.file_attributes.uid,
+                        self._ase.file_attributes.gid
+                    )
         # move temp download file to final path
         blobxfer.util.replace_file(self.local_path, self.final_path)
         # update resume file

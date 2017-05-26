@@ -327,7 +327,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 else:
                     ed = None
                 ase = blobxfer.models.azure.StorageEntity(cont, ed)
-                ase.populate_from_blob(sa, blob, dir)
+                ase.populate_from_blob(sa, blob)
                 yield ase
 
 

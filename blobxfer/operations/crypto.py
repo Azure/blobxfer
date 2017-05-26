@@ -75,7 +75,8 @@ def load_rsa_private_key_file(rsakeyfile, passphrase):
     :rtype: cryptography.hazmat.primitives.asymmetric.rsa.RSAPrivateKey
     :return: RSAPrivateKey
     """
-    with open(rsakeyfile, 'rb') as keyfile:
+    keypath = os.path.expandvars(os.path.expanduser(rsakeyfile))
+    with open(keypath, 'rb') as keyfile:
         return cryptography.hazmat.primitives.serialization.\
             load_pem_private_key(
                 keyfile.read(),
@@ -92,7 +93,8 @@ def load_rsa_public_key_file(rsakeyfile):
     :rtype: cryptography.hazmat.primitives.asymmetric.rsa.RSAPublicKey
     :return: RSAPublicKey
     """
-    with open(rsakeyfile, 'rb') as keyfile:
+    keypath = os.path.expandvars(os.path.expanduser(rsakeyfile))
+    with open(keypath, 'rb') as keyfile:
         return cryptography.hazmat.primitives.serialization.\
             load_pem_public_key(
                 keyfile.read(),

@@ -30,6 +30,8 @@ from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
+import collections
+import json
 import logging
 # non-stdlib imports
 # local imports
@@ -55,6 +57,18 @@ _JSON_KEY_VECTORED_IO_STRIPE_OFFSET_START = 'OffsetStart'
 _JSON_KEY_VECTORED_IO_STRIPE_TOTAL_SLICES = 'TotalSlices'
 _JSON_KEY_VECTORED_IO_STRIPE_SLICE_ID = 'SliceId'
 _JSON_KEY_VECTORED_IO_STRIPE_NEXT = 'Next'
+# named tuples
+PosixFileAttr = collections.namedtuple(
+    'PosixFileAttr', [
+        'mode',
+        'uid',
+        'gid',
+    ]
+)
+WindowsFileAttr = collections.namedtuple(
+    'WindowsFileAttr', [
+    ]
+)
 
 
 def generate_fileattr_metadata(local_path, metadata):
@@ -80,6 +94,39 @@ def generate_fileattr_metadata(local_path, metadata):
             }
         }
         return blobxfer.util.merge_dict(metadata, md)
+
+
+def fileattr_from_metadata(md):
+    # type: (dict) -> bool
+    """Convert fileattr metadata in json metadata
+    :param dict md: metadata dictionary
+    :rtype: PosixFileAttr or WindowsFileAttr or None
+    :return: fileattr metadata
+    """
+    try:
+        mdattr = json.loads(
+            md[JSON_KEY_BLOBXFER_METADATA])[_JSON_KEY_FILE_ATTRIBUTES]
+    except (KeyError, TypeError):
+        return None
+    else:
+        if blobxfer.util.on_windows():
+            logger.warning(
+                'file attributes store/restore on Windows is not supported '
+                'yet')
+            fileattr = None
+        else:
+            try:
+                fileattr = PosixFileAttr(
+                    mode=mdattr[_JSON_KEY_FILE_ATTRIBUTES_POSIX][
+                        _JSON_KEY_FILE_ATTRIBUTES_MODE],
+                    uid=mdattr[_JSON_KEY_FILE_ATTRIBUTES_POSIX][
+                        _JSON_KEY_FILE_ATTRIBUTES_UID],
+                    gid=mdattr[_JSON_KEY_FILE_ATTRIBUTES_POSIX][
+                        _JSON_KEY_FILE_ATTRIBUTES_GID],
+                )
+            except KeyError:
+                fileattr = None
+        return fileattr
 
 
 def restore_fileattr(path, metadata):

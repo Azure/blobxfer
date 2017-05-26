@@ -38,6 +38,7 @@ except ImportError:  # noqa
 # non-stdlib imports
 from azure.storage.blob.models import _BlobTypes as BlobTypes
 # local imports
+import blobxfer.models.metadata
 
 
 # enums
@@ -51,7 +52,7 @@ class StorageModes(enum.Enum):
 
 class StorageEntity(object):
     """Azure Storage Entity"""
-    def __init__(self, container, ed=None):
+    def __init__(self, container, ed=None, fileattr=None):
         # type: (StorageEntity, str
         #        blobxfer.models.crypto.EncryptionMetadata) -> None
         """Ctor for StorageEntity
@@ -71,6 +72,7 @@ class StorageEntity(object):
         self._md5 = None
         self._encryption = ed
         self._vio = None
+        self._fileattr = None
         self.replica_targets = None
 
     @property
@@ -213,17 +215,30 @@ class StorageEntity(object):
         """
         self._encryption = value
 
-    def populate_from_blob(self, sa, blob, path):
+    @property
+    def file_attributes(self):
+        # type: (StorageEntity) -> object
+        """Return file attributes collection
+        :param StorageEntity self: this
+        :rtype: blobxfer.models.metadata.PosixFileAttr or
+            blobxfer.models.metadata.WindowsFileAttr or None
+        :return: file attributes
+        """
+        return self._fileattr
+
+    def populate_from_blob(self, sa, blob):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
-        #        azure.storage.blob.models.Blob, str) -> None
+        #        azure.storage.blob.models.Blob) -> None
         """Populate properties from Blob
         :param StorageEntity self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param azure.storage.blob.models.Blob blob: blob to populate from
-        :param str path: full path to blob
         """
+        # set file attributes from metadata
+        self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
+            blob.metadata)
         self._create_containers = sa.create_containers
-        self._name = str(pathlib.Path(path) / blob.name)
+        self._name = blob.name
         self._snapshot = blob.snapshot
         self._lmt = blob.properties.last_modified
         self._size = blob.properties.content_length
@@ -247,6 +262,9 @@ class StorageEntity(object):
         :param azure.storage.file.models.File file: file to populate from
         :param str path: full path to file
         """
+        # set file attributes from metadata
+        self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
+            file.metadata)
         self._create_containers = sa.create_containers
         if path is not None:
             self._name = str(pathlib.Path(path) / file.name)

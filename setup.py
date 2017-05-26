@@ -26,7 +26,7 @@ with open('blobxfer/version.py', 'r', 'utf-8') as fd:
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         fd.read(), re.MULTILINE).group(1)
 
-if not version:
+if not version or len(version) == 0:
     raise RuntimeError('Cannot find version')
 
 packages = [
@@ -42,7 +42,7 @@ install_requires = [
     'azure-common==1.1.6',
     'azure-storage==0.34.2',
     'click==6.7',
-    'cryptography>=1.8.1',
+    'cryptography>=1.8.2',
     'future==0.16.0',
     'python-dateutil==2.6.0',
     'requests==2.14.2',

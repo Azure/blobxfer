@@ -36,6 +36,7 @@ import platform
 import sys
 # non-stdlib imports
 import azure.storage
+import cryptography
 import requests
 # local imports
 import blobxfer.util
@@ -95,86 +96,92 @@ def output_parameters(general_options, spec):
     :param blobxfer.models.options.General general_options: general options
     :param object spec: upload or download spec
     """
+    sep = '============================================'
     log = []
-    log.append('===========================')
-    log.append(' azure blobxfer parameters')
-    log.append('===========================')
-    log.append('     blobxfer version: {}'.format(
+    log.append(sep)
+    log.append('         Azure blobxfer parameters')
+    log.append(sep)
+    log.append('         blobxfer version: {}'.format(
         blobxfer.version.__version__))
-    log.append('             platform: {}'.format(platform.platform()))
-    log.append('               python: {} {} az.stor={} req={}'.format(
-        platform.python_implementation(),
-        platform.python_version(),
-        azure.storage._constants.__version__,
-        requests.__version__))
+    log.append('                 platform: {}'.format(platform.platform()))
+    log.append(
+        '               components: {}={} az.stor={} crypt={} req={}'.format(
+            platform.python_implementation(),
+            platform.python_version(),
+            azure.storage._constants.__version__,
+            cryptography.__version__,
+            requests.__version__,))
     # specific preamble
     if isinstance(spec, blobxfer.models.download.Specification):
-        log.append('   transfer direction: {}'.format('Azure -> local'))
+        log.append('       transfer direction: {}'.format('Azure -> local'))
         log.append(
-            '              workers: disk={} xfer={} md5={} crypto={}'.format(
-                general_options.concurrency.disk_threads,
-                general_options.concurrency.transfer_threads,
-                general_options.concurrency.md5_processes
-                if spec.options.check_file_md5 else 0,
-                general_options.concurrency.crypto_processes))
+            ('                  workers: disk={} xfer={} md5={} '
+             'crypto={}').format(
+                 general_options.concurrency.disk_threads,
+                 general_options.concurrency.transfer_threads,
+                 general_options.concurrency.md5_processes
+                 if spec.options.check_file_md5 else 0,
+                 general_options.concurrency.crypto_processes))
     elif isinstance(spec, blobxfer.models.upload.Specification):
-        log.append('   transfer direction: {}'.format('local -> Azure'))
+        log.append('       transfer direction: {}'.format('local -> Azure'))
         log.append(
-            '              workers: disk={} xfer={} md5={} crypto={}'.format(
-                general_options.concurrency.disk_threads,
-                general_options.concurrency.transfer_threads,
-                general_options.concurrency.md5_processes
-                if spec.skip_on.md5_match or
-                spec.options.store_file_properties.md5 else 0,
-                0))
+            ('                  workers: disk={} xfer={} md5={} '
+             'crypto={}').format(
+                 general_options.concurrency.disk_threads,
+                 general_options.concurrency.transfer_threads,
+                 general_options.concurrency.md5_processes
+                 if spec.skip_on.md5_match or
+                 spec.options.store_file_properties.md5 else 0,
+                 0))
 
     # TODO handle synccopy spec
 
     # common block
-    log.append('          resume file: {}'.format(
+    log.append('              resume file: {}'.format(
         general_options.resume_file))
-    log.append('              timeout: {}'.format(
+    log.append('                  timeout: {}'.format(
         general_options.timeout_sec))
-    log.append('                 mode: {}'.format(
+    log.append('                     mode: {}'.format(
         spec.options.mode))
-    log.append('              skip on: fs_match={} lmt_ge={} md5={}'.format(
-        spec.skip_on.filesize_match,
-        spec.skip_on.lmt_ge,
-        spec.skip_on.md5_match))
-    log.append('           chunk size: {} bytes'.format(
+    log.append(
+        '                  skip on: fs_match={} lmt_ge={} md5={}'.format(
+            spec.skip_on.filesize_match,
+            spec.skip_on.lmt_ge,
+            spec.skip_on.md5_match))
+    log.append('               chunk size: {} bytes'.format(
         spec.options.chunk_size_bytes))
-    log.append('    delete extraneous: {}'.format(
+    log.append('        delete extraneous: {}'.format(
         spec.options.delete_extraneous_destination))
-    log.append('            overwrite: {}'.format(
+    log.append('                overwrite: {}'.format(
         spec.options.overwrite))
-    log.append('            recursive: {}'.format(
+    log.append('                recursive: {}'.format(
         spec.options.recursive))
 
     # TODO only output rename single if not synccopy
-    log.append('        rename single: {}'.format(
+    log.append('            rename single: {}'.format(
         spec.options.rename))
 
     # specific epilog
     if isinstance(spec, blobxfer.models.download.Specification):
-        log.append('     compute file md5: {}'.format(
+        log.append('         compute file md5: {}'.format(
             spec.options.check_file_md5))
-        log.append('      file attributes: {}'.format(
+        log.append('  restore file attributes: {}'.format(
             spec.options.restore_file_attributes))
-        log.append('      rsa private key: {}'.format(
+        log.append('          rsa private key: {}'.format(
             'Loaded' if spec.options.rsa_private_key else 'None'))
-        log.append('    local destination: {}'.format(
+        log.append('        local destination: {}'.format(
             spec.destination.path))
     elif isinstance(spec, blobxfer.models.upload.Specification):
-        log.append('       one shot bytes: {}'.format(
+        log.append('           one shot bytes: {}'.format(
             spec.options.one_shot_bytes))
-        log.append('     store properties: attr={} md5={}'.format(
+        log.append('         store properties: attr={} md5={}'.format(
             spec.options.store_file_properties.attributes,
             spec.options.store_file_properties.md5))
-        log.append('       rsa public key: {}'.format(
+        log.append('           rsa public key: {}'.format(
             'Loaded' if spec.options.rsa_public_key else 'None'))
-        log.append('   local source paths: {}'.format(
+        log.append('       local source paths: {}'.format(
             ' '.join([str(src) for src in spec.sources.paths])))
-    log.append('===========================')
+    log.append(sep)
     log = os.linesep.join(log)
     if blobxfer.util.is_not_empty(general_options.log_file):
         print(log)

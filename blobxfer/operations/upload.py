@@ -786,8 +786,7 @@ class Uploader(object):
                 dir, _ = blobxfer.operations.azure.file.parse_file_path(name)
                 ase.populate_from_file(sa, fp, dir)
             else:
-                # blob.name contains full path, no need to specify dir
-                ase.populate_from_blob(sa, fp, '')
+                ase.populate_from_blob(sa, fp)
         else:
             ase = None
         return ase
