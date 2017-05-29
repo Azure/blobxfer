@@ -91,7 +91,16 @@ class VectoredIoDistributionMode(enum.Enum):
 
 
 class LocalPath(object):
+    """Local Path"""
+
     def __init__(self, parent_path, relative_path, view=None):
+        # type: (LocalPath, pathlib.Path, pathlib.Path, LocalPathView) -> None
+        """Ctor for LocalPath
+        :param LocalPath self: this
+        :param pathlib.Path parent_path: parent path
+        :param pathlib.Path relative_path: relative path
+        :param LocalPathView view: local path view
+        """
         self.parent_path = parent_path
         self.relative_path = relative_path
         # populate properties
@@ -111,30 +120,72 @@ class LocalPath(object):
 
     @property
     def absolute_path(self):
+        # type: (LocalPath) -> pathlib.Path
+        """Absolute path
+        :param LocalPath self: this
+        :rtype: pathlib.Path
+        :return: absolute path
+        """
         return self.parent_path / self.relative_path
 
     @property
     def size(self):
+        # type: (LocalPath) -> int
+        """Size of view
+        :param LocalPath self: this
+        :rtype: int
+        :return: size of view portion of the file
+        """
         return self._size
 
     @property
     def total_size(self):
+        # type: (LocalPath) -> int
+        """Total Size of file
+        :param LocalPath self: this
+        :rtype: int
+        :return: total size of file (non-view)
+        """
         return self._stat.st_size
 
     @property
     def lmt(self):
+        # type: (LocalPath) -> int
+        """mtime of file
+        :param LocalPath self: this
+        :rtype: int
+        :return: mtime of file
+        """
         return self._stat.st_mtime
 
     @property
     def mode(self):
+        # type: (LocalPath) -> str
+        """Octal file mode
+        :param LocalPath self: this
+        :rtype: str
+        :return: octal file mode
+        """
         return str(oct(self._stat.st_mode))
 
     @property
     def uid(self):
+        # type: (LocalPath) -> int
+        """Uid of file
+        :param LocalPath self: this
+        :rtype: int
+        :return: uid of file
+        """
         return self._stat.st_uid
 
     @property
     def gid(self):
+        # type: (LocalPath) -> int
+        """Gid of file
+        :param LocalPath self: this
+        :rtype: int
+        :return: gid of file
+        """
         return self._stat.st_gid
 
 
@@ -142,6 +193,12 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
     """Local Source Path"""
 
     def can_rename(self):
+        # type: (LocalSourcePaths) -> bool
+        """Check if ource can be renamed
+        :param LocalSourcePath self: this
+        :rtype: bool
+        :return: if rename possible
+        """
         return len(self._paths) == 1 and self._paths[0].is_file()
 
     def files(self):

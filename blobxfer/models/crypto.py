@@ -329,13 +329,14 @@ class EncryptionMetadata(object):
         :rtype: dict
         :return: encryption metadata
         """
+        # encrypt keys
         enc_content_key = blobxfer.operations.crypto.\
             rsa_encrypt_key_base64_encoded(
                 None, self._rsa_public_key, self.symmetric_key)
         enc_sign_key = blobxfer.operations.crypto.\
             rsa_encrypt_key_base64_encoded(
                 None, self._rsa_public_key, self.signing_key)
-
+        # generate json
         encjson = {
             EncryptionMetadata._JSON_KEY_ENCRYPTION_MODE:
             EncryptionMetadata._ENCRYPTION_MODE,
