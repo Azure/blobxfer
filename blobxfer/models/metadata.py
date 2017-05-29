@@ -40,7 +40,7 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
-JSON_KEY_BLOBXFER_METADATA = 'BlobxferMetadata'
+JSON_KEY_BLOBXFER_METADATA = 'blobxfer_metadata'
 # file attributes
 _JSON_KEY_FILE_ATTRIBUTES = 'FileAttributes'
 _JSON_KEY_FILE_ATTRIBUTES_POSIX = 'POSIX'
@@ -60,13 +60,30 @@ _JSON_KEY_VECTORED_IO_STRIPE_NEXT = 'Next'
 # named tuples
 PosixFileAttr = collections.namedtuple(
     'PosixFileAttr', [
+        'gid',
         'mode',
         'uid',
-        'gid',
     ]
 )
 WindowsFileAttr = collections.namedtuple(
     'WindowsFileAttr', [
+    ]
+)
+VectoredStripe = collections.namedtuple(
+    'VectoredStripe', [
+        'next',
+        'offset_start',
+        'slice_id',
+        'total_size',
+        'total_slices',
+    ]
+)
+VectoredNextEntry = collections.namedtuple(
+    'VectoredNextEntry', [
+        'storage_account_name',
+        'endpoint',
+        'container',
+        'name',
     ]
 )
 
@@ -97,7 +114,7 @@ def generate_fileattr_metadata(local_path, metadata):
 
 
 def fileattr_from_metadata(md):
-    # type: (dict) -> bool
+    # type: (dict) -> collections.namedtuple
     """Convert fileattr metadata in json metadata
     :param dict md: metadata dictionary
     :rtype: PosixFileAttr or WindowsFileAttr or None
@@ -153,6 +170,38 @@ def create_vectored_io_next_entry(ase):
     )
 
 
+def explode_vectored_io_next_entry(entry):
+    # type: (str, int) -> str
+    """Explode next vectored io entry
+    :param str entry: next entry
+    :rtype: VectoredNextEntry
+    :return: vectored next entry
+    """
+    tmp = entry.split(';')
+    _sa = tmp[0].split('.')
+    return VectoredNextEntry(
+        storage_account_name=_sa[0],
+        endpoint='.'.join(_sa[2:]),
+        container=tmp[1],
+        name=tmp[2],
+    )
+
+
+def remove_vectored_io_slice_suffix_from_name(name, slice):
+    # type: (str, int) -> str
+    """Remove vectored io (stripe) slice suffix from a given name
+    :param str name: entity name
+    :param int slice: slice num
+    :rtype: str
+    :return: name without suffix
+    """
+    suffix = '.bxslice-{}'.format(slice)
+    if name.endswith(suffix):
+        return name[:-len(suffix)]
+    else:
+        return name
+
+
 def generate_vectored_io_stripe_metadata(local_path, metadata):
     # type: (blobxfer.models.upload.LocalPath, dict) -> dict
     """Generate vectored io stripe metadata dict
@@ -172,8 +221,45 @@ def generate_vectored_io_stripe_metadata(local_path, metadata):
                 local_path.view.total_slices,
                 _JSON_KEY_VECTORED_IO_STRIPE_SLICE_ID:
                 local_path.view.slice_num,
-                _JSON_KEY_VECTORED_IO_STRIPE_NEXT: local_path.view.next,
+                _JSON_KEY_VECTORED_IO_STRIPE_NEXT:
+                explode_vectored_io_next_entry(local_path.view.next),
             }
         }
     }
     return blobxfer.util.merge_dict(metadata, md)
+
+
+def vectored_io_from_metadata(md):
+    # type: (dict) -> collections.namedtuple
+    """Convert vectored io metadata in json metadata
+    :param dict md: metadata dictionary
+    :rtype: VectoredStripe or None
+    :return: vectored io metadata
+    """
+    try:
+        mdattr = json.loads(
+            md[JSON_KEY_BLOBXFER_METADATA])[_JSON_KEY_VECTORED_IO]
+    except (KeyError, TypeError):
+        pass
+    else:
+        if mdattr[_JSON_KEY_VECTORED_IO_MODE] == _JSON_KEY_VECTORED_IO_STRIPE:
+            mdstripe = mdattr[_JSON_KEY_VECTORED_IO_STRIPE]
+            try:
+                nextptr = explode_vectored_io_next_entry(
+                    mdstripe[_JSON_KEY_VECTORED_IO_STRIPE_NEXT])
+            except (KeyError, AttributeError):
+                nextptr = None
+            vio = VectoredStripe(
+                total_size=mdstripe[_JSON_KEY_VECTORED_IO_STRIPE_TOTAL_SIZE],
+                offset_start=mdstripe[
+                    _JSON_KEY_VECTORED_IO_STRIPE_OFFSET_START],
+                total_slices=mdstripe[
+                    _JSON_KEY_VECTORED_IO_STRIPE_TOTAL_SLICES],
+                slice_id=mdstripe[_JSON_KEY_VECTORED_IO_STRIPE_SLICE_ID],
+                next=nextptr,
+            )
+            return vio
+        else:
+            raise RuntimeError('Cannot handle Vectored IO mode: {}'.format(
+                mdattr[_JSON_KEY_VECTORED_IO_MODE]))
+    return None

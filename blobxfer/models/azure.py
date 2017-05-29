@@ -226,7 +226,17 @@ class StorageEntity(object):
         """
         return self._fileattr
 
-    def populate_from_blob(self, sa, blob):
+    @property
+    def vectored_io(self):
+        # type: (StorageEntity) -> object
+        """Return vectored io metadata, currently stripe only
+        :param StorageEntity self: this
+        :rtype: blobxfer.models.metadata.VectoredStripe or None
+        :return: vectored io metadata
+        """
+        return self._vio
+
+    def populate_from_blob(self, sa, blob, vio=None):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.blob.models.Blob) -> None
         """Populate properties from Blob
@@ -234,9 +244,10 @@ class StorageEntity(object):
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param azure.storage.blob.models.Blob blob: blob to populate from
         """
-        # set file attributes from metadata
+        # set props from metadata
         self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
             blob.metadata)
+        self._vio = vio
         self._create_containers = sa.create_containers
         self._name = blob.name
         self._snapshot = blob.snapshot
@@ -253,7 +264,7 @@ class StorageEntity(object):
             self._mode = StorageModes.Page
             self._client = sa.page_blob_client
 
-    def populate_from_file(self, sa, file, path):
+    def populate_from_file(self, sa, file, path, vio=None):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.file.models.File, str) -> None
         """Populate properties from File
@@ -262,9 +273,10 @@ class StorageEntity(object):
         :param azure.storage.file.models.File file: file to populate from
         :param str path: full path to file
         """
-        # set file attributes from metadata
+        # set props from metadata
         self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
             file.metadata)
+        self._vio = vio
         self._create_containers = sa.create_containers
         if path is not None:
             self._name = str(pathlib.Path(path) / file.name)

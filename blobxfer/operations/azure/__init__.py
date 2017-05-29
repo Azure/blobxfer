@@ -34,6 +34,7 @@ from builtins import (  # noqa
 import requests
 # local imports
 import blobxfer.models
+import blobxfer.models.metadata
 import blobxfer.operations.azure.blob.append
 import blobxfer.operations.azure.blob.block
 import blobxfer.operations.azure.blob.page
@@ -263,6 +264,100 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     creds, options, general_options):
                 yield blob
 
+    def _convert_to_storage_entity_with_encryption_metadata(
+            self, options, sa, entity, vio, is_file, container, dir):
+        # type: (SourcePath, StorageCredentials,
+        #        blobxfer.models.options.Download, StorageAccount, object,
+        #        blobxfer.models.metadata.VectoredStripe, bool, str,
+        #        str) -> StorageEntity
+        """Convert entity into StorageEntity with encryption metadata if avail
+        :param SourcePath self: this
+        :param StorageCredentials creds: storage creds
+        :param blobxfer.models.options.Download options: download options
+        :param StorageAccount sa: storage account
+        :param object entity: Storage File or Blob object
+        :param blobxfer.models.metadata.VectoredStripe vio: Vectored stripe
+        :param bool is_file: is a file object
+        :param str container: container
+        :param str dir: Azure File directory structure
+        :rtype: StorageEntity
+        :return: Azure storage entity object
+        """
+        if blobxfer.models.crypto.EncryptionMetadata.\
+                encryption_metadata_exists(entity.metadata):
+            ed = blobxfer.models.crypto.EncryptionMetadata()
+            ed.convert_from_json(
+                entity.metadata, file.name, options.rsa_private_key)
+        else:
+            ed = None
+        ase = blobxfer.models.azure.StorageEntity(container, ed)
+        if is_file:
+            ase.populate_from_file(sa, entity, dir, vio)
+        else:
+            ase.populate_from_blob(sa, entity, vio)
+        return ase
+
+    def _handle_vectored_io_stripe(
+            self, creds, options, general_options, sa, entity, is_file,
+            container, dir=None):
+        # type: (SourcePath, StorageCredentials,
+        #        blobxfer.models.options.Download,
+        #        blobxfer.models.options.General, StorageAccount, object,
+        #        bool, str, str) -> StorageEntity
+        """Handle Vectored IO stripe entries
+        :param SourcePath self: this
+        :param StorageCredentials creds: storage creds
+        :param blobxfer.models.options.Download options: download options
+        :param blobxfer.models.options.General general_options: general options
+        :param StorageAccount sa: storage account
+        :param object entity: Storage File or Blob object
+        :param bool is_file: is a file object
+        :param str container: container
+        :param str dir: Azure File directory structure
+        :rtype: StorageEntity
+        :return: Azure storage entity object
+        """
+        vio = blobxfer.models.metadata.vectored_io_from_metadata(
+            entity.metadata)
+        if not isinstance(vio, blobxfer.models.metadata.VectoredStripe):
+            ase = self._convert_to_storage_entity_with_encryption_metadata(
+                options, sa, entity, None, is_file, container, dir)
+            yield ase
+            return
+        # if this slice is not the first, ignore. the reason for this is
+        # 1. Ensures direct get on a slice does nothing unless the
+        # zero-th blob is retrieved/accessed (eliminates partial data
+        # download), which will reconstruct all of the stripes via next
+        # pointers
+        # 2. Data is not retrieved multiple times for the same slice without
+        # having to maintain a fetched map
+        if vio.slice_id != 0:
+            yield None
+            return
+        # yield this entity
+        ase = self._convert_to_storage_entity_with_encryption_metadata(
+            options, sa, entity, vio, is_file, container, dir)
+        yield ase
+        # iterate all slices
+        while vio.next is not None:
+            # follow next pointer
+            sa = creds.get_storage_account(vio.next.storage_account_name)
+            if is_file:
+                entity = blobxfer.operations.azure.file.get_file_properties(
+                    sa.file_client, vio.next.container, vio.next.name,
+                    timeout=general_options.timeout_sec)
+                _, dir = blobxfer.util.explode_azure_path(vio.next.name)
+            else:
+                entity = blobxfer.operations.azure.blob.get_blob_properties(
+                    sa.block_blob_client, vio.next.container, vio.next.name,
+                    ase.mode, timeout=general_options.timeout_sec)
+            vio = blobxfer.models.metadata.vectored_io_from_metadata(
+                entity.metadata)
+            # yield next
+            ase = self._convert_to_storage_entity_with_encryption_metadata(
+                options, sa, entity, vio, is_file, container, dir)
+            yield ase
+
     def _populate_from_list_files(self, creds, options, general_options):
         # type: (SourcePath, StorageCredentials,
         #        blobxfer.models.options.Download,
@@ -284,19 +379,15 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     general_options.timeout_sec):
                 if not self._inclusion_check(file.name):
                     continue
-                if blobxfer.models.crypto.EncryptionMetadata.\
-                        encryption_metadata_exists(file.metadata):
-                    ed = blobxfer.models.crypto.EncryptionMetadata()
-                    ed.convert_from_json(
-                        file.metadata, file.name, options.rsa_private_key)
-                else:
-                    ed = None
-                ase = blobxfer.models.azure.StorageEntity(cont, ed)
                 if dir is not None:
                     dir, _ = blobxfer.operations.azure.file.parse_file_path(
                         dir)
-                ase.populate_from_file(sa, file, dir)
-                yield ase
+                for ase in self._handle_vectored_io_stripe(
+                        creds, options, general_options, sa, file, True, cont,
+                        dir):
+                    if ase is None:
+                        continue
+                    yield ase
 
     def _populate_from_list_blobs(self, creds, options, general_options):
         # type: (SourcePath, StorageCredentials,
@@ -319,16 +410,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     options.recursive, general_options.timeout_sec):
                 if not self._inclusion_check(blob.name):
                     continue
-                if blobxfer.models.crypto.EncryptionMetadata.\
-                        encryption_metadata_exists(blob.metadata):
-                    ed = blobxfer.models.crypto.EncryptionMetadata()
-                    ed.convert_from_json(
-                        blob.metadata, blob.name, options.rsa_private_key)
-                else:
-                    ed = None
-                ase = blobxfer.models.azure.StorageEntity(cont, ed)
-                ase.populate_from_blob(sa, blob)
-                yield ase
+                for ase in self._handle_vectored_io_stripe(
+                        creds, options, general_options, sa, blob, False,
+                        cont):
+                    if ase is None:
+                        continue
+                    yield ase
 
 
 class DestinationPath(blobxfer.models._BaseSourcePaths):

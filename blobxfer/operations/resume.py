@@ -92,45 +92,59 @@ class DownloadResumeManager():
             if acquire:
                 self._lock.release()
 
-    def get_record(self, final_path, lock=True):
+    @staticmethod
+    def generate_record_key(ase):
+        # type: (blobxfer.models.azure.StorageEntity) -> str
+        """Generate a record key
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :rtype: str
+        :return: record key
+        """
+        return '{}:{}'.format(ase._client.primary_endpoint, ase.path)
+
+    def get_record(self, ase, key=None, lock=True):
         # type: (DownloadResumeManager, str,
         #        bool) -> blobxfer.models.resume.Download
         """Get a resume record
         :param DownloadResumeManager self: this
-        :param str final_path: final path
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :param str key: record key
         :param bool lock: acquire lock
         :rtype: blobxfer.models.resume.Download
         :return: Download record
         """
+        if key is None:
+            key = blobxfer.operations.resume.DownloadResumeManager.\
+                generate_record_key(ase)
         with self.datalock(lock):
             try:
-                return self._data[final_path]
+                return self._data[key]
             except KeyError:
                 return None
 
     def add_or_update_record(
-            self, final_path, temp_path, length, chunk_size,
-            next_integrity_chunk, completed, md5):
-        # type: (DownloadResumeManager, pathlib.Path, pathlib.Path, int, int,
-        #        int, bool, str) -> None
+            self, final_path, ase, chunk_size, next_integrity_chunk,
+            completed, md5):
+        # type: (DownloadResumeManager, pathlib.Path,
+        #        blobxfer.models.azure.StorageEntity, int, int, bool,
+        #        str) -> None
         """Get a resume record
         :param DownloadResumeManager self: this
         :param pathlib.Path final_path: final path
-        :param pathlib.Path temp_path: temp local path
-        :param int length: content length
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
         :param int chunk_size: chunk size in bytes
         :param int next_integrity_chunk: next integrity chunk
         :param bool completed: if completed
         :param str md5: md5 hex digest
         """
-        sfp = str(final_path)
+        key = blobxfer.operations.resume.DownloadResumeManager.\
+            generate_record_key(ase)
         with self.datalock():
-            dl = self.get_record(sfp, lock=False)
+            dl = self.get_record(ase, key=key, lock=False)
             if dl is None:
                 dl = blobxfer.models.resume.Download(
-                    final_path=sfp,
-                    temp_path=str(temp_path),
-                    length=length,
+                    final_path=str(final_path),
+                    length=ase._size,
                     chunk_size=chunk_size,
                     next_integrity_chunk=next_integrity_chunk,
                     completed=completed,
@@ -145,5 +159,5 @@ class DownloadResumeManager():
                 else:
                     dl.next_integrity_chunk = next_integrity_chunk
                     dl.md5hexdigest = md5
-            self._data[sfp] = dl
+            self._data[key] = dl
             self._data.sync()

@@ -97,6 +97,7 @@ class Downloader(object):
         self._start_time = None
         self._delete_after = set()
         self._dd_map = {}
+        self._vio_map = {}
         self._general_options = general_options
         self._creds = creds
         self._spec = spec
@@ -171,16 +172,29 @@ class Downloader(object):
         spec.destination.ensure_path_exists()
 
     @staticmethod
+    def create_unique_transfer_operation_id(ase):
+        # type: (blobxfer.models.azure.StorageEntity) -> str
+        """Create a unique transfer operation id
+        :param blobxfer.models.azure.StorageEntity ase: storage entity
+        :rtype: str
+        :return: unique transfer id
+        """
+        return ';'.join(
+            (ase._client.primary_endpoint, ase.path, str(ase.vectored_io))
+        )
+
+    @staticmethod
     def create_unique_disk_operation_id(dd, offsets):
         # type: (blobxfer.models.download.Descriptor,
-        #        blobxfer.models.download.Offsets) -> None
+        #        blobxfer.models.download.Offsets) -> str
         """Create a unique disk operation id
         :param blobxfer.models.download.Descriptor dd: download descriptor
         :param blobxfer.models.download.Offsets offsets: download offsets
+        :rtype: str
+        :return: unique disk id
         """
-        # TODO add local view offset or slice num with stripe support
         return ';'.join(
-            (str(dd.local_path), dd.entity._client.primary_endpoint,
+            (str(dd.final_path), dd.entity._client.primary_endpoint,
              dd.entity.path, str(offsets.range_start))
         )
 
@@ -282,7 +296,9 @@ class Downloader(object):
         lpath = pathlib.Path(filename)
         if md5_match:
             with self._transfer_lock:
-                self._transfer_set.remove(lpath)
+                self._transfer_set.remove(
+                    blobxfer.operations.download.Downloader.
+                    create_unique_transfer_operation_id(rfile))
                 self._download_total -= 1
                 self._download_bytes_total -= lpath.stat().st_size
         else:
@@ -467,14 +483,37 @@ class Downloader(object):
             del resume_bytes
         # check if all operations completed
         if offsets is None and dd.all_operations_completed:
-            # finalize file
-            dd.finalize_file()
+            finalize = True
+            # finalize integrity
+            dd.finalize_integrity()
             # accounting
             with self._transfer_lock:
+                sfpath = str(dd.final_path)
                 if dd.entity.is_encrypted:
-                    self._dd_map.pop(str(dd.final_path))
-                self._transfer_set.remove(dd.final_path)
+                    self._dd_map.pop(sfpath)
+                self._transfer_set.remove(
+                    blobxfer.operations.download.Downloader.
+                    create_unique_transfer_operation_id(dd.entity))
                 self._download_sofar += 1
+                if dd.entity.vectored_io is not None:
+                    if sfpath not in self._vio_map:
+                        self._vio_map[sfpath] = 1
+                    else:
+                        self._vio_map[sfpath] += 1
+                    if (self._vio_map[sfpath] ==
+                            dd.entity.vectored_io.total_slices):
+                        self._vio_map.pop(sfpath)
+                    else:
+                        finalize = False
+            del sfpath
+            # finalize file
+            if finalize:
+                dd.finalize_file()
+                # remove from delete after set
+                try:
+                    self._delete_after.remove(dd.final_path)
+                except KeyError:
+                    pass
             return
         # re-enqueue for other threads to download
         self._transfer_queue.put(dd)
@@ -524,7 +563,7 @@ class Downloader(object):
             # decrypt data
             if self._crypto_offload is not None:
                 self._crypto_offload.add_decrypt_chunk(
-                    str(dd.final_path), str(dd.local_path), offsets,
+                    str(dd.final_path), dd._view.fd_start, offsets,
                     dd.entity.encryption_metadata.symmetric_key,
                     iv, _hmac_datafile)
                 # data will be integrity checked and written once
@@ -652,11 +691,6 @@ class Downloader(object):
                 else:
                     lpath = pathlib.Path(
                         self._spec.destination.path, rfile.name)
-                # remove from delete after set
-                try:
-                    self._delete_after.remove(lpath)
-                except KeyError:
-                    pass
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 if action == DownloadAction.Skip:
@@ -665,7 +699,9 @@ class Downloader(object):
                     continue
                 # add potential download to set
                 with self._transfer_lock:
-                    self._transfer_set.add(lpath)
+                    self._transfer_set.add(
+                        blobxfer.operations.download.Downloader.
+                        create_unique_transfer_operation_id(rfile))
                 # either MD5 check or download now
                 if action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)

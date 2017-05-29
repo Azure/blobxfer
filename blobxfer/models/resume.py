@@ -37,20 +37,19 @@ from builtins import (  # noqa
 class Download(object):
     """Download resume object"""
     def __init__(
-            self, final_path, temp_path, length, chunk_size,
-            next_integrity_chunk, completed, md5):
-        # type: (Download, str, str, int, int, int, str) -> None
+            self, final_path, length, chunk_size, next_integrity_chunk,
+            completed, md5):
+        # type: (Download, str, int, int, int, bool, str) -> None
         """Ctor for Download
         :param Download self: this
         :param str final_path: final path
-        :param str temp_path: temporary path
         :param int length: total bytes
         :param int chunk_size: chunk size in bytes
         :param int next_integrity_chunk: next integrity chunk
+        :param bool completed: completed
         :param str md5: md5 hex digest
         """
         self._final_path = final_path
-        self._temp_path = temp_path
         self._length = length
         self._chunk_size = chunk_size
         self._next_integrity_chunk = next_integrity_chunk
@@ -66,16 +65,6 @@ class Download(object):
         :return: final path
         """
         return self._final_path
-
-    @property
-    def temp_path(self):
-        # type: (Download) -> str
-        """Temp path
-        :param Download self: this
-        :rtype: str
-        :return: temp path
-        """
-        return self._temp_path
 
     @property
     def length(self):
@@ -163,9 +152,9 @@ class Download(object):
         :rtype: str
         :return: representation string
         """
-        return ('Download<final_path={} temp_path={} length={} chunk_size={} '
+        return ('Download<final_path={} length={} chunk_size={} '
                 'next_integrity_chunk={} completed={} md5={}>').format(
-                    self.final_path, self.temp_path, self.length,
-                    self.chunk_size, self.next_integrity_chunk,
-                    self.completed, self.md5hexdigest,
+                    self.final_path, self.length, self.chunk_size,
+                    self.next_integrity_chunk, self.completed,
+                    self.md5hexdigest,
                 )
