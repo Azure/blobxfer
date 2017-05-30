@@ -71,6 +71,8 @@ class StorageEntity(object):
         self._snapshot = None
         self._md5 = None
         self._encryption = ed
+        self._from_local = False
+        self._append_create = True
         self._vio = None
         self._fileattr = None
         self.replica_targets = None
@@ -183,6 +185,35 @@ class StorageEntity(object):
         :return: type of entity
         """
         return self._mode
+
+    @property
+    def from_local(self):
+        # type: (StorageEntity) -> bool
+        """If entity was created from a local file (no remote exists)
+        :param StorageEntity self: this
+        :rtype: bool
+        :return: if entity is from local (no remote exists)
+        """
+        return self._from_local
+
+    @property
+    def append_create(self):
+        # type: (StorageEntity) -> bool
+        """If append blob should be created
+        :param StorageEntity self: this
+        :rtype: bool
+        :return: if append blob should be created
+        """
+        return self._append_create
+
+    @append_create.setter
+    def append_create(self, value):
+        # type: (StorageEntity, bool) -> None
+        """Set append create option
+        :param StorageEntity self: this
+        :param bool value: value to set
+        """
+        self._append_create = value
 
     @property
     def is_encrypted(self):
@@ -303,6 +334,7 @@ class StorageEntity(object):
         self._container = container
         self._name = path
         self._mode = mode
+        self._from_local = True
         if mode == StorageModes.Append:
             self._client = sa.append_blob_client
         elif mode == StorageModes.Block:

@@ -469,7 +469,8 @@ def _overwrite_option(f):
         '--overwrite/--no-overwrite',
         expose_value=False,
         default=True,
-        help='Overwrite destination if exists [True]',
+        help='Overwrite destination if exists. For append blobs, '
+        '--no-overwrite will append to any existing blob. [True]',
         callback=callback)(f)
 
 

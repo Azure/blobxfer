@@ -38,7 +38,8 @@ if sys.version_info >= (3, 0):
     STDIN = sys.stdin.buffer
 else:
     # set stdin to binary mode on Windows
-    if sys.platform == 'win32':
-        import os, msvcrt  # noqa
+    if sys.platform == 'win32':  # noqa
+        import msvcrt
+        import os
         msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
     STDIN = sys.stdin

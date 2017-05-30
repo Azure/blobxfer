@@ -77,3 +77,18 @@ def create_blob(ase, timeout=None):
             content_type=blobxfer.util.get_mime_type(ase.name)
         ),
         timeout=timeout)
+
+
+def append_block(ase, data, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, bytes, int) -> None
+    """Appends a block into remote blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param bytes data: data
+    :param int timeout: timeout
+    """
+    ase.client.append_block(
+        container_name=ase.container,
+        blob_name=ase.name,
+        block=data,
+        validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)

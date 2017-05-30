@@ -381,6 +381,9 @@ class Uploader(object):
                 blobxfer.operations.upload.Uploader.create_unique_transfer_id(
                     ud.local_path, ase, offsets))
         ud.complete_offset_upload()
+        # add descriptor back to upload queue only for append blobs
+        if ud.entity.mode == blobxfer.models.azure.StorageModes.Append:
+            self._upload_queue.put(ud)
         # update progress bar
         self._update_progress_bar(stdin=ud.local_path.use_stdin)
 
@@ -397,7 +400,10 @@ class Uploader(object):
         """
         print('UL', offsets, ase.path, len(data) if data is not None else None)
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
-            raise NotImplementedError()
+            # append block
+            if data is not None:
+                blobxfer.operations.azure.blob.append.append_block(
+                    ase, data, timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # handle one-shot uploads
             if ud.is_one_shot_block_blob:
@@ -467,13 +473,14 @@ class Uploader(object):
         :param blobxfer.models.upload.Offsets offsets: offsets
         """
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
-            # create container if necessary
-            blobxfer.operations.azure.blob.create_container(
-                ase, self._containers_created,
-                timeout=self._general_options.timeout_sec)
-            # create remote blob
-            blobxfer.operations.azure.blob.append.create_blob(
-                ase, timeout=self._general_options.timeout_sec)
+            if ase.append_create:
+                # create container if necessary
+                blobxfer.operations.azure.blob.create_container(
+                    ase, self._containers_created,
+                    timeout=self._general_options.timeout_sec)
+                # create remote blob
+                blobxfer.operations.azure.blob.append.create_blob(
+                    ase, timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
@@ -520,7 +527,7 @@ class Uploader(object):
         # check if all operations completed
         if offsets is None and ud.all_operations_completed:
             # finalize file
-            self._finalize_file(ud)
+            self._finalize_upload(ud)
             # accounting
             with self._upload_lock:
                 if ud.entity.is_encrypted:
@@ -568,8 +575,9 @@ class Uploader(object):
             # set new offset if stdin
             if newoffset is not None:
                 offsets = newoffset
-        # re-enqueue for other threads to upload
-        self._upload_queue.put(ud)
+        # re-enqueue for other threads to upload if not append
+        if ud.entity.mode != blobxfer.models.azure.StorageModes.Append:
+            self._upload_queue.put(ud)
         # no data can be returned on stdin uploads
         if not data:
             return
@@ -589,73 +597,106 @@ class Uploader(object):
                     )
                 self._transfer_queue.put((ud, ase, offsets, data))
 
-    def _finalize_file(self, ud):
+    def _finalize_block_blob(self, ud, metadata):
+        """Finalize Block blob
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param dict metadata: metadata dict
+        """
+        if not ud.entity.is_encrypted and ud.must_compute_md5:
+            digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
+        else:
+            digest = None
+        blobxfer.operations.azure.blob.block.put_block_list(
+            ud.entity, ud.last_block_num, digest, metadata,
+            timeout=self._general_options.timeout_sec)
+        if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+            for ase in ud.entity.replica_targets:
+                blobxfer.operations.azure.blob.block.put_block_list(
+                    ase, ud.last_block_num, digest, metadata,
+                    timeout=self._general_options.timeout_sec)
+
+    def _set_blob_md5(self, ud):
+        """Set blob MD5
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        """
+        digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
+        blobxfer.operations.azure.blob.set_blob_md5(
+            ud.entity, digest, timeout=self._general_options.timeout_sec)
+        if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+            for ase in ud.entity.replica_targets:
+                blobxfer.operations.azure.blob.set_blob_md5(
+                    ase, digest, timeout=self._general_options.timeout_sec)
+
+    def _set_blob_metadata(self, ud, metadata):
+        """Set blob metadata
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param dict metadata: metadata dict
+        """
+        blobxfer.operations.azure.blob.set_blob_metadata(
+            ud.entity, metadata, timeout=self._general_options.timeout_sec)
+        if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+            for ase in ud.entity.replica_targets:
+                blobxfer.operations.azure.blob.set_blob_metadata(
+                    ase, metadata, timeout=self._general_options.timeout_sec)
+
+    def _finalize_nonblock_blob(self, ud, metadata):
+        """Finalize Non-Block blob
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param dict metadata: metadata dict
+        """
+        # set md5 page blob property if required
+        if ud.requires_non_encrypted_md5_put:
+            self._set_blob_md5(ud)
+        # set metadata if needed
+        if blobxfer.util.is_not_empty(metadata):
+            self._set_blob_metadata(ud, metadata)
+
+    def _finalize_azure_file(self, ud, metadata):
+        # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
+        """Finalize Azure File
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param dict metadata: metadata dict
+        """
+        # set md5 file property if required
+        if ud.requires_non_encrypted_md5_put:
+            digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
+            blobxfer.operations.azure.file.set_file_md5(
+                ud.entity, digest, timeout=self._general_options.timeout_sec)
+            if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+                for ase in ud.entity.replica_targets:
+                    blobxfer.operations.azure.file.set_file_md5(
+                        ase, digest, timeout=self._general_options.timeout_sec)
+        # set file metadata if needed
+        if blobxfer.util.is_not_empty(metadata):
+            blobxfer.operations.azure.file.set_file_metadata(
+                ud.entity, metadata, timeout=self._general_options.timeout_sec)
+            if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+                for ase in ud.entity.replica_targets:
+                    blobxfer.operations.azure.file.set_file_metadata(
+                        ase, metadata,
+                        timeout=self._general_options.timeout_sec)
+
+    def _finalize_upload(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
         """Finalize file upload
         :param Uploader self: this
-        :param blobxfer.models.upload.Descriptor: upload descriptor
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
         """
         metadata = ud.generate_metadata()
-        # put block list for non one-shot block blobs
         if ud.requires_put_block_list:
-            if not ud.entity.is_encrypted and ud.must_compute_md5:
-                digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-            else:
-                digest = None
-            blobxfer.operations.azure.blob.block.put_block_list(
-                ud.entity, ud.last_block_num, digest, metadata,
-                timeout=self._general_options.timeout_sec)
-            if blobxfer.util.is_not_empty(ud.entity.replica_targets):
-                for ase in ud.entity.replica_targets:
-                    blobxfer.operations.azure.blob.block.put_block_list(
-                        ase, ud.last_block_num, digest, metadata,
-                        timeout=self._general_options.timeout_sec)
-        # page blob finalization
-        if ud.remote_is_page_blob:
-            # set md5 page blob property if required
-            if ud.requires_non_encrypted_md5_put:
-                digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-                blobxfer.operations.azure.blob.page.set_blob_md5(
-                    ud.entity, digest,
-                    timeout=self._general_options.timeout_sec)
-                if blobxfer.util.is_not_empty(ud.entity.replica_targets):
-                    for ase in ud.entity.replica_targets:
-                        blobxfer.operations.azure.blob.page.set_blob_md5(
-                            ase, digest,
-                            timeout=self._general_options.timeout_sec)
-            # set metadata if needed
-            if blobxfer.util.is_not_empty(metadata):
-                blobxfer.operations.azure.blob.page.set_blob_metadata(
-                    ud.entity, metadata,
-                    timeout=self._general_options.timeout_sec)
-                if blobxfer.util.is_not_empty(ud.entity.replica_targets):
-                    for ase in ud.entity.replica_targets:
-                        blobxfer.operations.azure.blob.page.set_blob_metadata(
-                            ase, metadata,
-                            timeout=self._general_options.timeout_sec)
-        # azure file finalization
-        if ud.remote_is_file:
-            # set md5 file property if required
-            if ud.requires_non_encrypted_md5_put:
-                digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-                blobxfer.operations.azure.file.set_file_md5(
-                    ud.entity, digest,
-                    timeout=self._general_options.timeout_sec)
-                if blobxfer.util.is_not_empty(ud.entity.replica_targets):
-                    for ase in ud.entity.replica_targets:
-                        blobxfer.operations.azure.file.set_file_md5(
-                            ase, digest,
-                            timeout=self._general_options.timeout_sec)
-            # set file metadata if needed
-            if blobxfer.util.is_not_empty(metadata):
-                blobxfer.operations.azure.file.set_file_metadata(
-                    ud.entity, metadata,
-                    timeout=self._general_options.timeout_sec)
-                if blobxfer.util.is_not_empty(ud.entity.replica_targets):
-                    for ase in ud.entity.replica_targets:
-                        blobxfer.operations.azure.file.set_file_metadata(
-                            ase, metadata,
-                            timeout=self._general_options.timeout_sec)
+            # put block list for non one-shot block blobs
+            self._finalize_block_blob(ud, metadata)
+        elif ud.remote_is_page_blob or ud.remote_is_append_blob:
+            # append and page blob finalization
+            self._finalize_nonblock_blob(ud, metadata)
+        elif ud.remote_is_file:
+            # azure file finalization
+            self._finalize_azure_file(ud, metadata)
 
     def _get_destination_paths(self):
         # type: (Uploader) ->
@@ -734,10 +775,13 @@ class Uploader(object):
         if not local_path.use_stdin and not lpath.exists():
             return UploadAction.Skip
         # if remote file doesn't exist, upload
-        if rfile is None:
+        if rfile is None or rfile.from_local:
             return UploadAction.Upload
         # check overwrite option
         if not self._spec.options.overwrite:
+            if rfile.mode == blobxfer.models.azure.StorageModes.Append:
+                rfile.append_create = False
+                return UploadAction.Upload
             logger.info(
                 'not overwriting remote file: {} (local: {})'.format(
                     rfile.path, lpath))

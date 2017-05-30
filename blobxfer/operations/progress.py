@@ -145,6 +145,8 @@ def output_parameters(general_options, spec):
     # TODO handle synccopy spec
 
     # common block
+    log.append('                 log file: {}'.format(
+        general_options.log_file))
     log.append('              resume file: {}'.format(
         general_options.resume_file))
     log.append('                  timeout: {}'.format(

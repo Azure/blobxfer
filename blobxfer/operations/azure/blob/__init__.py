@@ -219,3 +219,34 @@ def create_container(ase, containers_created, timeout=None):
             logger.info(
                 'created blob container {} on storage account {}'.format(
                     ase.container, ase.client.account_name))
+
+
+def set_blob_md5(ase, md5, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, str, int) -> None
+    """Set blob properties MD5
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param str md5: md5 as base64
+    :param int timeout: timeout
+    """
+    ase.client.set_blob_properties(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_settings=azure.storage.blob.models.ContentSettings(
+            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_md5=md5,
+        ),
+        timeout=timeout)
+
+
+def set_blob_metadata(ase, metadata, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    """Set blob metadata
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param dict metadata: metadata kv pairs
+    :param int timeout: timeout
+    """
+    ase.client.set_blob_metadata(
+        container_name=ase.container,
+        blob_name=ase.name,
+        metadata=metadata,
+        timeout=timeout)

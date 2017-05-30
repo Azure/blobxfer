@@ -439,6 +439,16 @@ class Descriptor(object):
         return self.entity.mode == blobxfer.models.azure.StorageModes.Page
 
     @property
+    def remote_is_append_blob(self):
+        # type: (Descriptor) -> bool
+        """Remote destination is an Azure Append Blob
+        :param Descriptor self: this
+        :rtype: bool
+        :return: remote is an Azure Append Blob
+        """
+        return self.entity.mode == blobxfer.models.azure.StorageModes.Append
+
+    @property
     def is_one_shot_block_blob(self):
         # type: (Descriptor) -> bool
         """Is one shot block blob
@@ -468,7 +478,8 @@ class Descriptor(object):
         :rtype: bool
         :return: if finalize requires a put file properties
         """
-        return not self.entity.is_encrypted and self.must_compute_md5
+        return (not self.entity.is_encrypted and self.must_compute_md5 and
+                not self.remote_is_append_blob)
 
     @property
     def requires_set_file_properties_md5(self):
@@ -505,7 +516,6 @@ class Descriptor(object):
         :param Descriptor self: this
         :param blobxfer.models.options.Upload options: upload options
         """
-        # TODO support append blobs?
         if (options.rsa_public_key is not None and self.local_path.size > 0 and
                 (self._ase.mode == blobxfer.models.azure.StorageModes.Block or
                  self._ase.mode == blobxfer.models.azure.StorageModes.File)):
@@ -653,7 +663,8 @@ class Descriptor(object):
                          self.local_path.absolute_path))
             self.hmac = self._ase.encryption_metadata.initialize_hmac()
         # both hmac and md5 can be enabled
-        if options.store_file_properties.md5:
+        if (options.store_file_properties.md5 and
+                not self.remote_is_append_blob):
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def next_offsets(self):
