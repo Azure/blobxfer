@@ -53,7 +53,7 @@ import blobxfer.util
 logger = logging.getLogger(__name__)
 # global defines
 _MAX_BLOCK_BLOB_ONESHOT_BYTES = 268435456
-_MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 268435456
+_MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 104857600
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 _MAX_NUM_CHUNKS = 50000
 _DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
@@ -93,18 +93,30 @@ class VectoredIoDistributionMode(enum.Enum):
 class LocalPath(object):
     """Local Path"""
 
-    def __init__(self, parent_path, relative_path, view=None):
-        # type: (LocalPath, pathlib.Path, pathlib.Path, LocalPathView) -> None
+    def __init__(self, parent_path, relative_path, use_stdin=False, view=None):
+        # type: (LocalPath, pathlib.Path, pathlib.Path, bool,
+        #        LocalPathView) -> None
         """Ctor for LocalPath
         :param LocalPath self: this
         :param pathlib.Path parent_path: parent path
         :param pathlib.Path relative_path: relative path
+        :param bool use_stdin: use stdin
         :param LocalPathView view: local path view
         """
         self.parent_path = parent_path
         self.relative_path = relative_path
+        self.use_stdin = use_stdin
         # populate properties
-        self._stat = self.absolute_path.stat()
+        if self.use_stdin:
+            # create dummy stat object
+            self._stat = type('stat', (object,), {})
+            self._stat.st_size = 0
+            self._stat.st_mtime = 0
+            self._stat.st_mode = 0
+            self._stat.st_uid = 0
+            self._stat.st_gid = 0
+        else:
+            self._stat = self.absolute_path.stat()
         if view is None:
             self.view = LocalPathView(
                 fd_start=0,
@@ -194,12 +206,24 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
 
     def can_rename(self):
         # type: (LocalSourcePaths) -> bool
-        """Check if ource can be renamed
+        """Check if source can be renamed
         :param LocalSourcePath self: this
         :rtype: bool
         :return: if rename possible
         """
         return len(self._paths) == 1 and self._paths[0].is_file()
+
+    @staticmethod
+    def is_stdin(path):
+        # type: (str) -> bool
+        """Check if path is stdin
+        :param str path: path to check
+        :rtype: bool
+        :return: if path is stdin
+        """
+        if path == '-' or path == '/dev/stdin':
+            return True
+        return False
 
     def files(self):
         # type: (LocalSourcePaths) -> LocalPath
@@ -210,6 +234,15 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
         """
         for _path in self._paths:
             _ppath = os.path.expandvars(os.path.expanduser(str(_path)))
+            # check of path is stdin
+            if blobxfer.models.upload.LocalSourcePath.is_stdin(_ppath):
+                yield LocalPath(
+                    parent_path=pathlib.Path(),
+                    relative_path=pathlib.Path('stdin'),
+                    use_stdin=True,
+                )
+                continue
+            # resolve path
             _expath = pathlib.Path(_ppath).resolve()
             # check if path is a single file
             tmp = pathlib.Path(_ppath)
@@ -217,7 +250,8 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
                 if self._inclusion_check(tmp.name):
                     yield LocalPath(
                         parent_path=tmp.parent,
-                        relative_path=pathlib.Path(tmp.name)
+                        relative_path=pathlib.Path(tmp.name),
+                        use_stdin=False,
                     )
                 continue
             del tmp
@@ -225,7 +259,11 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
                 _rpath = pathlib.Path(entry.path).relative_to(_ppath)
                 if not self._inclusion_check(_rpath):
                     continue
-                yield LocalPath(parent_path=_expath, relative_path=_rpath)
+                yield LocalPath(
+                    parent_path=_expath,
+                    relative_path=_rpath,
+                    use_stdin=False,
+                )
 
 
 class Specification(object):
@@ -523,7 +561,12 @@ class Descriptor(object):
             logger.debug(
                 'auto-selected chunk size of {} for {}'.format(
                     chunk_size, self.local_path.absolute_path))
-        self._chunk_size = min((chunk_size, self._ase.size))
+        if self.local_path.use_stdin:
+            self._chunk_size = max(
+                (chunk_size, _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES)
+            )
+        else:
+            self._chunk_size = min((chunk_size, self._ase.size))
         # ensure chunk sizes are compatible with mode
         if self._ase.mode == blobxfer.models.azure.StorageModes.Append:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
@@ -533,7 +576,8 @@ class Descriptor(object):
                      'from {}').format(
                          self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Block:
-            if self._ase.size <= options.one_shot_bytes:
+            if (not self.local_path.use_stdin and
+                    self._ase.size <= options.one_shot_bytes):
                 self._chunk_size = min(
                     (self._ase.size, options.one_shot_bytes)
                 )
@@ -568,6 +612,8 @@ class Descriptor(object):
         try:
             chunks = int(math.ceil(self._ase.size / chunk_size))
         except ZeroDivisionError:
+            chunks = 1
+        if self.local_path.use_stdin and chunks == 0:
             chunks = 1
         if chunks > 50000:
             max_vector = False
@@ -645,26 +691,49 @@ class Descriptor(object):
             ), resume_bytes
 
     def read_data(self, offsets):
-        # type: (Descriptor, Offsets) -> bytes
+        # type: (Descriptor, Offsets) -> Tuple[bytes, Offsets]
         """Read data from file
         :param Descriptor self: this
         :param Offsets offsets: offsets
-        :rtype: bytes
-        :return: file data
+        :rtype: tuple
+        :return: (file data bytes, new Offsets if stdin)
         """
-        if offsets.num_bytes == 0:
-            return None
-        # compute start from view
-        start = self.local_path.view.fd_start + offsets.range_start
-        # encrypted offsets will read past the end of the file due
-        # to padding, but will be accounted for after encryption+padding
-        with self.local_path.absolute_path.open('rb') as fd:
-            fd.seek(start, 0)
-            data = fd.read(offsets.num_bytes)
-        if self.must_compute_md5:
+        newoffset = None
+        if not self.local_path.use_stdin:
+            if offsets.num_bytes == 0:
+                return None, None
+            # compute start from view
+            start = self.local_path.view.fd_start + offsets.range_start
+            # encrypted offsets will read past the end of the file due
+            # to padding, but will be accounted for after encryption+padding
+            with self.local_path.absolute_path.open('rb') as fd:
+                fd.seek(start, 0)
+                data = fd.read(offsets.num_bytes)
+        else:
+            data = blobxfer.STDIN.read(self._chunk_size)
+            if not data:
+                with self._meta_lock:
+                    self._total_chunks -= 1
+                    self._chunk_num -= 1
+                    self._outstanding_ops -= 1
+            else:
+                num_bytes = len(data)
+                with self._meta_lock:
+                    newoffset = Offsets(
+                        chunk_num=self._chunk_num - 1,
+                        num_bytes=num_bytes,
+                        range_start=self._offset,
+                        range_end=self._offset + num_bytes - 1,
+                        pad=False,
+                    )
+                    self._total_chunks += 1
+                    self._outstanding_ops += 1
+                    self._offset += num_bytes
+                    self._ase.size += num_bytes
+        if self.must_compute_md5 and data:
             with self._hasher_lock:
                 self.md5.update(data)
-        return data
+        return data, newoffset
 
     def generate_metadata(self):
         # type: (Descriptor) -> dict
@@ -690,7 +759,7 @@ class Descriptor(object):
             encmeta = self._ase.encryption_metadata.convert_to_json_with_mac(
                 md5digest, hmacdigest)
         # generate file attribute metadata
-        if self._store_file_attr:
+        if self._store_file_attr and not self.local_path.use_stdin:
             merged = blobxfer.models.metadata.generate_fileattr_metadata(
                 self.local_path, genmeta)
             if merged is not None:

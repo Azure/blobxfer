@@ -22,6 +22,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import sys
 from .version import __version__  # noqa
 
 # monkeypatch User-Agent string
@@ -31,3 +32,13 @@ azure.storage._constants.USER_AGENT_STRING = 'blobxfer/{} {}'.format(
 
 # monkeypatch SOCKET_TIMEOUT value in Azure Storage SDK
 azure.storage._constants.SOCKET_TIMEOUT = (5, 300)
+
+# set stdin source
+if sys.version_info >= (3, 0):
+    STDIN = sys.stdin.buffer
+else:
+    # set stdin to binary mode on Windows
+    if sys.platform == 'win32':
+        import os, msvcrt  # noqa
+        msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+    STDIN = sys.stdin

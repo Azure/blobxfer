@@ -191,10 +191,11 @@ class Uploader(object):
         """
         return '{}.bxslice-{}'.format(name, slice)
 
-    def _update_progress_bar(self):
-        # type: (Uploader) -> None
+    def _update_progress_bar(self, stdin=False):
+        # type: (Uploader, bool) -> None
         """Update progress bar
         :param Uploader self: this
+        :param bool stdin: stdin upload
         """
         if not self._all_files_processed:
             return
@@ -206,6 +207,7 @@ class Uploader(object):
             self._upload_sofar,
             self._upload_bytes_total,
             self._upload_bytes_sofar,
+            stdin_upload=stdin,
         )
 
     def _pre_md5_skip_on_check(self, src, rfile):
@@ -370,7 +372,9 @@ class Uploader(object):
         self._put_data(ud, ase, offsets, data)
         # accounting
         with self._transfer_lock:
-            if offsets.chunk_num == 0:
+            if ud.local_path.use_stdin:
+                self._upload_bytes_total += offsets.num_bytes
+            elif offsets.chunk_num == 0:
                 self._upload_bytes_total += ase.size
             self._upload_bytes_sofar += offsets.num_bytes
             self._transfer_set.remove(
@@ -378,7 +382,7 @@ class Uploader(object):
                     ud.local_path, ase, offsets))
         ud.complete_offset_upload()
         # update progress bar
-        self._update_progress_bar()
+        self._update_progress_bar(stdin=ud.local_path.use_stdin)
 
     def _put_data(self, ud, ase, offsets, data):
         # type: (Uploader, blobxfer.models.upload.Descriptor,
@@ -462,7 +466,15 @@ class Uploader(object):
         :param blobxfer.models.azure.StorageEntity ase: Storage entity
         :param blobxfer.models.upload.Offsets offsets: offsets
         """
-        if ase.mode == blobxfer.models.azure.StorageModes.Block:
+        if ase.mode == blobxfer.models.azure.StorageModes.Append:
+            # create container if necessary
+            blobxfer.operations.azure.blob.create_container(
+                ase, self._containers_created,
+                timeout=self._general_options.timeout_sec)
+            # create remote blob
+            blobxfer.operations.azure.blob.append.create_blob(
+                ase, timeout=self._general_options.timeout_sec)
+        elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
                 ase, self._containers_created,
@@ -496,7 +508,7 @@ class Uploader(object):
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor: upload descriptor
         """
-        # get download offsets
+        # get upload offsets
         offsets, resume_bytes = ud.next_offsets()
         # add resume bytes to counter
         if resume_bytes is not None:
@@ -531,7 +543,7 @@ class Uploader(object):
             # encrypt data
             if self._crypto_offload is None:
                 # read data from file and encrypt
-                data = ud.read_data(offsets)
+                data, _ = ud.read_data(offsets)
                 encdata = blobxfer.operations.crypto.aes_cbc_encrypt_data(
                     ud.entity.encryption_metadata.symmetric_key,
                     ud.current_iv, data, offsets.pad)
@@ -552,9 +564,15 @@ class Uploader(object):
                 # retrieved from crypto queue
                 # return_early = True
         else:
-            data = ud.read_data(offsets)
+            data, newoffset = ud.read_data(offsets)
+            # set new offset if stdin
+            if newoffset is not None:
+                offsets = newoffset
         # re-enqueue for other threads to upload
         self._upload_queue.put(ud)
+        # no data can be returned on stdin uploads
+        if not data:
+            return
         # add data to transfer queue
         with self._transfer_lock:
             self._transfer_set.add(
@@ -713,7 +731,7 @@ class Uploader(object):
         """
         lpath = local_path.absolute_path
         # check if local file still exists
-        if not lpath.exists():
+        if not local_path.use_stdin and not lpath.exists():
             return UploadAction.Skip
         # if remote file doesn't exist, upload
         if rfile is None:
@@ -849,7 +867,8 @@ class Uploader(object):
         :return: action, LocalPath, ase
         """
         if (self._spec.options.vectored_io.distribution_mode ==
-                blobxfer.models.upload.VectoredIoDistributionMode.Stripe):
+                blobxfer.models.upload.VectoredIoDistributionMode.Stripe and
+                not local_path.use_stdin):
             # compute total number of slices
             slices = int(math.ceil(
                 local_path.total_size /
@@ -897,6 +916,7 @@ class Uploader(object):
                 lp_slice = blobxfer.models.upload.LocalPath(
                     parent_path=local_path.parent_path,
                     relative_path=local_path.relative_path,
+                    use_stdin=False,
                     view=blobxfer.models.upload.LocalPathView(
                         fd_start=start,
                         fd_end=end,

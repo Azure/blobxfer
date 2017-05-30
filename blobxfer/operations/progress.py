@@ -48,9 +48,9 @@ logger = logging.getLogger(__name__)
 
 def update_progress_bar(
         go, optext, start, total_files, files_sofar, total_bytes,
-        bytes_sofar):
+        bytes_sofar, stdin_upload=False):
     # type: (blobxfer.models.options.General, str, datetime.datetime, int,
-    #        int, int, int) -> None
+    #        int, int, int, bool) -> None
     """Update the progress bar
     :param blobxfer.models.options.General go: general options
     :param str optext: operation prefix text
@@ -59,6 +59,7 @@ def update_progress_bar(
     :param int files_sofar: files transfered so far
     :param int total_bytes: total number of bytes
     :param int bytes_sofar: bytes transferred so far
+    :param bool stdin_upload: stdin upload
     """
     if (not go.progress_bar or blobxfer.util.is_none_or_empty(go.log_file) or
             start is None):
@@ -80,11 +81,18 @@ def update_progress_bar(
         fprog = 'n/a'
     else:
         fprog = '{}/{}'.format(files_sofar, total_files)
-    sys.stdout.write(
-        ('\r{0} progress: [{1:30s}] {2:.2f}% {3:12.3f} MiB/sec, '
-         '{4} {5}').format(
-             optext, '>' * int(done * 30), done * 100, rate, fprog, rtext)
-    )
+    if stdin_upload:
+        sys.stdout.write(
+            ('\r{0} progress: [{1:30s}]   n/a % {2:12.3f} MiB/sec, '
+             '{3} {4}').format(
+                 optext, '>' * int(total_bytes % 30), rate, fprog, rtext)
+        )
+    else:
+        sys.stdout.write(
+            ('\r{0} progress: [{1:30s}] {2:.2f}% {3:12.3f} MiB/sec, '
+             '{4} {5}').format(
+                 optext, '>' * int(done * 30), done * 100, rate, fprog, rtext)
+        )
     if files_sofar == total_files:
         sys.stdout.write(os.linesep)
     sys.stdout.flush()
