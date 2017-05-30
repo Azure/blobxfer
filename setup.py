@@ -39,10 +39,9 @@ packages = [
 ]
 
 install_requires = [
-    'azure-common==1.1.6',
     'azure-storage==0.34.2',
     'click==6.7',
-    'cryptography>=1.8.2',
+    'cryptography>=1.9',
     'future==0.16.0',
     'python-dateutil==2.6.0',
     'requests==2.14.2',
@@ -61,8 +60,7 @@ setup(
     version=version,
     author='Microsoft Corporation, Azure Batch and HPC Team',
     author_email='',
-    description=(
-        'Azure storage transfer tool and library with AzCopy-like features'),
+    description='Azure storage transfer tool and library',
     long_description=long_description,
     platforms='any',
     url='https://github.com/Azure/blobxfer',

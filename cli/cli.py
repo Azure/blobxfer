@@ -41,7 +41,7 @@ import ruamel.yaml
 import blobxfer.api
 import blobxfer.util
 # local imports
-import settings
+from . import settings
 
 # create logger
 logger = logging.getLogger('blobxfer')
@@ -736,7 +736,7 @@ def config_arguments(f):
 @click.version_option(version=blobxfer.__version__)
 @click.pass_context
 def cli(ctx):
-    """Blobxfer-CLI: Azure Storage transfer tool"""
+    """Blobxfer: Azure Storage transfer tool"""
     pass
 
 
