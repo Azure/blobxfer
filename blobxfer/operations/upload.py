@@ -226,26 +226,26 @@ class Uploader(object):
                 pre_encrypted_content_md5
         if md5 is None:
             md5 = rfile.md5
-        slpath = str(src.absolute_path)
+        key = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
         with self._md5_meta_lock:
-            self._md5_map[slpath] = (src, rfile)
-        self._md5_offload.add_localfile_for_md5_check(slpath, md5, rfile.mode)
+            self._md5_map[key] = (src, rfile)
+        self._md5_offload.add_localfile_for_md5_check(
+            key, None, str(src.absolute_path), md5, rfile.mode, src.view)
 
-    def _post_md5_skip_on_check(self, filename, md5_match):
+    def _post_md5_skip_on_check(self, key, md5_match):
         # type: (Uploader, str, bool) -> None
         """Perform post MD5 skip on check
         :param Uploader self: this
-        :param str filename: local filename
+        :param str key: md5 map key
         :param bool md5_match: if MD5 matches
         """
         with self._md5_meta_lock:
-            src, rfile = self._md5_map.pop(filename)
+            src, rfile = self._md5_map.pop(key)
         uid = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
         if md5_match:
             with self._upload_lock:
                 self._upload_set.remove(uid)
                 self._upload_total -= 1
-                self._upload_bytes_total -= src.size
         else:
             self._add_to_upload_queue(src, rfile, uid)
 
@@ -270,7 +270,7 @@ class Uploader(object):
                     break
             cv.release()
             if result is not None:
-                self._post_md5_skip_on_check(result[0], result[1])
+                self._post_md5_skip_on_check(result[0], result[3])
 
     def _add_to_upload_queue(self, src, rfile, uid):
         # type: (Uploader, blobxfer.models.upload.LocalPath,
@@ -398,7 +398,6 @@ class Uploader(object):
         :param blobxfer.models.upload.Offsets offsets: offsets
         :param bytes data: data to upload
         """
-        print('UL', offsets, ase.path, len(data) if data is not None else None)
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             # append block
             if data is not None:
@@ -875,9 +874,9 @@ class Uploader(object):
                 spath = pathlib.Path(*_rparts[_strip:])
         # create a storage entity for each destination
         for sa, cont, name, dpath in self._get_destination_paths():
-            # apply rename
+            # if not renaming, form name from with spath
             if not self._spec.options.rename:
-                name = str(spath / name)
+                name = str(name / spath)
             if blobxfer.util.is_none_or_empty(name):
                 raise ValueError(
                     ('invalid destination, must specify a container or '

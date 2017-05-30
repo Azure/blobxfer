@@ -221,8 +221,7 @@ def generate_vectored_io_stripe_metadata(local_path, metadata):
                 local_path.view.total_slices,
                 _JSON_KEY_VECTORED_IO_STRIPE_SLICE_ID:
                 local_path.view.slice_num,
-                _JSON_KEY_VECTORED_IO_STRIPE_NEXT:
-                explode_vectored_io_next_entry(local_path.view.next),
+                _JSON_KEY_VECTORED_IO_STRIPE_NEXT: local_path.view.next,
             }
         }
     }

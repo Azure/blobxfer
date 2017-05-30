@@ -93,12 +93,14 @@ class CliContext(object):
         if blobxfer.util.is_not_empty(self.yaml_config):
             self.yaml_config = pathlib.Path(self.yaml_config)
             self._read_yaml_file(self.yaml_config)
-        # merge cli options with config
-        settings.merge_settings(self.config, self.cli_options)
+        else:
+            # merge cli options with config
+            settings.merge_settings(self.config, self.cli_options)
         # set log file if specified
-        blobxfer.util.setup_logger(logger, self.config['options']['log_file'])
+        blobxfer.util.setup_logger(
+            logger, self.config['options'].get('log_file', None))
         # output config
-        if self.config['options']['verbose']:
+        if self.config['options'].get('verbose', False):
             blobxfer.util.set_verbose_logger_handlers()
             logger.debug('config: \n' + json.dumps(self.config, indent=4))
         # free mem
@@ -174,7 +176,7 @@ def _progress_bar_option(f):
         '--progress-bar/--no-progress-bar',
         expose_value=False,
         default=True,
-        help='Display progress bar instead of console logs',
+        help='Display progress bar instead of console logs [True]',
         callback=callback)(f)
 
 
@@ -331,7 +333,7 @@ def _chunk_size_bytes_option(f):
         '--chunk-size-bytes',
         expose_value=False,
         type=int,
-        default=4194304,
+        default=0,
         help='Block or chunk size in bytes; set to 0 for auto-select '
         'on upload [0]',
         callback=callback)(f)
@@ -794,18 +796,53 @@ def upload(ctx, local_resource, storage_account, remote_path):
 @cli.group()
 @pass_cli_context
 def useconfig(ctx):
-    """Use config file for transfer"""
+    """Use yaml configuration file for transfer"""
     pass
+
+
+@useconfig.command('download')
+@config_arguments
+@common_options
+@pass_cli_context
+def useconfig_download(ctx, config):
+    """Download blobs or files from Azure Storage via yaml configuration"""
+    settings.add_cli_options(
+        ctx.cli_options, settings.TransferAction.Download, None, None, None)
+    ctx.initialize()
+    specs = settings.create_download_specifications(ctx.config)
+    for spec in specs:
+        blobxfer.api.Downloader(
+            ctx.general_options, ctx.credentials, spec
+        ).start()
+
+
+@useconfig.command('synccopy')
+@config_arguments
+@common_options
+@pass_cli_context
+def useconfig_synccopy(ctx, config):
+    """Synchronously copy blobs between Azure Storage accounts via yaml
+    configuration"""
+    settings.add_cli_options(
+        ctx.cli_options, settings.TransferAction.Synccopy, None, None, None)
+    ctx.initialize()
+    raise NotImplementedError()
 
 
 @useconfig.command('upload')
 @config_arguments
 @common_options
 @pass_cli_context
-def useconfig_upload(ctx):
-    """Upload files to Azure File Storage"""
+def useconfig_upload(ctx, config):
+    """Upload files to Azure Storage via yaml configuration"""
+    settings.add_cli_options(
+        ctx.cli_options, settings.TransferAction.Upload, None, None, None)
     ctx.initialize()
-    raise NotImplementedError()
+    specs = settings.create_upload_specifications(ctx.config)
+    for spec in specs:
+        blobxfer.api.Uploader(
+            ctx.general_options, ctx.credentials, spec
+        ).start()
 
 
 if __name__ == '__main__':

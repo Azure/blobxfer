@@ -49,7 +49,8 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
-
+# global defines
+_AUTO_SELECT_CHUNKSIZE_BYTES = 16777216
 # named tuples
 Offsets = collections.namedtuple(
     'Offsets', [
@@ -167,10 +168,12 @@ class Specification(object):
         # validate compatible options
         if not self.options.check_file_md5 and self.skip_on.md5_match:
             raise ValueError(
-                'Cannot specify skip on MD5 match without file MD5 enabled')
+                'cannot specify skip on MD5 match without file MD5 enabled')
         if (self.options.restore_file_attributes and
                 not blobxfer.util.on_windows() and os.getuid() != 0):
-            logger.warning('Cannot set file uid/gid without root privileges')
+            logger.warning('cannot set file uid/gid without root privileges')
+        if self.options.chunk_size_bytes < 0:
+            raise ValueError('chunk size cannot be negative')
 
     def add_azure_source_path(self, source):
         # type: (Specification, blobxfer.operations.azure.SourcePath) -> None
@@ -212,9 +215,14 @@ class Descriptor(object):
         self._ase = ase
         # set paths
         self.final_path = lpath
-        self._view = None
+        self.view = None
+        # auto-select chunk size
+        if options.chunk_size_bytes == 0:
+            chunk_size_bytes = _AUTO_SELECT_CHUNKSIZE_BYTES
+        else:
+            chunk_size_bytes = options.chunk_size_bytes
+        self._chunk_size = min((chunk_size_bytes, self._ase.size))
         # calculate the total number of ops required for transfer
-        self._chunk_size = min((options.chunk_size_bytes, self._ase.size))
         self._total_chunks = self._compute_total_chunks(self._chunk_size)
         self._outstanding_ops = self._total_chunks
         # initialize integrity checkers
@@ -296,20 +304,23 @@ class Descriptor(object):
                 blobxfer.util.is_not_empty(self._ase.md5)):
             self.md5 = blobxfer.util.new_md5_hasher()
 
-    def _compute_allocated_size(self, size):
-        # type: (Descriptor, int) -> int
+    @staticmethod
+    def compute_allocated_size(size, is_encrypted):
+        # type: (int, bool) -> int
         """Compute allocated size on disk
-        :param Descriptor self: this
         :param int size: size (content length)
+        :param bool is_ecrypted: if entity is encrypted
         :rtype: int
         :return: required size on disk
         """
         # compute size
         if size > 0:
-            if self._ase.is_encrypted:
+            if is_encrypted:
                 # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
-                allocatesize = (size // self._AES_BLOCKSIZE - 1) * \
-                    self._AES_BLOCKSIZE
+                allocatesize = (
+                    size //
+                    blobxfer.models.download.Descriptor._AES_BLOCKSIZE - 1
+                ) * blobxfer.models.download.Descriptor._AES_BLOCKSIZE
             else:
                 allocatesize = size
             if allocatesize < 0:
@@ -318,6 +329,49 @@ class Descriptor(object):
             allocatesize = 0
         return allocatesize
 
+    @staticmethod
+    def generate_view(ase):
+        # type: (blobxfer.models.azure.StorageEntity) ->
+        #       Tuple[LocalPathView, int]
+        """Generate local path view and total size required
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :rtype: tuple
+        :return: (local path view, allocation size)
+        """
+        slicesize = blobxfer.models.download.Descriptor.compute_allocated_size(
+            ase.size, ase.is_encrypted)
+        if ase.vectored_io is None:
+            view = LocalPathView(
+                fd_start=0,
+                fd_end=slicesize,
+            )
+            total_size = ase.size
+        else:
+            view = LocalPathView(
+                fd_start=ase.vectored_io.offset_start,
+                fd_end=ase.vectored_io.offset_start + slicesize,
+            )
+            total_size = ase.vectored_io.total_size
+        return view, total_size
+
+    @staticmethod
+    def convert_vectored_io_slice_to_final_path_name(local_path, ase):
+        # type: (pathlib.Path,
+        #        blobxfer.models.azure.StorageEntity) -> pathlib.Path
+        """Convert vectored io slice to final path name
+        :param pathlib.Path local_path: local path
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :rtype: pathlib.Path
+        :return: converted final path
+        """
+        name = local_path.name
+        name = blobxfer.models.metadata.\
+            remove_vectored_io_slice_suffix_from_name(
+                name, ase.vectored_io.slice_id)
+        _tmp = list(local_path.parts[:-1])
+        _tmp.append(name)
+        return pathlib.Path(*_tmp)
+
     def _set_final_path_view(self):
         # type: (Descriptor) -> int
         """Set final path view and return required space on disk
@@ -325,26 +379,16 @@ class Descriptor(object):
         :rtype: int
         :return: required size on disk
         """
-        slicesize = self._compute_allocated_size(self._ase.size)
-        if self._ase.vectored_io is None:
-            self._view = LocalPathView(
-                fd_start=0,
-                fd_end=slicesize,
-            )
-            return self._ase.size
-        else:
-            name = self.final_path.name
-            name = blobxfer.models.metadata.\
-                remove_vectored_io_slice_suffix_from_name(
-                    name, self._ase.vectored_io.slice_id)
-            _tmp = list(self.final_path.parts[:-1])
-            _tmp.append(name)
-            self.final_path = pathlib.Path(*_tmp)
-            self._view = LocalPathView(
-                fd_start=self._ase.vectored_io.offset_start,
-                fd_end=self._ase.vectored_io.offset_start + slicesize,
-            )
-            return self._ase.vectored_io.total_size
+        # set final path if vectored io stripe
+        if self._ase.vectored_io is not None:
+            self.final_path = blobxfer.models.download.Descriptor.\
+                convert_vectored_io_slice_to_final_path_name(
+                    self.final_path, self._ase)
+        # generate view
+        view, total_size = blobxfer.models.download.Descriptor.generate_view(
+            self._ase)
+        self.view = view
+        return total_size
 
     def _allocate_disk_space(self):
         # type: (Descriptor) -> None
@@ -431,12 +475,12 @@ class Descriptor(object):
             logger.debug(
                 'integrity checking existing file {} offset {} -> {}'.format(
                     self.final_path,
-                    self._view.fd_start,
-                    self._view.fd_start + _end_offset)
+                    self.view.fd_start,
+                    self.view.fd_start + _end_offset)
             )
             with self._hasher_lock:
                 with self.final_path.open('rb') as filedesc:
-                    filedesc.seek(self._view.fd_start, 0)
+                    filedesc.seek(self.view.fd_start, 0)
                     while _fd_offset < _end_offset:
                         if (_fd_offset + _blocksize) > _end_offset:
                             _blocksize = _end_offset - _fd_offset
@@ -559,7 +603,7 @@ class Descriptor(object):
         self.write_data(offsets, data)
         unchecked = UncheckedChunk(
             data_len=len(data),
-            fd_start=self._view.fd_start + offsets.fd_start,
+            fd_start=self.view.fd_start + offsets.fd_start,
             file_path=self.final_path,
             temp=False,
         )
@@ -666,7 +710,7 @@ class Descriptor(object):
         if len(data) > 0:
             with self.final_path.open('r+b') as fd:
                 # offset some internal view
-                fd.seek(self._view.fd_start + offsets.fd_start, 0)
+                fd.seek(self.view.fd_start + offsets.fd_start, 0)
                 fd.write(data)
 
     def finalize_integrity(self):

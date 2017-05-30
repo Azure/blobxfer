@@ -219,15 +219,22 @@ def merge_settings(config, cli_options):
     # merge general options
     if 'options' not in config:
         config['options'] = {}
-    config['options']['crypto_processes'] = cli_options['crypto_processes']
     config['options']['log_file'] = cli_options['log_file']
-    config['options']['md5_processes'] = cli_options['md5_processes']
     config['options']['progress_bar'] = cli_options['progress_bar']
     config['options']['resume_file'] = cli_options['resume_file']
     config['options']['timeout_sec'] = cli_options['timeout']
-    config['options']['disk_threads'] = cli_options['disk_threads']
-    config['options']['transfer_threads'] = cli_options['transfer_threads']
     config['options']['verbose'] = cli_options['verbose']
+    # merge concurrency options
+    if 'concurrency' not in config['options']:
+        config['options']['concurrency'] = {}
+    config['options']['concurrency']['crypto_processes'] = \
+        cli_options['crypto_processes']
+    config['options']['concurrency']['disk_threads'] = \
+        cli_options['disk_threads']
+    config['options']['concurrency']['md5_processes'] = \
+        cli_options['md5_processes']
+    config['options']['concurrency']['transfer_threads'] = \
+        cli_options['transfer_threads']
 
 
 def create_azure_storage_credentials(config, general_options):
@@ -254,18 +261,19 @@ def create_general_options(config):
     :rtype: blobxfer.models.options.General
     :return: general options object
     """
+    conc = config['options'].get('concurrency', {})
     return blobxfer.models.options.General(
         concurrency=blobxfer.models.options.Concurrency(
-            crypto_processes=config['options']['crypto_processes'],
-            disk_threads=config['options']['disk_threads'],
-            md5_processes=config['options']['md5_processes'],
-            transfer_threads=config['options']['transfer_threads'],
+            crypto_processes=conc.get('crypto_processes', 0),
+            disk_threads=conc.get('disk_threads', 0),
+            md5_processes=conc.get('md5_processes', 0),
+            transfer_threads=conc.get('transfer_threads', 0),
         ),
-        log_file=config['options']['log_file'],
-        progress_bar=config['options']['progress_bar'],
-        resume_file=config['options']['resume_file'],
-        timeout_sec=config['options']['timeout_sec'],
-        verbose=config['options']['verbose'],
+        log_file=config['options'].get('log_file', None),
+        progress_bar=config['options'].get('progress_bar', True),
+        resume_file=config['options'].get('resume_file', None),
+        timeout_sec=config['options'].get('timeout_sec', None),
+        verbose=config['options'].get('verbose', False),
     )
 
 
@@ -279,7 +287,7 @@ def create_download_specifications(config):
     specs = []
     for conf in config['download']:
         # create download options
-        confmode = conf['options']['mode'].lower()
+        confmode = conf['options'].get('mode', 'auto').lower()
         if confmode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
         elif confmode == 'append':
@@ -293,32 +301,33 @@ def create_download_specifications(config):
         else:
             raise ValueError('unknown mode: {}'.format(confmode))
         # load RSA private key PEM file if specified
-        rpk = conf['options']['rsa_private_key']
+        rpk = conf['options'].get('rsa_private_key', None)
         if blobxfer.util.is_not_empty(rpk):
-            rpkp = conf['options']['rsa_private_key_passphrase']
+            rpkp = conf['options'].get('rsa_private_key_passphrase', None)
             rpk = blobxfer.operations.crypto.load_rsa_private_key_file(
                 rpk, rpkp)
         else:
             rpk = None
         # create specification
+        sod = conf['options'].get('skip_on', {})
         ds = blobxfer.models.download.Specification(
             download_options=blobxfer.models.options.Download(
-                check_file_md5=conf['options']['check_file_md5'],
-                chunk_size_bytes=conf['options']['chunk_size_bytes'],
-                delete_extraneous_destination=conf[
-                    'options']['delete_extraneous_destination'],
+                check_file_md5=conf['options'].get('check_file_md5', False),
+                chunk_size_bytes=conf['options'].get('chunk_size_bytes', 0),
+                delete_extraneous_destination=conf['options'].get(
+                    'delete_extraneous_destination', False),
                 mode=mode,
-                overwrite=conf['options']['overwrite'],
-                recursive=conf['options']['recursive'],
-                rename=conf['options']['rename'],
+                overwrite=conf['options'].get('overwrite', True),
+                recursive=conf['options'].get('recursive', True),
+                rename=conf['options'].get('rename', False),
                 restore_file_attributes=conf[
-                    'options']['restore_file_attributes'],
+                    'options'].get('restore_file_attributes', False),
                 rsa_private_key=rpk,
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
-                filesize_match=conf['options']['skip_on']['filesize_match'],
-                lmt_ge=conf['options']['skip_on']['lmt_ge'],
-                md5_match=conf['options']['skip_on']['md5_match'],
+                filesize_match=sod.get('filesize_match', False),
+                lmt_ge=sod.get('lmt_ge', False),
+                md5_match=sod.get('md5_match', False),
             ),
             local_destination_path=blobxfer.models.download.
             LocalDestinationPath(
@@ -333,10 +342,12 @@ def create_download_specifications(config):
             sa = next(iter(src))
             asp = blobxfer.operations.azure.SourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
-            if blobxfer.util.is_not_empty(conf['include']):
-                asp.add_includes(conf['include'])
-            if blobxfer.util.is_not_empty(conf['exclude']):
-                asp.add_excludes(conf['exclude'])
+            incl = conf.get('include', None)
+            if blobxfer.util.is_not_empty(incl):
+                asp.add_includes(incl)
+            excl = conf.get('exclude', None)
+            if blobxfer.util.is_not_empty(excl):
+                asp.add_excludes(excl)
             ds.add_azure_source_path(asp)
         # append spec to list
         specs.append(ds)
@@ -353,7 +364,7 @@ def create_upload_specifications(config):
     specs = []
     for conf in config['upload']:
         # create upload options
-        confmode = conf['options']['mode'].lower()
+        confmode = conf['options'].get('mode', 'auto').lower()
         if confmode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
         elif confmode == 'append':
@@ -367,14 +378,14 @@ def create_upload_specifications(config):
         else:
             raise ValueError('unknown mode: {}'.format(confmode))
         # load RSA public key PEM if specified
-        rpk = conf['options']['rsa_public_key']
+        rpk = conf['options'].get('rsa_public_key', None)
         if blobxfer.util.is_not_empty(rpk):
             rpk = blobxfer.operations.crypto.load_rsa_public_key_file(rpk)
         if rpk is None:
             # load RSA private key PEM file if specified
-            rpk = conf['options']['rsa_private_key']
+            rpk = conf['options'].get('rsa_private_key', None)
             if blobxfer.util.is_not_empty(rpk):
-                rpkp = conf['options']['rsa_private_key_passphrase']
+                rpkp = conf['options'].get('rsa_private_key_passphrase', None)
                 rpk = blobxfer.operations.crypto.load_rsa_private_key_file(
                     rpk, rpkp)
                 rpk = rpk.public_key()
@@ -383,41 +394,44 @@ def create_upload_specifications(config):
         # create local source paths
         lsp = blobxfer.models.upload.LocalSourcePath()
         lsp.add_paths(conf['source'])
-        if blobxfer.util.is_not_empty(conf['include']):
-            lsp.add_includes(conf['include'])
-        if blobxfer.util.is_not_empty(conf['exclude']):
-            lsp.add_excludes(conf['exclude'])
+        incl = conf.get('include', None)
+        if blobxfer.util.is_not_empty(incl):
+            lsp.add_includes(incl)
+        excl = conf.get('exclude', None)
+        if blobxfer.util.is_not_empty(excl):
+            lsp.add_excludes(excl)
         # create specification
+        sfp = conf['options'].get('store_file_properties', {})
+        vio = conf['options'].get('vectored_io', {})
+        sod = conf['options'].get('skip_on', {})
         us = blobxfer.models.upload.Specification(
             upload_options=blobxfer.models.options.Upload(
-                chunk_size_bytes=conf['options']['chunk_size_bytes'],
-                delete_extraneous_destination=conf[
-                    'options']['delete_extraneous_destination'],
+                chunk_size_bytes=conf['options'].get('chunk_size_bytes', 0),
+                delete_extraneous_destination=conf['options'].get(
+                    'delete_extraneous_destination', False),
                 mode=mode,
-                one_shot_bytes=conf['options']['one_shot_bytes'],
-                overwrite=conf['options']['overwrite'],
-                recursive=conf['options']['recursive'],
-                rename=conf['options']['rename'],
+                one_shot_bytes=conf['options'].get('one_shot_bytes', 0),
+                overwrite=conf['options'].get('overwrite', True),
+                recursive=conf['options'].get('recursive', True),
+                rename=conf['options'].get('rename', False),
                 rsa_public_key=rpk,
                 store_file_properties=blobxfer.models.options.FileProperties(
-                    attributes=conf[
-                        'options']['store_file_properties']['attributes'],
-                    md5=conf['options']['store_file_properties']['md5'],
+                    attributes=sfp.get('attributes', False),
+                    md5=sfp.get('md5', False),
                 ),
-                strip_components=conf['options']['strip_components'],
+                strip_components=conf['options'].get('strip_components', 1),
                 vectored_io=blobxfer.models.options.VectoredIo(
-                    stripe_chunk_size_bytes=conf[
-                        'options']['vectored_io']['stripe_chunk_size_bytes'],
+                    stripe_chunk_size_bytes=vio.get(
+                        'stripe_chunk_size_bytes', 1073741824),
                     distribution_mode=blobxfer.
                     models.upload.VectoredIoDistributionMode(
-                        conf['options']['vectored_io'][
-                            'distribution_mode'].lower()),
+                        vio.get('distribution_mode', 'disabled').lower()),
                 ),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
-                filesize_match=conf['options']['skip_on']['filesize_match'],
-                lmt_ge=conf['options']['skip_on']['lmt_ge'],
-                md5_match=conf['options']['skip_on']['md5_match'],
+                filesize_match=sod.get('filesize_match', False),
+                lmt_ge=sod.get('lmt_ge', False),
+                md5_match=sod.get('md5_match', False),
             ),
             local_source_path=lsp,
         )

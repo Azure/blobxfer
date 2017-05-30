@@ -47,7 +47,8 @@ _EMPTY_MAX_PAGE_SIZE_MD5 = 'tc+p1sj+vWGPkawoQ9UKHA=='
 _MAX_PAGE_SIZE_BYTES = 4194304
 
 
-def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
+def compute_md5_for_file_asbase64(
+        filename, pagealign=False, start=None, end=None, blocksize=65536):
     # type: (str, bool, int) -> str
     """Compute MD5 hash for file and encode as Base64
     :param str filename: file to compute MD5 for
@@ -58,7 +59,16 @@ def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
     """
     hasher = blobxfer.util.new_md5_hasher()
     with open(filename, 'rb') as filedesc:
+        if start is not None:
+            filedesc.seek(start)
+            curr = start
+        else:
+            curr = 0
         while True:
+            if end is not None and curr + blocksize > end:
+                blocksize = end - curr
+            if blocksize == 0:
+                break
             buf = filedesc.read(blocksize)
             if not buf:
                 break
@@ -68,6 +78,7 @@ def compute_md5_for_file_asbase64(filename, pagealign=False, blocksize=65536):
                 if aligned != buflen:
                     buf = buf.ljust(aligned, b'\0')
             hasher.update(buf)
+            curr += blocksize
         return blobxfer.util.base64_encode_as_string(hasher.digest())
 
 
@@ -120,33 +131,47 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
         """
         while not self.terminated:
             try:
-                filename, remote_md5, pagealign = self._task_queue.get(
-                    True, 0.25)
+                key, lpath, fpath, remote_md5, pagealign, lpview = \
+                    self._task_queue.get(True, 0.1)
             except queue.Empty:
                 continue
+            if lpview is None:
+                start = None
+                end = None
+                size = None
+            else:
+                start = lpview.fd_start
+                end = lpview.fd_end
+                size = end - start
             md5 = blobxfer.operations.md5.compute_md5_for_file_asbase64(
-                filename, pagealign)
-            logger.debug('MD5: {} <L..R> {} {}'.format(
-                md5, remote_md5, filename))
+                fpath, pagealign, start, end)
+            logger.debug('pre-transfer MD5 check: {} <L..R> {} {}'.format(
+                md5, remote_md5, fpath))
             self._done_cv.acquire()
-            self._done_queue.put((filename, md5 == remote_md5))
+            self._done_queue.put((key, lpath, size, md5 == remote_md5))
             self._done_cv.notify()
             self._done_cv.release()
 
-    def add_localfile_for_md5_check(self, filename, remote_md5, mode):
-        # type: (LocalFileMd5Offload, str, str,
-        #        blobxfer.models.azure.StorageModes) -> None
+    def add_localfile_for_md5_check(
+            self, key, lpath, fpath, remote_md5, mode, lpview):
+        # type: (LocalFileMd5Offload, str, str, str, str,
+        #        blobxfer.models.azure.StorageModes, object) -> None
         """Add a local file to MD5 check queue
         :param LocalFileMd5Offload self: this
-        :param str filename: file to compute MD5 for
+        :param str key: md5 map key
+        :param str lpath: "local" path for descriptor
+        :param str fpath: "final" path for/where file
         :param str remote_md5: remote MD5 to compare against
         :param blobxfer.models.azure.StorageModes mode: mode
+        :param object lpview: local path view
         """
         if blobxfer.util.is_none_or_empty(remote_md5):
             raise ValueError('comparison MD5 is empty for file {}'.format(
-                filename))
+                lpath))
         if mode == blobxfer.models.azure.StorageModes.Page:
             pagealign = True
         else:
             pagealign = False
-        self._task_queue.put((filename, remote_md5, pagealign))
+        self._task_queue.put(
+            (key, lpath, fpath, remote_md5, pagealign, lpview)
+        )

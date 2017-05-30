@@ -89,9 +89,9 @@ class Downloader(object):
         self._disk_set = set()
         self._disk_threads = []
         self._download_start_time = None
-        self._download_total = None
+        self._download_total = 0
         self._download_sofar = 0
-        self._download_bytes_total = None
+        self._download_bytes_total = 0
         self._download_bytes_sofar = 0
         self._download_terminate = False
         self._start_time = None
@@ -224,7 +224,13 @@ class Downloader(object):
         :return: download action
         """
         if not lpath.exists():
-            return DownloadAction.Download
+            if rfile.vectored_io is not None:
+                fpath = blobxfer.models.download.Descriptor.\
+                    convert_vectored_io_slice_to_final_path_name(lpath, rfile)
+                if not fpath.exists():
+                    return DownloadAction.Download
+            else:
+                return DownloadAction.Download
         if not self._spec.options.overwrite:
             logger.info(
                 'not overwriting local file: {} (remote: {})'.format(
@@ -279,28 +285,44 @@ class Downloader(object):
                 pre_encrypted_content_md5
         if md5 is None:
             md5 = rfile.md5
-        slpath = str(lpath)
+        key = blobxfer.operations.download.Downloader.\
+            create_unique_transfer_operation_id(rfile)
         with self._md5_meta_lock:
-            self._md5_map[slpath] = rfile
-        self._md5_offload.add_localfile_for_md5_check(slpath, md5, rfile.mode)
+            self._md5_map[key] = rfile
+        slpath = str(lpath)
+        # temporarily create a download descriptor view for vectored io
+        if rfile.vectored_io is not None:
+            view, _ = blobxfer.models.download.Descriptor.generate_view(rfile)
+            fpath = str(
+                blobxfer.models.download.Descriptor.
+                convert_vectored_io_slice_to_final_path_name(lpath, rfile)
+            )
+        else:
+            fpath = slpath
+        self._md5_offload.add_localfile_for_md5_check(
+            key, slpath, fpath, md5, rfile.mode, view)
 
-    def _post_md5_skip_on_check(self, filename, md5_match):
-        # type: (Downloader, str, bool) -> None
+    def _post_md5_skip_on_check(self, key, filename, size, md5_match):
+        # type: (Downloader, str, str, int, bool) -> None
         """Perform post MD5 skip on check
         :param Downloader self: this
+        :param str key: md5 map key
         :param str filename: local filename
+        :param int size: size of checked data
         :param bool md5_match: if MD5 matches
         """
         with self._md5_meta_lock:
-            rfile = self._md5_map.pop(filename)
+            rfile = self._md5_map.pop(key)
         lpath = pathlib.Path(filename)
         if md5_match:
+            if size is None:
+                size = lpath.stat().st_size
             with self._transfer_lock:
                 self._transfer_set.remove(
                     blobxfer.operations.download.Downloader.
                     create_unique_transfer_operation_id(rfile))
                 self._download_total -= 1
-                self._download_bytes_total -= lpath.stat().st_size
+                self._download_bytes_total -= size
         else:
             self._add_to_download_queue(lpath, rfile)
 
@@ -325,7 +347,8 @@ class Downloader(object):
                     break
             cv.release()
             if result is not None:
-                self._post_md5_skip_on_check(result[0], result[1])
+                self._post_md5_skip_on_check(
+                    result[0], result[1], result[2], result[3])
 
     def _check_for_crypto_done(self):
         # type: (Downloader) -> None
@@ -563,7 +586,7 @@ class Downloader(object):
             # decrypt data
             if self._crypto_offload is not None:
                 self._crypto_offload.add_decrypt_chunk(
-                    str(dd.final_path), dd._view.fd_start, offsets,
+                    str(dd.final_path), dd.view.fd_start, offsets,
                     dd.entity.encryption_metadata.symmetric_key,
                     iv, _hmac_datafile)
                 # data will be integrity checked and written once
@@ -674,16 +697,12 @@ class Downloader(object):
         self._initialize_transfer_threads()
         self._initialize_disk_threads()
         # initialize local counters
-        nfiles = 0
-        total_size = 0
         skipped_files = 0
         skipped_size = 0
         # iterate through source paths to download
         for src in self._spec.sources:
             for rfile in src.files(
                     self._creds, self._spec.options, self._general_options):
-                nfiles += 1
-                total_size += rfile.size
                 # form local path for remote file
                 if (not self._spec.destination.is_dir and
                         self._spec.options.rename):
@@ -702,22 +721,26 @@ class Downloader(object):
                     self._transfer_set.add(
                         blobxfer.operations.download.Downloader.
                         create_unique_transfer_operation_id(rfile))
+                    self._download_total += 1
+                    self._download_bytes_total += rfile.size
                 # either MD5 check or download now
                 if action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)
                 elif action == DownloadAction.Download:
                     self._add_to_download_queue(lpath, rfile)
-        self._download_total = nfiles - skipped_files
-        self._download_bytes_total = total_size - skipped_size
-        download_size_mib = self._download_bytes_total / blobxfer.util.MEGABYTE
         # set remote files processed
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
-        logger.debug(
-            ('{0} remote files processed, waiting for download completion '
-             'of {1:.4f} MiB').format(nfiles, download_size_mib))
-        del nfiles
-        del total_size
+        with self._transfer_lock:
+            self._download_total -= skipped_files
+            self._download_bytes_total -= skipped_size
+            download_size_mib = (
+                self._download_bytes_total / blobxfer.util.MEGABYTE
+            )
+            logger.debug(
+                ('{0} remote files processed, waiting for download '
+                 'completion of approx. {1:.4f} MiB').format(
+                     self._download_total, download_size_mib))
         del skipped_files
         del skipped_size
         # wait for downloads to complete
@@ -747,6 +770,9 @@ class Downloader(object):
         # output throughput
         if self._download_start_time is not None:
             dltime = (end_time - self._download_start_time).total_seconds()
+            download_size_mib = (
+                self._download_bytes_total / blobxfer.util.MEGABYTE
+            )
             dlmibspeed = download_size_mib / dltime
             logger.info(
                 ('elapsed download + verify time and throughput of {0:.4f} '
