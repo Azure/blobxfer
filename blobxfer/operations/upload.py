@@ -380,7 +380,7 @@ class Uploader(object):
             self._transfer_set.remove(
                 blobxfer.operations.upload.Uploader.create_unique_transfer_id(
                     ud.local_path, ase, offsets))
-        ud.complete_offset_upload()
+        ud.complete_offset_upload(offsets.chunk_num)
         # add descriptor back to upload queue only for append blobs
         if ud.entity.mode == blobxfer.models.azure.StorageModes.Append:
             self._upload_queue.put(ud)
@@ -519,6 +519,7 @@ class Uploader(object):
         # add resume bytes to counter
         if resume_bytes is not None:
             with self._transfer_lock:
+                self._upload_bytes_total += ud.entity.size
                 self._upload_bytes_sofar += resume_bytes
                 logger.debug('adding {} sofar {} from {}'.format(
                     resume_bytes, self._upload_bytes_sofar, ud._ase.name))
@@ -1007,9 +1008,9 @@ class Uploader(object):
         self._start_time = blobxfer.util.datetime_now()
         logger.info('blobxfer start time: {0}'.format(self._start_time))
         # initialize resume db if specified
-#         if self._general_options.resume_file is not None:
-#             self._resume = blobxfer.operations.resume.DownloadResumeManager(
-#                 self._general_options.resume_file)
+        if self._general_options.resume_file is not None:
+            self._resume = blobxfer.operations.resume.UploadResumeManager(
+                self._general_options.resume_file)
         # initialize MD5 processes
         if ((self._spec.options.store_file_properties.md5 or
              self._spec.skip_on.md5_match) and

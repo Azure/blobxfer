@@ -42,6 +42,7 @@ except ImportError:  # noqa
     import pathlib
 import threading
 # non-stdlib imports
+import bitstring
 # local imports
 import blobxfer.models
 import blobxfer.models.azure
@@ -57,6 +58,7 @@ _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 104857600
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 _MAX_NUM_CHUNKS = 50000
 _DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
+_MAX_MD5_CACHE_RESUME_ENTRIES = 25
 
 
 # named tuples
@@ -360,6 +362,10 @@ class Descriptor(object):
         self._outstanding_ops = self._total_chunks
         if blobxfer.util.is_not_empty(self._ase.replica_targets):
             self._outstanding_ops *= len(self._ase.replica_targets)
+        if self._resume_mgr:
+            self._completed_chunks = bitstring.BitArray(
+                length=self._total_chunks)
+            self._md5_cache = {}
         # initialize integrity checkers
         self.hmac = None
         self.md5 = None
@@ -416,7 +422,8 @@ class Descriptor(object):
         :rtype: bool
         :return: if resumable
         """
-        return self._resume_mgr is not None and self.hmac is None
+        return (self._resume_mgr is not None and self.hmac is None and
+                not self.remote_is_append_blob)
 
     @property
     def remote_is_file(self):
@@ -492,14 +499,40 @@ class Descriptor(object):
         return (not self.entity.is_encrypted and self.must_compute_md5 and
                 self.remote_is_file)
 
-    def complete_offset_upload(self):
-        # type: (Descriptor) -> None
+    def complete_offset_upload(self, chunk_num):
+        # type: (Descriptor, int) -> None
         """Complete the upload for the offset
         :param Descriptor self: this
+        :param int chunk_num: chunk num completed
         """
         with self._meta_lock:
             self._outstanding_ops -= 1
-        # TODO save resume state
+            # save resume state
+            if self.is_resumable:
+                self._completed_chunks.set(True, chunk_num)
+                completed = self._outstanding_ops == 0
+                if not completed and self.must_compute_md5:
+                    last_consecutive = (
+                        self._completed_chunks.find('0b0')[0] - 1
+                    )
+                    md5digest = self._md5_cache[last_consecutive]
+                else:
+                    md5digest = None
+                    if completed:
+                        last_consecutive = None
+                        self._md5_cache.clear()
+                self._resume_mgr.add_or_update_record(
+                    self.local_path.absolute_path, self._ase, self._chunk_size,
+                    self._total_chunks, self._completed_chunks.int, completed,
+                    md5digest,
+                )
+                # prune md5 cache
+                if len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES:
+                    mkeys = sorted(list(self._md5_cache.keys()))
+                    for key in mkeys:
+                        if key >= last_consecutive:
+                            break
+                        self._md5_cache.pop(key)
 
     def hmac_data(self, data):
         # type: (Descriptor, bytes) -> None
@@ -667,6 +700,92 @@ class Descriptor(object):
                 not self.remote_is_append_blob):
             self.md5 = blobxfer.util.new_md5_hasher()
 
+    def _resume(self):
+        if self._resume_mgr is None or self._offset > 0:
+            return None
+        # check if path exists in resume db
+        rr = self._resume_mgr.get_record(self._ase)
+        if rr is None:
+            logger.debug('no resume record for {}'.format(self._ase.path))
+            return None
+        # ensure lengths are the same
+        if rr.length != self._ase.size:
+            logger.warning('resume length mismatch {} -> {}'.format(
+                rr.length, self._ase.size))
+            return None
+        # set offsets if completed
+        if rr.completed:
+            with self._meta_lock:
+                logger.debug('{} upload already completed'.format(
+                    self._ase.path))
+                self._offset = rr.total_chunks * rr.chunk_size
+                self._chunk_num = rr.total_chunks
+                self._chunk_size = rr.chunk_size
+                self._total_chunks = rr.total_chunks
+                self._completed_chunks.int = rr.completed_chunks
+                self._outstanding_ops = 0
+            return self._ase.size
+        # encrypted files are not resumable due to hmac requirement
+        if self._ase.is_encrypted:
+            logger.debug('cannot resume encrypted entity {}'.format(
+                self._ase.path))
+            return None
+        # check if path exists
+        if not pathlib.Path(rr.local_path).exists():
+            logger.warning('resume from local path {} does not exist'.format(
+                rr.local_path))
+            return None
+        # re-hash from 0 to offset if needed
+        _cc = bitstring.BitArray(length=rr.total_chunks)
+        _cc.int = rr.completed_chunks
+        curr_chunk = _cc.find('0b0')[0]
+        del _cc
+        _fd_offset = 0
+        _end_offset = min((curr_chunk * rr.chunk_size, rr.length))
+        if self.md5 is not None and curr_chunk > 0:
+            _blocksize = blobxfer.util.MEGABYTE << 2
+            logger.debug(
+                'integrity checking existing file {} offset {} -> {}'.format(
+                    self._ase.path,
+                    self.local_path.view.fd_start,
+                    self.local_path.view.fd_start + _end_offset)
+            )
+            with self._hasher_lock:
+                with self.local_path.absolute_path.open('rb') as filedesc:
+                    filedesc.seek(self.local_path.view.fd_start, 0)
+                    while _fd_offset < _end_offset:
+                        if (_fd_offset + _blocksize) > _end_offset:
+                            _blocksize = _end_offset - _fd_offset
+                        _buf = filedesc.read(_blocksize)
+                        self.md5.update(_buf)
+                        _fd_offset += _blocksize
+            del _blocksize
+            # compare hashes
+            hexdigest = self.md5.hexdigest()
+            if rr.md5hexdigest != hexdigest:
+                logger.warning(
+                    'MD5 mismatch resume={} computed={} for {}'.format(
+                         rr.md5hexdigest, hexdigest, self._ase.path))
+                # reset hasher
+                self.md5 = blobxfer.util.new_md5_hasher()
+                return None
+        # set values from resume
+        with self._meta_lock:
+            self._offset = _end_offset
+            self._chunk_num = curr_chunk
+            self._chunk_size = rr.chunk_size
+            self._total_chunks = rr.total_chunks
+            self._completed_chunks = bitstring.BitArray(length=rr.total_chunks)
+            self._completed_chunks.set(True, range(0, curr_chunk + 1))
+            self._outstanding_ops = rr.total_chunks - curr_chunk
+            logger.debug(
+                ('resuming file {} from byte={} chunk={} chunk_size={} '
+                 'total_chunks={} outstanding_ops={}').format(
+                     self._ase.path, self._offset, self._chunk_num,
+                     self._chunk_size, self._total_chunks,
+                     self._outstanding_ops))
+        return _end_offset
+
     def next_offsets(self):
         # type: (Descriptor) -> Offsets
         """Retrieve the next offsets
@@ -674,9 +793,7 @@ class Descriptor(object):
         :rtype: Offsets
         :return: upload offsets
         """
-        # TODO RESUME
-        resume_bytes = None
-#         resume_bytes = self._resume()
+        resume_bytes = self._resume()
         with self._meta_lock:
             if self._chunk_num >= self._total_chunks:
                 return None, resume_bytes
@@ -744,6 +861,8 @@ class Descriptor(object):
         if self.must_compute_md5 and data:
             with self._hasher_lock:
                 self.md5.update(data)
+                if self.is_resumable:
+                    self._md5_cache[self._chunk_num - 1] = self.md5.hexdigest()
         return data, newoffset
 
     def generate_metadata(self):

@@ -44,12 +44,11 @@ import blobxfer.util
 logger = logging.getLogger(__name__)
 
 
-class DownloadResumeManager():
-    """Download Resume Manager"""
+class _BaseResumeManager():
     def __init__(self, resume_file):
-        # type: (DownloadResumeManager, str) -> None
-        """Ctor for DownloadResumeManager
-        :param DownloadResumeManager self: this
+        # type: (_BaseResumeManager, str) -> None
+        """Ctor for _BaseResumeManager
+        :param _BaseResumeManager self: this
         :param pathlib.Path resume_file: resume file
         """
         self._lock = threading.Lock()
@@ -58,18 +57,18 @@ class DownloadResumeManager():
             str(resume_file), protocol=pickle.HIGHEST_PROTOCOL)
 
     def close(self):
-        # type: (DownloadResumeManager) -> None
+        # type: (_BaseResumeManager) -> None
         """Close the internal data store
-        :param DownloadResumeManager self: this
+        :param _BaseResumeManager self: this
         """
         if self._data is not None:
             self._data.close()
             self._data = None
 
     def delete(self):
-        # type: (DownloadResumeManager) -> None
+        # type: (_BaseResumeManager) -> None
         """Delete the resume file db
-        :param DownloadResumeManager self: this
+        :param _BaseResumeManager self: this
         """
         self.close()
         try:
@@ -79,9 +78,9 @@ class DownloadResumeManager():
 
     @contextlib.contextmanager
     def datalock(self, acquire=True):
-        # type: (DownloadResumeManager) -> None
+        # type: (_BaseResumeManager) -> None
         """Delete the resume file db
-        :param DownloadResumeManager self: this
+        :param _BaseResumeManager self: this
         :param bool acquire: acquire lock
         """
         if acquire:
@@ -103,18 +102,18 @@ class DownloadResumeManager():
         return '{}:{}'.format(ase._client.primary_endpoint, ase.path)
 
     def get_record(self, ase, key=None, lock=True):
-        # type: (DownloadResumeManager, str,
-        #        bool) -> blobxfer.models.resume.Download
+        # type: (_BaseResumeManager, str,
+        #        bool) -> object
         """Get a resume record
-        :param DownloadResumeManager self: this
+        :param _BaseResumeManager self: this
         :param blobxfer.models.azure.StorageEntity ase: Storage Entity
         :param str key: record key
         :param bool lock: acquire lock
-        :rtype: blobxfer.models.resume.Download
-        :return: Download record
+        :rtype: blobxfer.models.resume._Base
+        :return: _Base record
         """
         if key is None:
-            key = blobxfer.operations.resume.DownloadResumeManager.\
+            key = blobxfer.operations.resume._BaseResumeManager.\
                 generate_record_key(ase)
         with self.datalock(lock):
             try:
@@ -122,13 +121,24 @@ class DownloadResumeManager():
             except KeyError:
                 return None
 
+
+class DownloadResumeManager(_BaseResumeManager):
+    """Download Resume Manager"""
+    def __init__(self, resume_file):
+        # type: (DownloadResumeManager, str) -> None
+        """Ctor for DownloadResumeManager
+        :param DownloadResumeManager self: this
+        :param pathlib.Path resume_file: resume file
+        """
+        super(DownloadResumeManager, self).__init__(resume_file)
+
     def add_or_update_record(
             self, final_path, ase, chunk_size, next_integrity_chunk,
             completed, md5):
         # type: (DownloadResumeManager, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity, int, int, bool,
         #        str) -> None
-        """Get a resume record
+        """Add or update a resume record
         :param DownloadResumeManager self: this
         :param pathlib.Path final_path: final path
         :param blobxfer.models.azure.StorageEntity ase: Storage Entity
@@ -137,7 +147,7 @@ class DownloadResumeManager():
         :param bool completed: if completed
         :param str md5: md5 hex digest
         """
-        key = blobxfer.operations.resume.DownloadResumeManager.\
+        key = blobxfer.operations.resume._BaseResumeManager.\
             generate_record_key(ase)
         with self.datalock():
             dl = self.get_record(ase, key=key, lock=False)
@@ -160,4 +170,56 @@ class DownloadResumeManager():
                     dl.next_integrity_chunk = next_integrity_chunk
                     dl.md5hexdigest = md5
             self._data[key] = dl
+            self._data.sync()
+
+
+class UploadResumeManager(_BaseResumeManager):
+    """Upload Resume Manager"""
+    def __init__(self, resume_file):
+        # type: (UploadResumeManager, str) -> None
+        """Ctor for UploadResumeManager
+        :param UploadResumeManager self: this
+        :param pathlib.Path resume_file: resume file
+        """
+        super(UploadResumeManager, self).__init__(resume_file)
+
+    def add_or_update_record(
+            self, local_path, ase, chunk_size, total_chunks, completed_chunks,
+            completed, md5):
+        # type: (UploadResumeManager, pathlib.Path,
+        #        blobxfer.models.azure.StorageEntity, int, int, int, bool,
+        #        str) -> None
+        """Add or update a resume record
+        :param UploadResumeManager self: this
+        :param pathlib.Path local_path: local path
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :param int chunk_size: chunk size in bytes
+        :param int total_chunks: total chunks
+        :param int completed_chunks: completed chunks bitarray
+        :param bool completed: if completed
+        :param str md5: md5 hex digest
+        """
+        key = blobxfer.operations.resume._BaseResumeManager.\
+            generate_record_key(ase)
+        with self.datalock():
+            ul = self.get_record(ase, key=key, lock=False)
+            if ul is None:
+                ul = blobxfer.models.resume.Upload(
+                    local_path=str(local_path),
+                    length=ase._size,
+                    chunk_size=chunk_size,
+                    total_chunks=total_chunks,
+                    completed_chunks=completed_chunks,
+                    completed=completed,
+                    md5=md5,
+                )
+            else:
+                if ul.completed or completed_chunks == ul.completed_chunks:
+                    return
+                if completed:
+                    ul.completed = completed
+                else:
+                    ul.completed_chunks = completed_chunks
+                    ul.md5hexdigest = md5
+            self._data[key] = ul
             self._data.sync()

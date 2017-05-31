@@ -40,6 +40,7 @@ packages = [
 
 install_requires = [
     'azure-storage==0.34.2',
+    'bitstring==3.1.5',
     'click==6.7',
     'cryptography>=1.9',
     'future==0.16.0',

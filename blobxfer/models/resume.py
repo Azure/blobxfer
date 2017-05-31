@@ -158,3 +158,142 @@ class Download(object):
                     self.next_integrity_chunk, self.completed,
                     self.md5hexdigest,
                 )
+
+
+class Upload(object):
+    """Upload resume object"""
+    def __init__(
+            self, local_path, length, chunk_size, total_chunks,
+            completed_chunks, completed, md5):
+        # type: (Upload, str, int, int, int, int, bool, str) -> None
+        """Ctor for Upload
+        :param Upload self: this
+        :param str local_path: local path
+        :param int length: total bytes
+        :param int chunk_size: chunk size in bytes
+        :param int total_chunks: total chunks
+        :param int completed_chunks: completed chunks
+        :param bool completed: completed
+        :param str md5: md5 hex digest
+        """
+        self._local_path = local_path
+        self._length = length
+        self._chunk_size = chunk_size
+        self._total_chunks = total_chunks
+        self._completed_chunks = completed_chunks
+        self._completed = completed
+        self._md5hexdigest = md5 if md5 is not None else None
+
+    @property
+    def local_path(self):
+        # type: (Upload) -> str
+        """Local path
+        :param Upload self: this
+        :rtype: str
+        :return: local path
+        """
+        return self._local_path
+
+    @property
+    def length(self):
+        # type: (Upload) -> int
+        """Content length
+        :param Upload self: this
+        :rtype: int
+        :return: number of bytes
+        """
+        return self._length
+
+    @property
+    def chunk_size(self):
+        # type: (Upload) -> int
+        """Chunk size
+        :param Upload self: this
+        :rtype: int
+        :return: chunk size in bytes
+        """
+        return self._chunk_size
+
+    @property
+    def total_chunks(self):
+        # type: (Upload) -> int
+        """Get total number of chunks
+        :param Upload self: this
+        :rtype: int
+        :return: total chunks
+        """
+        return self._total_chunks
+
+    @property
+    def completed_chunks(self):
+        # type: (Upload) -> int
+        """Get Completed chunks
+        :param Upload self: this
+        :rtype: int
+        :return: completed chunks
+        """
+        return self._completed_chunks
+
+    @completed_chunks.setter
+    def completed_chunks(self, value):
+        # type: (Upload, int) -> None
+        """Set Completed chunks
+        :param Upload self: this
+        :param int value: completed chunks
+        """
+        self._completed_chunks = value
+
+    @property
+    def completed(self):
+        # type: (Upload) -> bool
+        """Get Completed
+        :param Upload self: this
+        :rtype: bool
+        :return: if completed
+        """
+        return self._completed
+
+    @completed.setter
+    def completed(self, value):
+        # type: (Upload) -> None
+        """Set Completed
+        :param Upload self: this
+        :param bool value: completion value
+        """
+        self._completed = value
+
+    @property
+    def md5hexdigest(self):
+        # type: (Upload) -> str
+        """Get md5 hex digest
+        :param Upload self: this
+        :rtype: str
+        :return: md5 hex digest
+        """
+        return self._md5hexdigest
+
+    @md5hexdigest.setter
+    def md5hexdigest(self, value):
+        # type: (Upload) -> None
+        """Set md5 hex digest value if value is not None
+        :param Upload self: this
+        :param str value: md5 hex digest
+        """
+        if value is None:
+            return
+        self._md5hexdigest = value
+
+    def __repr__(self):
+        # type: (Upload) -> str
+        """Return representation
+        :param Upload self: this
+        :rtype: str
+        :return: representation string
+        """
+        return ('Upload<local_path={} length={} chunk_size={} '
+                'total_chunks={} completed_chunks={} completed={} '
+                'md5={}>').format(
+                    self.local_path, self.length, self.chunk_size,
+                    self.total_chunks, self.completed_chunks, self.completed,
+                    self.md5hexdigest,
+                )
