@@ -771,12 +771,12 @@ def synccopy(
         ctx, local_resource, storage_account, remote_path,
         sync_copy_dest_storage_account, sync_copy_dest_remote_path):
     """Synchronously copy blobs between Azure Storage accounts"""
+    raise NotImplementedError()
     settings.add_cli_options(
         ctx.cli_options, settings.TransferAction.Synccopy, local_resource,
         storage_account, remote_path, sync_copy_dest_storage_account,
         sync_copy_dest_remote_path)
     ctx.initialize()
-    raise NotImplementedError()
 
 
 @cli.command('upload')
@@ -827,10 +827,10 @@ def useconfig_download(ctx, config):
 def useconfig_synccopy(ctx, config):
     """Synchronously copy blobs between Azure Storage accounts via yaml
     configuration"""
+    raise NotImplementedError()
     settings.add_cli_options(
         ctx.cli_options, settings.TransferAction.Synccopy, None, None, None)
     ctx.initialize()
-    raise NotImplementedError()
 
 
 @useconfig.command('upload')
