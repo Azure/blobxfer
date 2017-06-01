@@ -189,6 +189,7 @@ def test_check_download_conditions(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     rfile = mock.MagicMock()
     rfile.md5 = 'abc'
+    rfile._encryption = None
     result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.CheckMd5
 
@@ -238,6 +239,7 @@ def test_check_download_conditions(tmpdir):
     rfile = azmodels.StorageEntity('cont')
     rfile._size = util.page_align_content_length(ep.stat().st_size)
     rfile._mode = azmodels.StorageModes.Page
+    rfile._encryption = None
     result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.Skip
 
@@ -269,6 +271,7 @@ def test_check_download_conditions(tmpdir):
     rfile = azmodels.StorageEntity('cont')
     rfile._lmt = datetime.datetime.now(dateutil.tz.tzutc()) + \
         datetime.timedelta(days=1)
+    rfile._encryption = None
     result = d._check_download_conditions(ep, rfile)
     assert result == ops.DownloadAction.Download
 

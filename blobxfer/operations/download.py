@@ -45,6 +45,7 @@ import time
 # non-stdlib imports
 # local imports
 import blobxfer.models.crypto
+import blobxfer.models.metadata
 import blobxfer.operations.azure.blob
 import blobxfer.operations.azure.file
 import blobxfer.operations.crypto
@@ -237,8 +238,8 @@ class Downloader(object):
                     lpath, rfile.path))
             return DownloadAction.Skip
         # check skip on options, MD5 match takes priority
-        if (self._spec.skip_on.md5_match and
-                blobxfer.util.is_not_empty(rfile.md5)):
+        md5 = blobxfer.models.metadata.get_md5_from_metadata(rfile)
+        if self._spec.skip_on.md5_match and blobxfer.util.is_not_empty(md5):
             return DownloadAction.CheckMd5
         # if neither of the remaining skip on actions are activated, download
         if (not self._spec.skip_on.filesize_match and
@@ -277,14 +278,7 @@ class Downloader(object):
         :param pathlib.Path lpath: local path
         :param blobxfer.models.azure.StorageEntity rfile: remote file
         """
-        # if encryption metadata is present, check for pre-encryption
-        # md5 in blobxfer extensions
-        md5 = None
-        if rfile.encryption_metadata is not None:
-            md5 = rfile.encryption_metadata.blobxfer_extensions.\
-                pre_encrypted_content_md5
-        if md5 is None:
-            md5 = rfile.md5
+        md5 = blobxfer.models.metadata.get_md5_from_metadata(rfile)
         key = blobxfer.operations.download.Downloader.\
             create_unique_transfer_operation_id(rfile)
         with self._md5_meta_lock:

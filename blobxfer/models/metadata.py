@@ -88,6 +88,24 @@ VectoredNextEntry = collections.namedtuple(
 )
 
 
+def get_md5_from_metadata(ase):
+    # type: (blobxfer.models.azure.StorageEntity) -> str
+    """Get MD5 from properties or metadata
+    :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
+    :rtype: str or None
+    :return: md5
+    """
+    # if encryption metadata is present, check for pre-encryption
+    # md5 in blobxfer extensions
+    md5 = None
+    if ase.is_encrypted:
+        md5 = ase.encryption_metadata.blobxfer_extensions.\
+            pre_encrypted_content_md5
+    if blobxfer.util.is_none_or_empty(md5):
+        md5 = ase.md5
+    return md5
+
+
 def generate_fileattr_metadata(local_path, metadata):
     # type: (blobxfer.models.upload.LocalPath, dict) -> dict
     """Generate file attribute metadata dict
@@ -159,7 +177,7 @@ def restore_fileattr(path, metadata):
 
 
 def create_vectored_io_next_entry(ase):
-    # type: (blobxfer.models.upload.LocalPath) -> str
+    # type: (blobxfer.models.azure.StorageEntity) -> str
     """Create Vectored IO next entry id
     :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
     :rtype: str

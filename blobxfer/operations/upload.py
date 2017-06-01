@@ -46,7 +46,11 @@ import time
 # non-stdlib imports
 # local imports
 import blobxfer.models.crypto
+import blobxfer.models.metadata
 import blobxfer.operations.azure.blob
+import blobxfer.operations.azure.blob.append
+import blobxfer.operations.azure.blob.block
+import blobxfer.operations.azure.blob.page
 import blobxfer.operations.azure.file
 import blobxfer.operations.crypto
 import blobxfer.operations.md5
@@ -86,9 +90,9 @@ class Uploader(object):
         self._upload_set = set()
         self._upload_start_time = None
         self._disk_threads = []
-        self._upload_total = None
+        self._upload_total = 0
         self._upload_sofar = 0
-        self._upload_bytes_total = None
+        self._upload_bytes_total = 0
         self._upload_bytes_sofar = 0
         self._upload_terminate = False
         self._transfer_lock = threading.Lock()
@@ -218,14 +222,7 @@ class Uploader(object):
         :param blobxfer.models.upload.LocalPath src: local path
         :param blobxfer.models.azure.StorageEntity rfile: remote file
         """
-        # if encryption metadata is present, check for pre-encryption
-        # md5 in blobxfer extensions
-        md5 = None
-        if rfile.encryption_metadata is not None:
-            md5 = rfile.encryption_metadata.blobxfer_extensions.\
-                pre_encrypted_content_md5
-        if md5 is None:
-            md5 = rfile.md5
+        md5 = blobxfer.models.metadata.get_md5_from_metadata(rfile)
         key = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
         with self._md5_meta_lock:
             self._md5_map[key] = (src, rfile)
@@ -786,8 +783,8 @@ class Uploader(object):
                     rfile.path, lpath))
             return UploadAction.Skip
         # check skip on options, MD5 match takes priority
-        if (self._spec.skip_on.md5_match and
-                blobxfer.util.is_not_empty(rfile.md5)):
+        md5 = blobxfer.models.metadata.get_md5_from_metadata(rfile)
+        if self._spec.skip_on.md5_match and blobxfer.util.is_not_empty(md5):
             return UploadAction.CheckMd5
         # if neither of the remaining skip on actions are activated, upload
         if (not self._spec.skip_on.filesize_match and
@@ -991,7 +988,17 @@ class Uploader(object):
                             yield action, local_path, ase
                     else:
                         primary_ase = dst[0]
+                        if primary_ase.replica_targets is None:
+                            primary_ase.replica_targets = []
                         primary_ase.replica_targets.extend(dst[1:])
+                        # add replica targets to deletion exclusion set
+                        if self._spec.options.delete_extraneous_destination:
+                            for rt in primary_ase.replica_targets:
+                                self._delete_exclude.add(
+                                    blobxfer.operations.upload.Uploader.
+                                    create_deletion_id(
+                                        rt._client, rt.container, rt.name)
+                                )
                         yield action, local_path, primary_ase
         else:
             for _, ase in dest:
@@ -1019,7 +1026,8 @@ class Uploader(object):
             self._md5_offload.initialize_check_thread(
                 self._check_for_uploads_from_md5)
         # initialize crypto processes
-        if self._general_options.concurrency.crypto_processes > 0:
+        if (self._spec.options.rsa_public_key is not None and
+                self._general_options.concurrency.crypto_processes > 0):
             logger.warning(
                 'crypto offload for upload is not possible due to '
                 'sequential nature of {} and FullBlob encryption mode'.format(
@@ -1033,8 +1041,6 @@ class Uploader(object):
         skipped_files = 0
         skipped_size = 0
         approx_total_bytes = 0
-        self._upload_total = 0
-        self._upload_bytes_total = 0
         if not self._spec.sources.can_rename() and self._spec.options.rename:
             raise RuntimeError(
                 'cannot rename to specified destination with multiple sources')
@@ -1056,6 +1062,8 @@ class Uploader(object):
                     skipped_size += ase.size if ase.size is not None else 0
                     continue
                 approx_total_bytes += lp.size
+                if blobxfer.util.is_not_empty(ase.replica_targets):
+                    approx_total_bytes += lp.size * len(ase.replica_targets)
                 # add to potential upload set
                 uid = blobxfer.operations.upload.Uploader.create_unique_id(
                     lp, ase)

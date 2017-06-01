@@ -361,7 +361,7 @@ class Descriptor(object):
         self._total_chunks = self._compute_total_chunks(self._chunk_size)
         self._outstanding_ops = self._total_chunks
         if blobxfer.util.is_not_empty(self._ase.replica_targets):
-            self._outstanding_ops *= len(self._ase.replica_targets)
+            self._outstanding_ops *= len(self._ase.replica_targets) + 1
         if self._resume_mgr:
             self._completed_chunks = bitstring.BitArray(
                 length=self._total_chunks)
@@ -577,6 +577,9 @@ class Descriptor(object):
         else:
             allocatesize = 0
         self._ase.size = allocatesize
+        if blobxfer.util.is_not_empty(self._ase.replica_targets):
+            for rt in self._ase.replica_targets:
+                rt.size = allocatesize
         logger.debug('remote size for {} is {} bytes'.format(
             self._ase.path, self._ase.size))
 
