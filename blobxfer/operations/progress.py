@@ -39,6 +39,8 @@ import azure.storage
 import cryptography
 import requests
 # local imports
+import blobxfer.models.download
+import blobxfer.models.upload
 import blobxfer.util
 import blobxfer.version
 
@@ -158,7 +160,7 @@ def output_parameters(general_options, spec):
             spec.skip_on.filesize_match,
             spec.skip_on.lmt_ge,
             spec.skip_on.md5_match))
-    log.append('               chunk size: {} bytes'.format(
+    log.append('         chunk size bytes: {}'.format(
         spec.options.chunk_size_bytes))
     log.append('        delete extraneous: {}'.format(
         spec.options.delete_extraneous_destination))

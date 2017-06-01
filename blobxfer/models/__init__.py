@@ -60,17 +60,6 @@ class _BaseSourcePaths(object):
         """
         return self._paths
 
-    def add_include(self, incl):
-        # type: (_BaseSourcePaths, str) -> None
-        """Add an include
-        :param _BaseSourcePaths self: this
-        :param str incl: include filter
-        """
-        if self._include is None:
-            self._include = list(incl)
-        else:
-            self._include.append(incl)
-
     def add_includes(self, includes):
         # type: (_BaseSourcePaths, list) -> None
         """Add a list of includes
@@ -78,22 +67,11 @@ class _BaseSourcePaths(object):
         :param list includes: list of includes
         """
         if not isinstance(includes, list):
-            includes = list(includes)
+            includes = [includes]
         if self._include is None:
             self._include = includes
         else:
             self._include.extend(includes)
-
-    def add_exclude(self, excl):
-        # type: (_BaseSourcePaths, str) -> None
-        """Add an exclude
-        :param _BaseSourcePaths self: this
-        :param str excl: exclude filter
-        """
-        if self._exclude is None:
-            self._exclude = list(excl)
-        else:
-            self._exclude.append(excl)
 
     def add_excludes(self, excludes):
         # type: (_BaseSourcePaths, list) -> None
@@ -102,7 +80,7 @@ class _BaseSourcePaths(object):
         :param list excludes: list of excludes
         """
         if not isinstance(excludes, list):
-            excludes = list(excludes)
+            excludes = [excludes]
         if self._exclude is None:
             self._exclude = excludes
         else:

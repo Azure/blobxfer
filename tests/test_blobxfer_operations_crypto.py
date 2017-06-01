@@ -118,7 +118,7 @@ def test_cryptooffload_decrypt(tmpdir):
             unpad=False,
         )
         a.add_decrypt_chunk(
-            'fp', str(bfile), offsets, symkey, iv, hmacfile)
+            str(bfile), 0, offsets, symkey, iv, hmacfile)
         i = 33
         checked = False
         while i > 0:
@@ -127,7 +127,7 @@ def test_cryptooffload_decrypt(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert result == 'fp'
+            assert result == (str(bfile), offsets)
             checked = True
             break
         assert checked

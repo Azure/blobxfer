@@ -345,7 +345,7 @@ class Descriptor(object):
                 fd_start=0,
                 fd_end=slicesize,
             )
-            total_size = ase.size
+            total_size = slicesize
         else:
             view = LocalPathView(
                 fd_start=ase.vectored_io.offset_start,
@@ -529,7 +529,7 @@ class Descriptor(object):
             pass
         # iterate unchecked chunks and delete
         for key in self._unchecked_chunks:
-            ucc = self._unchecked_chunks[key]
+            ucc = self._unchecked_chunks[key]['ucc']
             if ucc.temp:
                 try:
                     ucc.file_path.unlink()

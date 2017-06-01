@@ -44,7 +44,8 @@ import blobxfer.util
 logger = logging.getLogger(__name__)
 
 
-class _BaseResumeManager():
+class _BaseResumeManager(object):
+    """Base Resume Manager"""
     def __init__(self, resume_file):
         # type: (_BaseResumeManager, str) -> None
         """Ctor for _BaseResumeManager
@@ -99,18 +100,21 @@ class _BaseResumeManager():
         :rtype: str
         :return: record key
         """
-        return '{}:{}'.format(ase._client.primary_endpoint, ase.path)
+        key = '{}:{}'.format(ase._client.primary_endpoint, ase.path)
+        if blobxfer.util.on_python2():
+            return key.encode('utf8')
+        else:
+            return key
 
     def get_record(self, ase, key=None, lock=True):
-        # type: (_BaseResumeManager, str,
-        #        bool) -> object
+        # type: (_BaseResumeManager, str, bool) -> object
         """Get a resume record
         :param _BaseResumeManager self: this
         :param blobxfer.models.azure.StorageEntity ase: Storage Entity
         :param str key: record key
         :param bool lock: acquire lock
-        :rtype: blobxfer.models.resume._Base
-        :return: _Base record
+        :rtype: object
+        :return: resume record object
         """
         if key is None:
             key = blobxfer.operations.resume._BaseResumeManager.\

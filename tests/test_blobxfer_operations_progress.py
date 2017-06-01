@@ -13,12 +13,12 @@ import blobxfer.util as util
 import blobxfer.operations.progress as ops
 
 
-def test_output_download_parameters():
+def test_output_parameters():
     go = mock.MagicMock()
     spec = mock.MagicMock()
     go.log_file = 'abc'
 
-    ops.output_download_parameters(go, spec)
+    ops.output_parameters(go, spec)
 
     assert util.is_not_empty(go.log_file)
 

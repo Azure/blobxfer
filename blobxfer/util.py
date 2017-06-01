@@ -65,7 +65,7 @@ def on_python2():
     return future.utils.PY2
 
 
-def on_windows():
+def on_windows():  # noqa
     # type: (None) -> bool
     """Execution on Windows
     :rtype: bool

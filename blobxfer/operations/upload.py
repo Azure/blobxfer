@@ -446,11 +446,10 @@ class Uploader(object):
         """Worker thread upload
         :param Uploader self: this
         """
+        max_set_len = self._general_options.concurrency.transfer_threads << 2
         while not self.termination_check:
             try:
-                if (len(self._transfer_set) >
-                        self._general_options.concurrency.
-                        transfer_threads * 4):
+                if len(self._transfer_set) > max_set_len:
                     time.sleep(0.2)
                     continue
                 else:

@@ -21,22 +21,38 @@ def test_concurrency_options(patched_cc):
     a = options.Concurrency(
         crypto_processes=-1,
         md5_processes=0,
+        disk_threads=-1,
         transfer_threads=-2,
     )
 
     assert a.crypto_processes == 0
     assert a.md5_processes == 1
+    assert a.disk_threads == 2
+    assert a.transfer_threads == 4
+
+    a = options.Concurrency(
+        crypto_processes=-1,
+        md5_processes=0,
+        disk_threads=1,
+        transfer_threads=-1,
+    )
+
+    assert a.crypto_processes == 0
+    assert a.md5_processes == 1
+    assert a.disk_threads == 1
     assert a.transfer_threads == 4
 
 
 @mock.patch('multiprocessing.cpu_count', return_value=64)
-def test_concurrency_options_max_transfer_threads(patched_cc):
+def test_concurrency_options_max_disk_and_transfer_threads(patched_cc):
     a = options.Concurrency(
         crypto_processes=1,
         md5_processes=1,
+        disk_threads=None,
         transfer_threads=None,
     )
 
+    assert a.disk_threads == 64
     assert a.transfer_threads == 96
 
 
@@ -45,7 +61,8 @@ def test_general_options():
         concurrency=options.Concurrency(
             crypto_processes=1,
             md5_processes=2,
-            transfer_threads=3,
+            disk_threads=3,
+            transfer_threads=4,
         ),
         log_file='abc.log',
         progress_bar=False,
@@ -56,7 +73,8 @@ def test_general_options():
 
     assert a.concurrency.crypto_processes == 1
     assert a.concurrency.md5_processes == 2
-    assert a.concurrency.transfer_threads == 3
+    assert a.concurrency.disk_threads == 3
+    assert a.concurrency.transfer_threads == 4
     assert a.log_file == 'abc.log'
     assert not a.progress_bar
     assert a.resume_file == pathlib.Path('abc')
@@ -67,7 +85,8 @@ def test_general_options():
         concurrency=options.Concurrency(
             crypto_processes=1,
             md5_processes=2,
-            transfer_threads=3,
+            disk_threads=3,
+            transfer_threads=4,
         ),
         progress_bar=False,
         resume_file=None,
@@ -77,7 +96,8 @@ def test_general_options():
 
     assert a.concurrency.crypto_processes == 1
     assert a.concurrency.md5_processes == 2
-    assert a.concurrency.transfer_threads == 3
+    assert a.concurrency.disk_threads == 3
+    assert a.concurrency.transfer_threads == 4
     assert a.log_file is None
     assert not a.progress_bar
     assert a.resume_file is None

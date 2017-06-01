@@ -49,6 +49,6 @@ def test_azurestorageentity():
     assert ase.snapshot is not None
 
     blob.snapshot = None
-    ase.populate_from_file(mock.MagicMock(), blob)
+    ase.populate_from_file(mock.MagicMock(), blob, 'path')
     assert ase.mode == azmodels.StorageModes.File
     assert ase.snapshot is None

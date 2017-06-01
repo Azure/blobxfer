@@ -37,23 +37,34 @@ import azure.storage.retry
 
 class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
     """Exponential Retry with Max Wait (infinite retries)"""
-    def __init__(self, initial_backoff=0.1, max_backoff=2, reset_at_max=True):
-        # type: (ExponentialRetryWithMaxWait, int, int, bool) -> None
+    def __init__(
+            self, initial_backoff=0.1, max_backoff=1, max_retries=None,
+            reset_at_max=True):
+        # type: (ExponentialRetryWithMaxWait, int, int, int, bool) -> None
         """Ctor for ExponentialRetryWithMaxWait
         :param ExponentialRetryWithMaxWait self: this
         :param int initial_backoff: initial backoff
         :param int max_backoff: max backoff
+        :param int max_retries: max retries
         :param bool reset_at_max: reset after reaching max wait
         """
+        if max_backoff <= 0:
+            raise ValueError(
+                'max backoff is non-positive: {}'.format(max_backoff))
+        if max_retries is not None and max_retries < 0:
+            raise ValueError(
+                'max retries is invalid: {}'.format(max_retries))
         if max_backoff < initial_backoff:
             raise ValueError(
                 'max backoff {} less than initial backoff {}'.format(
                     max_backoff, initial_backoff))
+        self._backoff_count = 0
+        self._last_backoff = initial_backoff
         self.initial_backoff = initial_backoff
         self.max_backoff = max_backoff
         self.reset_at_max = reset_at_max
         super(ExponentialRetryWithMaxWait, self).__init__(
-            max_backoff if self.reset_at_max else 2147483647, False)
+            max_retries if max_retries is not None else 2147483647, False)
 
     def retry(self, context):
         # type: (ExponentialRetryWithMaxWait,
@@ -75,11 +86,12 @@ class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
         :rtype: int
         :return: backoff amount
         """
-        if context.count == 1:
-            backoff = self.initial_backoff
+        self._backoff_count += 1
+        if self._backoff_count == 1:
+            self._last_backoff = self.initial_backoff
         else:
-            backoff = self.initial_backoff * (context.count - 1)
-        if backoff > self.max_backoff and self.reset_at_max:
-            backoff = self.initial_backoff
-            context.count = 1
-        return backoff
+            self._last_backoff *= 2
+        if self._last_backoff > self.max_backoff and self.reset_at_max:
+            self._backoff_count = 1
+            self._last_backoff = self.initial_backoff
+        return self._last_backoff

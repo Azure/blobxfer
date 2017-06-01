@@ -17,26 +17,34 @@ def test_exponentialretrywithmaxwait():
         er = retry.ExponentialRetryWithMaxWait(
             initial_backoff=1, max_backoff=0)
 
+    with pytest.raises(ValueError):
+        er = retry.ExponentialRetryWithMaxWait(
+            initial_backoff=1, max_backoff=1, max_retries=-1)
+
+    with pytest.raises(ValueError):
+        er = retry.ExponentialRetryWithMaxWait(
+            initial_backoff=2, max_backoff=1)
+
     er = retry.ExponentialRetryWithMaxWait()
     context = mock.MagicMock()
     context.count = 0
     context.response.status = 500
     bo = er.retry(context)
     assert context.count == 1
-    assert bo == 1
+    assert bo == 0.1
 
     bo = er.retry(context)
     assert context.count == 2
-    assert bo == 2
+    assert bo == 0.2
 
     bo = er.retry(context)
     assert context.count == 3
-    assert bo == 4
+    assert bo == 0.4
 
     bo = er.retry(context)
     assert context.count == 4
-    assert bo == 8
+    assert bo == 0.8
 
     bo = er.retry(context)
-    assert context.count == 1
-    assert bo == 1
+    assert context.count == 5
+    assert bo == 0.1

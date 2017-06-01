@@ -57,6 +57,8 @@ def test_finalize_md5_processes():
 def test_from_add_to_done_non_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
+    fpath = str(file)
+    key = 'key'
 
     remote_md5 = ops.compute_md5_for_file_asbase64(str(file))
 
@@ -67,7 +69,7 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
         assert result is None
 
         a.add_localfile_for_md5_check(
-            str(file), remote_md5, azmodels.StorageModes.Block)
+            key, fpath, fpath, remote_md5, azmodels.StorageModes.Block, None)
         i = 33
         checked = False
         while i > 0:
@@ -76,9 +78,11 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 2
-            assert result[0] == str(file)
-            assert result[1]
+            assert len(result) == 4
+            assert result[0] == key
+            assert result[1] == str(file)
+            assert result[2] is None
+            assert result[3]
             checked = True
             break
         assert checked
@@ -90,6 +94,8 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
 def test_from_add_to_done_pagealigned(tmpdir):
     file = tmpdir.join('a')
     file.write('abc')
+    fpath = str(file)
+    key = 'key'
 
     remote_md5 = ops.compute_md5_for_file_asbase64(str(file), True)
 
@@ -100,7 +106,7 @@ def test_from_add_to_done_pagealigned(tmpdir):
         assert result is None
 
         a.add_localfile_for_md5_check(
-            str(file), remote_md5, azmodels.StorageModes.Page)
+            key, fpath, fpath, remote_md5, azmodels.StorageModes.Page, None)
         i = 33
         checked = False
         while i > 0:
@@ -109,9 +115,11 @@ def test_from_add_to_done_pagealigned(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 2
-            assert result[0] == str(file)
-            assert result[1]
+            assert len(result) == 4
+            assert result[0] == key
+            assert result[1] == str(file)
+            assert result[2] is None
+            assert result[3]
             checked = True
             break
         assert checked

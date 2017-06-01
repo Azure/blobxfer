@@ -7,7 +7,6 @@ try:
 except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
-import pytest
 # module under test
 import blobxfer.models.upload as upload
 
@@ -26,14 +25,10 @@ def test_localsourcepaths_files(tmpdir):
     defpath.join('moo.cow').write('y')
 
     a = upload.LocalSourcePath()
-    a.add_include('*.txt')
+    a.add_includes('*.txt')
     a.add_includes(['moo.cow', '*blah*'])
-    with pytest.raises(ValueError):
-        a.add_includes('abc')
-    a.add_exclude('**/blah.x')
+    a.add_excludes('**/blah.x')
     a.add_excludes(['world.txt'])
-    with pytest.raises(ValueError):
-        a.add_excludes('abc')
     a.add_path(str(tmpdir))
     a_set = set()
     for file in a.files():
@@ -47,9 +42,9 @@ def test_localsourcepaths_files(tmpdir):
 
     b = upload.LocalSourcePath()
     b.add_includes(['moo.cow', '*blah*'])
-    b.add_include('*.txt')
+    b.add_includes('*.txt')
     b.add_excludes(['world.txt'])
-    b.add_exclude('**/blah.x')
+    b.add_excludes('**/blah.x')
     b.add_paths([pathlib.Path(str(tmpdir))])
     for file in a.files():
         sfile = str(file.parent_path / file.relative_path)

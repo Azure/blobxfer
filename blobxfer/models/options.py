@@ -122,24 +122,24 @@ class Concurrency(object):
         if self.crypto_processes is None or self.crypto_processes < 1:
             self.crypto_processes = 0
         if self.md5_processes is None or self.md5_processes < 1:
-            self.md5_processes = multiprocessing.cpu_count() // 2
+            self.md5_processes = multiprocessing.cpu_count() >> 1
         if self.md5_processes < 1:
             self.md5_processes = 1
         auto_disk = False
         if self.disk_threads is None or self.disk_threads < 1:
-            self.disk_threads = multiprocessing.cpu_count() * 4
-            # cap maximum number of disk threads from cpu count to 96
-            if self.disk_threads > 96:
-                self.transfer_threads = 96
+            self.disk_threads = multiprocessing.cpu_count() << 1
+            # cap maximum number of disk threads from cpu count to 64
+            if self.disk_threads > 64:
+                self.disk_threads = 64
             auto_disk = True
         if self.transfer_threads is None or self.transfer_threads < 1:
             if auto_disk:
                 self.transfer_threads = self.disk_threads << 1
             else:
-                self.transfer_threads = multiprocessing.cpu_count() * 2
-            # cap maximum number of threads from cpu count to 64
-            if self.transfer_threads > 64:
-                self.transfer_threads = 64
+                self.transfer_threads = multiprocessing.cpu_count() << 2
+            # cap maximum number of threads from cpu count to 96
+            if self.transfer_threads > 96:
+                self.transfer_threads = 96
 
 
 class General(object):

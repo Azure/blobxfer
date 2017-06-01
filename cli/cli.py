@@ -41,7 +41,11 @@ import ruamel.yaml
 import blobxfer.api
 import blobxfer.util
 # local imports
-from . import settings
+try:
+    from . import settings
+except (SystemError, ImportError):  # noqa
+    # for local testing
+    import settings
 
 # create logger
 logger = logging.getLogger('blobxfer')

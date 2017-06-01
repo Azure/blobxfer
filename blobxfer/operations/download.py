@@ -298,6 +298,7 @@ class Downloader(object):
                 convert_vectored_io_slice_to_final_path_name(lpath, rfile)
             )
         else:
+            view = None
             fpath = slpath
         self._md5_offload.add_localfile_for_md5_check(
             key, slpath, fpath, md5, rfile.mode, view)
@@ -453,11 +454,10 @@ class Downloader(object):
         """Worker thread download
         :param Downloader self: this
         """
+        max_set_len = self._general_options.concurrency.disk_threads << 2
         while not self.termination_check:
             try:
-                if (len(self._disk_set) >
-                        self._general_options.concurrency.
-                        disk_threads * 4):
+                if len(self._disk_set) > max_set_len:
                     time.sleep(0.2)
                     continue
                 else:

@@ -8,9 +8,8 @@ import blobxfer.models.resume as rmodels
 
 
 def test_download():
-    d = rmodels.Download('fp', 'tp', 1, 2, 0, False, '')
+    d = rmodels.Download('fp', 1, 2, 0, False, '')
     assert d.final_path == 'fp'
-    assert d.temp_path == 'tp'
     assert d.length == 1
     assert d.chunk_size == 2
     assert d.next_integrity_chunk == 0

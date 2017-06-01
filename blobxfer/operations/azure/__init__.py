@@ -287,7 +287,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 encryption_metadata_exists(entity.metadata):
             ed = blobxfer.models.crypto.EncryptionMetadata()
             ed.convert_from_json(
-                entity.metadata, file.name, options.rsa_private_key)
+                entity.metadata, entity.name, options.rsa_private_key)
         else:
             ed = None
         ase = blobxfer.models.azure.StorageEntity(container, ed)

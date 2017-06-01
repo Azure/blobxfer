@@ -106,7 +106,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     i = 0
     for file in asp.files(creds, options, mock.MagicMock()):
         i += 1
-        assert file.name == 'name'
+        assert file.name == 'remote/name'
         assert file.encryption_metadata is None
     assert i == 1
 
@@ -119,7 +119,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     i = 0
     for file in asp.files(creds, options, mock.MagicMock()):
         i += 1
-        assert file.name == 'name'
+        assert file.name == 'remote/name'
         assert file.encryption_metadata is not None
     assert i == 1
 
