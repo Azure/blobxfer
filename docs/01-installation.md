@@ -66,7 +66,7 @@ that there was an issue installing this package with other `azure` packages
 that share the same base namespace. You can correct this by issuing:
 ```shell
 # for Python2
-pip install azure-storage
+pip install --upgrade --force-reinstall azure-storage
 # for Python3
-pip3 install azure-storage
+pip3 install --upgrade --force-reinstall azure-storage
 ```

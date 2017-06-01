@@ -14,27 +14,28 @@ your own Python scripts.
 ## Major Features
 * Command-line interface (CLI) providing data movement capability to and
 from Azure Blob and File Storage
+* Standalone library for integration with scripts or other Python packages
 * High-performance design with asynchronous transfers and disk I/O
 * YAML configuration driven execution support
 * Resume support
 * Vectored IO
-  * `stripe` mode allows striping a single file across multiple blobs to
-    break through single blob or fileshare throughput limits including
-    multi-storage account destinations
-  * `replica` mode allows replication of a file across multiple locations
-    including multi-storage account destinations
+  * `stripe` mode allows striping a single file across multiple blobs (even
+    to multiple storage accounts) to break through single blob or fileshare
+    throughput limits
+  * `replica` mode allows replication of a file across multiple destinations
+    including to multiple storage accounts
 * Client-side encryption support
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
-* `stdin` piping support
+* Read/pipe from `stdin` support
 * Append blob support
 * Configurable one-shot block upload support
 * Block (chunk) size selection support
-* Rsync-like `--delete-after` support
+* Rsync-like delete support
 * Support for reading from blob snapshots
 * Automatic block blob size adjustment for uploading
-* Automatic uploading of VHD and VHDX files as page blobs
-* Wildcard filtering with include and exclude support
+* Automatic uploading of VHD/VHDX files as page blobs
+* Include and exclude filtering support
 * No clobber support in either direction
 * File logging support
 

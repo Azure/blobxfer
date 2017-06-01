@@ -49,21 +49,16 @@ class TransferAction(enum.Enum):
     Synccopy = 3,
 
 
-def add_cli_options(
-        cli_options, action, local_resource=None, storage_account=None,
-        remote_path=None, sync_copy_dest_storage_account=None,
-        sync_copy_dest_remote_path=None):
-    # type: (dict, str, str, str, str, str, str) -> None
+def add_cli_options(cli_options, action):
+    # type: (dict, str) -> None
     """Adds CLI options to the configuration object
     :param dict cli_options: CLI options dict
     :param TransferAction action: action
-    :param str local_resource: local resource
-    :param str storage_account: storage account
-    :param str remote_path: remote path
-    :param str sync_copy_dest_storage_account: synccopy dest sa
-    :param str sync_copy_dest_remote_path: synccopy dest rp
     """
     cli_options['_action'] = action.name.lower()
+    local_resource = cli_options['local_resource']
+    storage_account = cli_options['storage_account']
+    remote_path = cli_options['remote_path']
     if blobxfer.util.is_not_empty(storage_account):
         # add credentials
         try:
@@ -149,6 +144,10 @@ def add_cli_options(
                 },
             }
         elif action == TransferAction.Synccopy:
+            sync_copy_dest_storage_account = \
+                cli_options['sync_copy_dest_storage_account']
+            sync_copy_dest_remote_path = \
+                cli_options['sync_copy_dest_remote_path']
             if blobxfer.util.is_none_or_empty(sync_copy_dest_storage_account):
                 raise RuntimeError(
                     'must specify a destination storage account')

@@ -57,7 +57,6 @@ class CliContext(object):
     """CliContext class: holds context for CLI commands"""
     def __init__(self):
         """Ctor for CliContext"""
-        self.yaml_config = None
         self.config = {}
         self.cli_options = {}
         self.credentials = None
@@ -85,8 +84,8 @@ class CliContext(object):
                     f, Loader=ruamel.yaml.RoundTripLoader)
             else:
                 self.config = blobxfer.util.merge_dict(
-                    self.config, ruamel.yaml.load(
-                        f, Loader=ruamel.yaml.RoundTripLoader))
+                    ruamel.yaml.load(f, Loader=ruamel.yaml.RoundTripLoader),
+                    self.config)
 
     def _init_config(self):
         # type: (CliContext) -> None
@@ -94,9 +93,9 @@ class CliContext(object):
         :param CliContext self: this
         """
         # load yaml config file into memory
-        if blobxfer.util.is_not_empty(self.yaml_config):
-            self.yaml_config = pathlib.Path(self.yaml_config)
-            self._read_yaml_file(self.yaml_config)
+        if blobxfer.util.is_not_empty(self.cli_options['yaml_config']):
+            yaml_config = pathlib.Path(self.cli_options['yaml_config'])
+            self._read_yaml_file(yaml_config)
         else:
             # merge cli options with config
             settings.merge_settings(self.config, self.cli_options)
@@ -108,12 +107,24 @@ class CliContext(object):
             blobxfer.util.set_verbose_logger_handlers()
             logger.debug('config: \n' + json.dumps(self.config, indent=4))
         # free mem
-        del self.yaml_config
         del self.cli_options
 
 
 # create a pass decorator for shared context between commands
 pass_cli_context = click.make_pass_decorator(CliContext, ensure=True)
+
+
+def _config_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['yaml_config'] = value
+        return value
+    return click.option(
+        '--config',
+        expose_value=False,
+        help='YAML configuration file',
+        envvar='BLOBXFER_CONFIG_FILE',
+        callback=callback)(f)
 
 
 def _crypto_processes_option(f):
@@ -237,6 +248,43 @@ def _verbose_option(f):
         callback=callback)(f)
 
 
+def _local_resource_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['local_resource'] = value
+        return value
+    return click.option(
+        '--local-resource',
+        expose_value=False,
+        help='Local resource',
+        callback=callback)(f)
+
+
+def _storage_account_name_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['storage_account'] = value
+        return value
+    return click.option(
+        '--storage-account',
+        expose_value=False,
+        help='Storage account name',
+        envvar='BLOBXFER_STORAGE_ACCOUNT_NAME',
+        callback=callback)(f)
+
+
+def _remote_path_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['remote_path'] = value
+        return value
+    return click.option(
+        '--remote-path',
+        expose_value=False,
+        help='Remote path on Azure Storage',
+        callback=callback)(f)
+
+
 def common_options(f):
     f = _verbose_option(f)
     f = _transfer_threads_option(f)
@@ -247,71 +295,14 @@ def common_options(f):
     f = _log_file_option(f)
     f = _disk_threads_option(f)
     f = _crypto_processes_option(f)
+    f = _config_option(f)
     return f
 
 
-def _local_resource_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.local_resource = value
-        return value
-    return click.argument(
-        'local-resource',
-        callback=callback)(f)
-
-
-def _storage_account_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['storage_account'] = value
-        return value
-    return click.argument(
-        'storage-account',
-        callback=callback)(f)
-
-
-def _remote_path_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['remote_path'] = value
-        return value
-    return click.argument(
-        'remote-path',
-        callback=callback)(f)
-
-
-def upload_download_arguments(f):
-    f = _remote_path_argument(f)
-    f = _storage_account_argument(f)
-    f = _local_resource_argument(f)
-    return f
-
-
-def _sync_copy_dest_storage_account_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['sync_copy_dest_storage_account'] = value
-        return value
-    return click.argument(
-        'sync-copy-dest-storage-account',
-        callback=callback)(f)
-
-
-def _sync_copy_dest_remote_path_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['sync_copy_dest_remote_path'] = value
-        return value
-    return click.argument(
-        'sync-copy-dest-remote-path',
-        callback=callback)(f)
-
-
-def sync_copy_arguments(f):
-    f = _sync_copy_dest_remote_path_argument(f)
-    f = _sync_copy_dest_storage_account_argument(f)
-    f = _remote_path_argument(f)
-    f = _storage_account_argument(f)
+def upload_download_options(f):
+    f = _remote_path_option(f)
+    f = _storage_account_name_option(f)
+    f = _local_resource_option(f)
     return f
 
 
@@ -321,10 +312,10 @@ def _access_key_option(f):
         clictx.cli_options['access_key'] = value
         return value
     return click.option(
-        '--access-key',
+        '--storage-account-key',
         expose_value=False,
         help='Storage account access key',
-        envvar='BLOBXFER_ACCESS_KEY',
+        envvar='BLOBXFER_STORAGE_ACCOUNT_KEY',
         callback=callback)(f)
 
 
@@ -516,7 +507,7 @@ def _rsa_private_key_option(f):
         '--rsa-private-key',
         expose_value=False,
         default=None,
-        help='RSA private key',
+        help='RSA private key PEM file',
         envvar='BLOBXFER_RSA_PRIVATE_KEY',
         callback=callback)(f)
 
@@ -544,7 +535,7 @@ def _rsa_public_key_option(f):
         '--rsa-public-key',
         expose_value=False,
         default=None,
-        help='RSA public key',
+        help='RSA public key PEM file',
         envvar='BLOBXFER_RSA_PUBLIC_KEY',
         callback=callback)(f)
 
@@ -635,10 +626,35 @@ def _sync_copy_dest_access_key_option(f):
         clictx.cli_options['sync_copy_dest_access_key'] = value
         return value
     return click.option(
-        '--sync-copy-dest-access-key',
+        '--sync-copy-dest-storage-account-key',
         expose_value=False,
         help='Storage account access key for synccopy destination',
-        envvar='BLOBXFER_SYNC_COPY_DEST_ACCESS_KEY',
+        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_KEY',
+        callback=callback)(f)
+
+
+def _sync_copy_dest_storage_account_name_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sync_copy_dest_storage_account'] = value
+        return value
+    return click.option(
+        '--sync-copy-dest-storage-account',
+        expose_value=False,
+        help='Storage account name for synccopy destination',
+        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_NAME',
+        callback=callback)(f)
+
+
+def _sync_copy_dest_remote_path_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sync_copy_dest_remote_path'] = value
+        return value
+    return click.option(
+        '--sync-copy-dest-remote-path',
+        expose_value=False,
+        help='Remote path on Azure Storage for synccopy destination',
         callback=callback)(f)
 
 
@@ -651,7 +667,7 @@ def _sync_copy_dest_sas_option(f):
         '--sync-copy-dest-sas',
         expose_value=False,
         help='Shared access signature for synccopy destination',
-        envvar='BLOBXFER_SYNC_COPY_SAS',
+        envvar='BLOBXFER_SYNC_COPY_DEST_SAS',
         callback=callback)(f)
 
 
@@ -705,12 +721,16 @@ def download_options(f):
 
 
 def sync_copy_options(f):
+    f = _sync_copy_dest_storage_account_name_option(f)
     f = _sync_copy_dest_sas_option(f)
+    f = _sync_copy_dest_remote_path_option(f)
     f = _sync_copy_dest_access_key_option(f)
+    f = _storage_account_name_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)
     f = _sas_option(f)
+    f = _remote_path_option(f)
     f = _overwrite_option(f)
     f = _mode_option(f)
     f = _include_option(f)
@@ -718,21 +738,6 @@ def sync_copy_options(f):
     f = _endpoint_option(f)
     f = _chunk_size_bytes_option(f)
     f = _access_key_option(f)
-    return f
-
-
-def _config_argument(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.yaml_config = value
-        return value
-    return click.argument(
-        'config',
-        callback=callback)(f)
-
-
-def config_arguments(f):
-    f = _config_argument(f)
     return f
 
 
@@ -745,15 +750,13 @@ def cli(ctx):
 
 
 @cli.command('download')
-@upload_download_arguments
+@upload_download_options
 @download_options
 @common_options
 @pass_cli_context
-def download(ctx, local_resource, storage_account, remote_path):
+def download(ctx):
     """Download blobs or files from Azure Storage"""
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Download, local_resource,
-        storage_account, remote_path)
+    settings.add_cli_options(ctx.cli_options, settings.TransferAction.Download)
     ctx.initialize()
     specs = settings.create_download_specifications(ctx.config)
     for spec in specs:
@@ -763,84 +766,24 @@ def download(ctx, local_resource, storage_account, remote_path):
 
 
 @cli.command('synccopy')
-@sync_copy_arguments
 @sync_copy_options
 @common_options
 @pass_cli_context
-def synccopy(
-        ctx, local_resource, storage_account, remote_path,
-        sync_copy_dest_storage_account, sync_copy_dest_remote_path):
+def synccopy(ctx):
     """Synchronously copy blobs between Azure Storage accounts"""
     raise NotImplementedError()
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Synccopy, local_resource,
-        storage_account, remote_path, sync_copy_dest_storage_account,
-        sync_copy_dest_remote_path)
+    settings.add_cli_options(ctx.cli_options, settings.TransferAction.Synccopy)
     ctx.initialize()
 
 
 @cli.command('upload')
-@upload_download_arguments
+@upload_download_options
 @upload_options
 @common_options
 @pass_cli_context
-def upload(ctx, local_resource, storage_account, remote_path):
+def upload(ctx):
     """Upload files to Azure Storage"""
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Upload, local_resource,
-        storage_account, remote_path)
-    ctx.initialize()
-    specs = settings.create_upload_specifications(ctx.config)
-    for spec in specs:
-        blobxfer.api.Uploader(
-            ctx.general_options, ctx.credentials, spec
-        ).start()
-
-
-@cli.group()
-@pass_cli_context
-def useconfig(ctx):
-    """Use yaml configuration file for transfer"""
-    pass
-
-
-@useconfig.command('download')
-@config_arguments
-@common_options
-@pass_cli_context
-def useconfig_download(ctx, config):
-    """Download blobs or files from Azure Storage via yaml configuration"""
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Download, None, None, None)
-    ctx.initialize()
-    specs = settings.create_download_specifications(ctx.config)
-    for spec in specs:
-        blobxfer.api.Downloader(
-            ctx.general_options, ctx.credentials, spec
-        ).start()
-
-
-@useconfig.command('synccopy')
-@config_arguments
-@common_options
-@pass_cli_context
-def useconfig_synccopy(ctx, config):
-    """Synchronously copy blobs between Azure Storage accounts via yaml
-    configuration"""
-    raise NotImplementedError()
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Synccopy, None, None, None)
-    ctx.initialize()
-
-
-@useconfig.command('upload')
-@config_arguments
-@common_options
-@pass_cli_context
-def useconfig_upload(ctx, config):
-    """Upload files to Azure Storage via yaml configuration"""
-    settings.add_cli_options(
-        ctx.cli_options, settings.TransferAction.Upload, None, None, None)
+    settings.add_cli_options(ctx.cli_options, settings.TransferAction.Upload)
     ctx.initialize()
     specs = settings.create_upload_specifications(ctx.config)
     for spec in specs:
