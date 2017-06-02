@@ -18,24 +18,24 @@ from Azure Blob and File Storage
 * High-performance design with asynchronous transfers and disk I/O
 * YAML configuration driven execution support
 * Resume support
-* Vectored IO
+* Vectored IO support
   * `stripe` mode allows striping a single file across multiple blobs (even
     to multiple storage accounts) to break through single blob or fileshare
     throughput limits
   * `replica` mode allows replication of a file across multiple destinations
     including to multiple storage accounts
 * Client-side encryption support
+* Support all blob types for both upload and download
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
-* Read/pipe from `stdin` support
-* Append blob support
-* Configurable one-shot block upload support
-* Block (chunk) size selection support
-* Rsync-like delete support
+* Support for reading/pipe from `stdin`
 * Support for reading from blob snapshots
+* Configurable one-shot block upload support
+* Configurable chunk size for both upload and download
 * Automatic block blob size adjustment for uploading
 * Automatic uploading of VHD/VHDX files as page blobs
 * Include and exclude filtering support
+* Rsync-like delete support
 * No clobber support in either direction
 * File logging support
 

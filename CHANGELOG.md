@@ -2,12 +2,16 @@
 
 ## [Unreleased]
 
-## [1.0.0a2] - 2017-06-XX
+## [1.0.0a2] - 2017-06-02
 ### Changed
 - From scratch rewrite providing a consistent CLI experience and a vast
 array of new and advanced features. Please see the
 [1.0.0 Milestone](https://github.com/Azure/blobxfer/milestone/1) for a
 catalog of changes.
+- **Breaking Changes:** there have been a significant number of breaking
+changes with the rewrite from the command-line invocation of `blobxfer`
+itself to the options and environment variable names. Please review the
+usage documentation carefully when upgrading from 0.12.1.
 - All dependencies updated to latest
 
 ### Removed

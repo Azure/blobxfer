@@ -2,13 +2,20 @@
 `blobxfer` operates using a command followed by options. Each
 command will be detailed along with all options available.
 
-## Commands
+### Quick Navigation
+1. [Commands](#commands)
+2. [Options](#options)
+3. [Example Invocations](#examples)
+4. [General Notes](#general-notes)
+
+## <a name="commands"></a>Commands
 ### `download`
 Downloads a remote Azure path, which may contain many resources, to the
 local machine. This command requires at the minimum, the following options:
 * `--storage-account-name`
 * `--remote-path`
 * `--local-resource`
+
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
 
@@ -23,15 +30,27 @@ the following options:
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
 
+If piping from `stdin`, `--local-resource` should be set to `-` as per
+convention.
+
 ### `synccopy`
 TODO: not yet implemented.
 
-## Options
+## <a name="options"></a>Options
 ### General
 * `--config` specifies the YAML configuration file to use. This can be
 optionally provided through an environment variable `BLOBXFER_CONFIG_FILE`.
+* `--chunk-size-bytes` is the chunk size in bytes. For downloads, this
+is the maximum length of data to transfer per request. For uploads, this
+corresponds to one of block size for append and block blobs, page size for
+page blobs, or file chunk for files. Only block blobs can have a block size
+of up to 100MiB, all others have a maximum of 4MiB.
+* `--file-attributes` or `--no-file-attributes` controls if POSIX file
+attributes (mode and ownership) should be stored or restored. Note that to
+restore uid/gid, `blobxfer` must be run as root or under sudo.
 * `--file-md5` or `--no-file-md5` controls if the file MD5 should be computed.
-* `--local-resource` is the local resource path.
+* `--local-resource` is the local resource path. Set to `-` if piping from
+`stdin`.
 * `--log-file` specifies the log file to write to.
 * `--mode` is the operating mode. The default is `auto` but may be set to
 `append`, `block`, `file`, or `page`. If specified with the `upload`
@@ -117,8 +136,11 @@ regarding Vectored IO operations in `blobxfer`.
 * `--distribution-mode` is the Vectored IO distribution mode
   * `disabled` which is default (no Vectored IO)
   * `replica` which will replicate source files to target destinations on
-    upload
-  * `stripe`which will stripe source files to target destinations on upload
+    upload. Note that replicating across multiple destinations will require
+    a YAML configuration file.
+  * `stripe` which will stripe source files to target destinations on upload.
+    Note that striping across multiple destinations will require a YAML
+    configuration file.
 * `--stripe-chunk-size-bytes` is the stripe chunk width for stripe-based
 Vectored IO operations
 
@@ -135,15 +157,73 @@ destination or source path, respectively.
 * `--strip-components N` will strip the leading `N` components from the
 file path. The default is `1`.
 
-## Examples
+## <a name="examples"></a>Example Invocations
 ### `download` Examples
-TODO.
-blobxfer download
+#### Download an Entire Encrypted Blob Container to Current Working Directory
+```shell
+blobxfer download --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource . --rsa-public-key ~/mypubkey.pem
+```
+
+#### Download an Entire File Share to Designated Path and Skip On Filesize Matches
+```shell
+blobxfer download --mode file --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path myfileshare --local-resource /my/path --skip-on-filesize-match
+```
+
+#### Download only Page Blobs in Blob Container Virtual Directory Non-recursively and Cleanup Local Path to Match Remote Path
+```shell
+blobxfer download --mode page --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-resource /my/pageblobs --no-recursive --delete
+```
+
+#### Resume Incomplete Downloads Matching an Include Pattern and Log to File and Restore POSIX File Attributes
+```shell
+blobxfer download --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-resource . --include '*.bin' --resume-file myresumefile.db --log-file blobxfer.log --file-attributes
+```
+
+#### Download a Blob Snapshot
+```shell
+blobxfer download --storage-account-name mystorageaccount --sas "mysastoken" --remote-path "mycontainer/file.bin?snapshot=2017-04-20T02:12:49.0311708Z" --local-resource .
+```
+
+#### Download using a YAML Configuration File
+```shell
+blobxfer download --config myconfig.yaml
+```
 
 ### `upload` Examples
-TODO.
+#### Upload Current Working Directory as Encrypted Block Blobs Non-recursively
+```shell
+blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource . --rsa-private-key ~/myprivatekey.pem --no-recursive
+```
 
-## General Notes
+#### Upload Specific Path Recursively to a File Share, Store File MD5 and POSIX File Attributes to a File Share and Exclude Some Files
+```shell
+blobxfer upload --mode file --storage-account-name mystorageaccount --sas "mysastoken" --remote-path myfileshare --local-resource . --file-md5 --file-attributes --exclude '*.bak'
+```
+
+#### Upload Single File with Resume and Striped Vectored IO into 512MiB Chunks
+```shell
+blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource /some/huge/file --resume-file hugefileresume.db --distribution-mode stripe --stripe-chunk-size-bytes 536870912
+```
+
+#### Upload Specific Path but Skip On Any MD5 Matches, Store File MD5 and Cleanup Remote Path to Match Local Path
+```shell
+blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource /my/path --file-md5 --skip-on-md5-match --delete
+```
+
+#### Upload From Piped `stdin`
+```shell
+curl -fSsL https://some.uri | blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource -
+```
+
+#### Upload using a YAML Configuration File
+```shell
+blobxfer upload --config myconfig.yaml
+```
+
+### `synccopy` Examples
+TODO: not implemented yet.
+
+## <a name="general-notes"></a>General Notes
 * `blobxfer` does not take any leases on blobs or containers. It is up to the
 user to ensure that blobs are not modified while download/uploads are being
 performed.

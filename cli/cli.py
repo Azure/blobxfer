@@ -256,7 +256,7 @@ def _local_resource_option(f):
     return click.option(
         '--local-resource',
         expose_value=False,
-        help='Local resource',
+        help='Local resource; use - for stdin',
         callback=callback)(f)
 
 
@@ -266,7 +266,7 @@ def _storage_account_name_option(f):
         clictx.cli_options['storage_account'] = value
         return value
     return click.option(
-        '--storage-account',
+        '--storage-account-name',
         expose_value=False,
         help='Storage account name',
         envvar='BLOBXFER_STORAGE_ACCOUNT_NAME',
@@ -602,7 +602,7 @@ def _strip_components_option(f):
         expose_value=False,
         type=int,
         default=1,
-        help='Strip leading file path components [1]',
+        help='Strip leading file path components on upload [1]',
         callback=callback)(f)
 
 
@@ -639,7 +639,7 @@ def _sync_copy_dest_storage_account_name_option(f):
         clictx.cli_options['sync_copy_dest_storage_account'] = value
         return value
     return click.option(
-        '--sync-copy-dest-storage-account',
+        '--sync-copy-dest-storage-account-name',
         expose_value=False,
         help='Storage account name for synccopy destination',
         envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_NAME',

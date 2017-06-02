@@ -56,9 +56,24 @@ def add_cli_options(cli_options, action):
     :param TransferAction action: action
     """
     cli_options['_action'] = action.name.lower()
-    local_resource = cli_options['local_resource']
-    storage_account = cli_options['storage_account']
-    remote_path = cli_options['remote_path']
+    try:
+        local_resource = cli_options['local_resource']
+        if blobxfer.util.is_none_or_empty(local_resource):
+            raise KeyError()
+    except KeyError:
+        raise ValueError('--local-resource must be specified')
+    try:
+        storage_account = cli_options['storage_account']
+        if blobxfer.util.is_none_or_empty(storage_account):
+            raise KeyError()
+    except KeyError:
+        raise ValueError('--storage-account-name must be specified')
+    try:
+        remote_path = cli_options['remote_path']
+        if blobxfer.util.is_none_or_empty(remote_path):
+            raise KeyError()
+    except KeyError:
+        raise ValueError('--remote-path must be specified')
     if blobxfer.util.is_not_empty(storage_account):
         # add credentials
         try:
@@ -144,13 +159,23 @@ def add_cli_options(cli_options, action):
                 },
             }
         elif action == TransferAction.Synccopy:
-            sync_copy_dest_storage_account = \
-                cli_options['sync_copy_dest_storage_account']
-            sync_copy_dest_remote_path = \
-                cli_options['sync_copy_dest_remote_path']
-            if blobxfer.util.is_none_or_empty(sync_copy_dest_storage_account):
-                raise RuntimeError(
-                    'must specify a destination storage account')
+            try:
+                sync_copy_dest_storage_account = \
+                    cli_options['sync_copy_dest_storage_account']
+                if blobxfer.util.is_none_or_empty(
+                        sync_copy_dest_storage_account):
+                    raise KeyError()
+            except KeyError:
+                raise ValueError(
+                    '--sync-copy-dest-storage-account-name must be specified')
+            try:
+                sync_copy_dest_remote_path = \
+                    cli_options['sync_copy_dest_remote_path']
+                if blobxfer.util.is_none_or_empty(sync_copy_dest_remote_path):
+                    raise KeyError()
+            except KeyError:
+                raise ValueError(
+                    '--sync-copy-dest-remote-path must be specified')
             arg = {
                 'source': sa_rp,
                 'destination': [
