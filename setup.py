@@ -10,7 +10,6 @@ import sys
 if sys.argv[-1] == 'publish':
     os.system('rm -rf blobxfer.egg-info/ build dist __pycache__/')
     os.system('python setup.py sdist bdist_wheel')
-    os.unlink('README.rst')
     sys.exit()
 elif sys.argv[-1] == 'upload':
     os.system('twine upload dist/*')
@@ -43,18 +42,14 @@ install_requires = [
     'bitstring==3.1.5',
     'click==6.7',
     'cryptography>=1.9',
+    'enum34==1.1.6;python_version<"3.4"',
     'future==0.16.0',
+    'pathlib2==2.2.1;python_version<"3.5"',
     'python-dateutil==2.6.0',
     'requests==2.14.2',
     'ruamel.yaml==0.14.12',
+    'scandir==1.5;python_version<"3.5"',
 ]
-
-if sys.version_info < (3, 4):
-    install_requires.append('enum34==1.1.6')
-
-if sys.version_info < (3, 5):
-    install_requires.append('pathlib2==2.2.1')
-    install_requires.append('scandir==1.5')
 
 setup(
     name='blobxfer',
