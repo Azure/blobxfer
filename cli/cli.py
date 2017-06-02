@@ -62,13 +62,15 @@ class CliContext(object):
         self.credentials = None
         self.general_options = None
 
-    def initialize(self):
-        # type: (CliContext) -> None
+    def initialize(self, action):
+        # type: (CliContext, settings.TransferAction) -> None
         """Initialize context
         :param CliContext self: this
+        :param settings.TransferAction action: transfer action
         """
         self._init_config()
-        self.general_options = settings.create_general_options(self.config)
+        self.general_options = settings.create_general_options(
+            self.config, action)
         self.credentials = settings.create_azure_storage_credentials(
             self.config, self.general_options)
 
@@ -164,7 +166,8 @@ def _log_file_option(f):
         '--log-file',
         expose_value=False,
         default=None,
-        help='Log to file specified',
+        help='Log to file specified; this must be specified for progress '
+        'bar to show',
         callback=callback)(f)
 
 
@@ -191,7 +194,8 @@ def _progress_bar_option(f):
         '--progress-bar/--no-progress-bar',
         expose_value=False,
         default=True,
-        help='Display progress bar instead of console logs [True]',
+        help='Display progress bar instead of console logs; log file must '
+        'be specified [True]',
         callback=callback)(f)
 
 
@@ -254,22 +258,22 @@ def _local_resource_option(f):
         clictx.cli_options['local_resource'] = value
         return value
     return click.option(
-        '--local-resource',
+        '--local-path',
         expose_value=False,
-        help='Local resource; use - for stdin',
+        help='Local path; use - for stdin',
         callback=callback)(f)
 
 
-def _storage_account_name_option(f):
+def _storage_account_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
         clictx.cli_options['storage_account'] = value
         return value
     return click.option(
-        '--storage-account-name',
+        '--storage-account',
         expose_value=False,
         help='Storage account name',
-        envvar='BLOBXFER_STORAGE_ACCOUNT_NAME',
+        envvar='BLOBXFER_STORAGE_ACCOUNT',
         callback=callback)(f)
 
 
@@ -301,7 +305,7 @@ def common_options(f):
 
 def upload_download_options(f):
     f = _remote_path_option(f)
-    f = _storage_account_name_option(f)
+    f = _storage_account_option(f)
     f = _local_resource_option(f)
     return f
 
@@ -633,16 +637,16 @@ def _sync_copy_dest_access_key_option(f):
         callback=callback)(f)
 
 
-def _sync_copy_dest_storage_account_name_option(f):
+def _sync_copy_dest_storage_account_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
         clictx.cli_options['sync_copy_dest_storage_account'] = value
         return value
     return click.option(
-        '--sync-copy-dest-storage-account-name',
+        '--sync-copy-dest-storage-account',
         expose_value=False,
         help='Storage account name for synccopy destination',
-        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_NAME',
+        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT',
         callback=callback)(f)
 
 
@@ -721,11 +725,11 @@ def download_options(f):
 
 
 def sync_copy_options(f):
-    f = _sync_copy_dest_storage_account_name_option(f)
+    f = _sync_copy_dest_storage_account_option(f)
     f = _sync_copy_dest_sas_option(f)
     f = _sync_copy_dest_remote_path_option(f)
     f = _sync_copy_dest_access_key_option(f)
-    f = _storage_account_name_option(f)
+    f = _storage_account_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)
@@ -757,7 +761,7 @@ def cli(ctx):
 def download(ctx):
     """Download blobs or files from Azure Storage"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Download)
-    ctx.initialize()
+    ctx.initialize(settings.TransferAction.Download)
     specs = settings.create_download_specifications(ctx.config)
     for spec in specs:
         blobxfer.api.Downloader(
@@ -773,7 +777,7 @@ def synccopy(ctx):
     """Synchronously copy blobs between Azure Storage accounts"""
     raise NotImplementedError()
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Synccopy)
-    ctx.initialize()
+    ctx.initialize(settings.TransferAction.Synccopy)
 
 
 @cli.command('upload')
@@ -784,7 +788,7 @@ def synccopy(ctx):
 def upload(ctx):
     """Upload files to Azure Storage"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Upload)
-    ctx.initialize()
+    ctx.initialize(settings.TransferAction.Upload)
     specs = settings.create_upload_specifications(ctx.config)
     for spec in specs:
         blobxfer.api.Uploader(

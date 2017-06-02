@@ -72,9 +72,10 @@ docker pull alfpark/blobxfer
 
 ## Troubleshooting
 #### `azure.storage` dependency not found
-If you get an error that `azure.storage` cannot be found or loaded, then
-most likely there was a conflict with this package with other `azure` packages
-that share the same base namespace. You can correct this by issuing:
+If you get an error such as `ImportError: No module named storage` or that
+`azure.storage` cannot be found or loaded, then most likely there was a
+conflict with this package with other `azure` packages that share the same
+base namespace. You can correct this by issuing:
 ```shell
 # for Python3
 pip3 install --upgrade --force-reinstall azure-storage

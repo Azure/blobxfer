@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.0.0a2] - 2017-06-02
+## [1.0.0a3] - 2017-06-02
 ### Changed
 - From scratch rewrite providing a consistent CLI experience and a vast
 array of new and advanced features. Please see the
@@ -201,8 +201,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0a2...HEAD
-[1.0.0a2]: https://github.com/Azure/blobxfer/compare/0.12.1...1.0.0a2
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0a3...HEAD
+[1.0.0a3]: https://github.com/Azure/blobxfer/compare/0.12.1...1.0.0a3
 [0.12.1]: https://github.com/Azure/blobxfer/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/Azure/blobxfer/compare/0.11.5...0.12.0
 [0.11.5]: https://github.com/Azure/blobxfer/compare/0.11.4...0.11.5

@@ -12,9 +12,9 @@ command will be detailed along with all options available.
 ### `download`
 Downloads a remote Azure path, which may contain many resources, to the
 local machine. This command requires at the minimum, the following options:
-* `--storage-account-name`
+* `--storage-account`
 * `--remote-path`
-* `--local-resource`
+* `--local-path`
 
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
@@ -23,14 +23,14 @@ Please see the Authentication sub-section below under Options.
 Uploads a local path to a remote Azure path. The local path may contain
 many resources on the local machine. This command requires at the minimum,
 the following options:
-* `--local-resource`
-* `--storage-account-name`
+* `--local-path`
+* `--storage-account`
 * `--remote-path`
 
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
 
-If piping from `stdin`, `--local-resource` should be set to `-` as per
+If piping from `stdin`, `--local-path` should be set to `-` as per
 convention.
 
 ### `synccopy`
@@ -49,9 +49,10 @@ of up to 100MiB, all others have a maximum of 4MiB.
 attributes (mode and ownership) should be stored or restored. Note that to
 restore uid/gid, `blobxfer` must be run as root or under sudo.
 * `--file-md5` or `--no-file-md5` controls if the file MD5 should be computed.
-* `--local-resource` is the local resource path. Set to `-` if piping from
+* `--local-path` is the local resource path. Set to `-` if piping from
 `stdin`.
-* `--log-file` specifies the log file to write to.
+* `--log-file` specifies the log file to write to. This must be specified
+for a progress bar to be output to console.
 * `--mode` is the operating mode. The default is `auto` but may be set to
 `append`, `block`, `file`, or `page`. If specified with the `upload`
 command, then all files will be uploaded as the specified `mode` type.
@@ -61,12 +62,16 @@ with Azure File shares.
 * `--overwrite` or `--no-overwrite` controls clobber semantics at the
 destination.
 * `--progress-bar` or `--no-progress-bar` controls if a progress bar is
-output to the console.
+output to the console. `--log-file` must be specified for a progress bar
+to be output.
 * `--recursive` or `--no-recursive` controls if the source path should be
 recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
 * `--resume-file` specifies the resume file to write to.
+* `--storage-account` specifies the storage account to use. This can be
+optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
+instead.
 * `--timeout` is the integral timeout value in seconds to use.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
@@ -96,7 +101,7 @@ to/from Azure Storage.
 ### Connection
 * `--endpoint` is the Azure Storage endpoint to connect to; the default is
 Azure Public regions, or `core.windows.net`.
-* `--storage-account-name` is the storage account to connect to.
+* `--storage-account` is the storage account to connect to.
 
 ### Encryption
 * `--rsa-private-key` is the RSA private key in PEM format to use. This can
@@ -161,27 +166,27 @@ file path. The default is `1`.
 ### `download` Examples
 #### Download an Entire Encrypted Blob Container to Current Working Directory
 ```shell
-blobxfer download --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource . --rsa-public-key ~/mypubkey.pem
+blobxfer download --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --rsa-public-key ~/mypubkey.pem
 ```
 
 #### Download an Entire File Share to Designated Path and Skip On Filesize Matches
 ```shell
-blobxfer download --mode file --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path myfileshare --local-resource /my/path --skip-on-filesize-match
+blobxfer download --mode file --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path myfileshare --local-path /my/path --skip-on-filesize-match
 ```
 
 #### Download only Page Blobs in Blob Container Virtual Directory Non-recursively and Cleanup Local Path to Match Remote Path
 ```shell
-blobxfer download --mode page --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-resource /my/pageblobs --no-recursive --delete
+blobxfer download --mode page --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-path /my/pageblobs --no-recursive --delete
 ```
 
 #### Resume Incomplete Downloads Matching an Include Pattern and Log to File and Restore POSIX File Attributes
 ```shell
-blobxfer download --storage-account-name mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-resource . --include '*.bin' --resume-file myresumefile.db --log-file blobxfer.log --file-attributes
+blobxfer download --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-path . --include '*.bin' --resume-file myresumefile.db --log-file blobxfer.log --file-attributes
 ```
 
 #### Download a Blob Snapshot
 ```shell
-blobxfer download --storage-account-name mystorageaccount --sas "mysastoken" --remote-path "mycontainer/file.bin?snapshot=2017-04-20T02:12:49.0311708Z" --local-resource .
+blobxfer download --storage-account mystorageaccount --sas "mysastoken" --remote-path "mycontainer/file.bin?snapshot=2017-04-20T02:12:49.0311708Z" --local-path .
 ```
 
 #### Download using a YAML Configuration File
@@ -192,27 +197,27 @@ blobxfer download --config myconfig.yaml
 ### `upload` Examples
 #### Upload Current Working Directory as Encrypted Block Blobs Non-recursively
 ```shell
-blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource . --rsa-private-key ~/myprivatekey.pem --no-recursive
+blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --rsa-private-key ~/myprivatekey.pem --no-recursive
 ```
 
 #### Upload Specific Path Recursively to a File Share, Store File MD5 and POSIX File Attributes to a File Share and Exclude Some Files
 ```shell
-blobxfer upload --mode file --storage-account-name mystorageaccount --sas "mysastoken" --remote-path myfileshare --local-resource . --file-md5 --file-attributes --exclude '*.bak'
+blobxfer upload --mode file --storage-account mystorageaccount --sas "mysastoken" --remote-path myfileshare --local-path . --file-md5 --file-attributes --exclude '*.bak'
 ```
 
 #### Upload Single File with Resume and Striped Vectored IO into 512MiB Chunks
 ```shell
-blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource /some/huge/file --resume-file hugefileresume.db --distribution-mode stripe --stripe-chunk-size-bytes 536870912
+blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path /some/huge/file --resume-file hugefileresume.db --distribution-mode stripe --stripe-chunk-size-bytes 536870912
 ```
 
 #### Upload Specific Path but Skip On Any MD5 Matches, Store File MD5 and Cleanup Remote Path to Match Local Path
 ```shell
-blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource /my/path --file-md5 --skip-on-md5-match --delete
+blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path /my/path --file-md5 --skip-on-md5-match --delete
 ```
 
 #### Upload From Piped `stdin`
 ```shell
-curl -fSsL https://some.uri | blobxfer upload --storage-account-name mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-resource -
+curl -fSsL https://some.uri | blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path -
 ```
 
 #### Upload using a YAML Configuration File

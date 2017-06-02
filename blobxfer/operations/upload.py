@@ -447,10 +447,10 @@ class Uploader(object):
         while not self.termination_check:
             try:
                 if len(self._transfer_set) > max_set_len:
-                    time.sleep(0.2)
+                    time.sleep(0.1)
                     continue
                 else:
-                    ud = self._upload_queue.get(False, 0.1)
+                    ud = self._upload_queue.get(block=False, timeout=0.1)
             except queue.Empty:
                 continue
             try:

@@ -91,5 +91,5 @@ keep this metadata in-tact or reconstruction will fail.
                                                      +---------------------+
 ```
 
-In order to take advantage of `stripe` Vectored IO, you must use a YAML
-configuration file to define multiple destinations.
+In order to take advantage of `stripe` Vectored IO across multiple
+destinations, you must use a YAML configuration file.

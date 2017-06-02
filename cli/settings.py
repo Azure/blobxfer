@@ -61,13 +61,13 @@ def add_cli_options(cli_options, action):
         if blobxfer.util.is_none_or_empty(local_resource):
             raise KeyError()
     except KeyError:
-        raise ValueError('--local-resource must be specified')
+        raise ValueError('--local-path must be specified')
     try:
         storage_account = cli_options['storage_account']
         if blobxfer.util.is_none_or_empty(storage_account):
             raise KeyError()
     except KeyError:
-        raise ValueError('--storage-account-name must be specified')
+        raise ValueError('--storage-account must be specified')
     try:
         remote_path = cli_options['remote_path']
         if blobxfer.util.is_none_or_empty(remote_path):
@@ -167,7 +167,7 @@ def add_cli_options(cli_options, action):
                     raise KeyError()
             except KeyError:
                 raise ValueError(
-                    '--sync-copy-dest-storage-account-name must be specified')
+                    '--sync-copy-dest-storage-account must be specified')
             try:
                 sync_copy_dest_remote_path = \
                     cli_options['sync_copy_dest_remote_path']
@@ -278,10 +278,11 @@ def create_azure_storage_credentials(config, general_options):
     return creds
 
 
-def create_general_options(config):
-    # type: (dict) -> blobxfer.models.options.General
+def create_general_options(config, action):
+    # type: (dict, TransferAction) -> blobxfer.models.options.General
     """Create a General Options object from configuration
     :param dict config: config dict
+    :param TransferAction action: transfer action
     :rtype: blobxfer.models.options.General
     :return: general options object
     """
@@ -292,6 +293,7 @@ def create_general_options(config):
             disk_threads=conc.get('disk_threads', 0),
             md5_processes=conc.get('md5_processes', 0),
             transfer_threads=conc.get('transfer_threads', 0),
+            is_download=action == TransferAction.Download,
         ),
         log_file=config['options'].get('log_file', None),
         progress_bar=config['options'].get('progress_bar', True),

@@ -3,8 +3,8 @@ Please read the following carefully regarding considerations that should
 be applied with regard to performance and `blobxfer`. Additionally,
 please review the
 [Azure Storage Scalability and Performance Targets](https://azure.microsoft.com/en-us/documentation/articles/storage-scalability-targets/)
-for an overview of general performance targets that apply to Azure Blobs
-and File shares.
+for an overview of general performance targets that apply to Azure Blobs,
+File shares and Storage Account types (GRS, LRS, ZRS, etc).
 
 ## Concurrency
 * `blobxfer` offers four concurrency knobs. Each one should be tuned for
@@ -23,6 +23,44 @@ maximum performance according to your system and network characteristics.
 * The thread concurrency options (disk and transfer) can be set to a
 non-positive number to be automatically set as a multiple of the number of
 cores available on the machine.
+* For uploads, there should be a sufficient number of disk threads to ensure
+that all transfer threads have work to do. For downloads, there should be
+sufficient number of disk threads to write data to disk so transfer threads
+are not artificially blocked.
+
+## Chunk Sizing
+Chunk sizing refers to the `chunk_size_bytes` option and the meaning of which
+varies upon the context of uploading or downloading.
+
+### Uploads
+For uploads, chunk sizes correspond to the maximum amount of data to transfer
+with a single request. The Azure Storage service imposes maximums depending
+upon the type of entity that is being written. For block blobs, the maximum
+is 100MiB (although you may "one-shot" up to 256MiB). For page blobs, the
+maximum is 4MiB. For append blobs, the maximum is 4MiB. For Azure Files,
+the maximum is 4MiB.
+
+For block blobs, setting the chunk size to something greater than 4MiB will
+not only allow you larger file sizes (recall that the maximum number of
+blocks for a block blob is 50000, thus at 100MiB blocks, you can create a
+5TiB block blob object) but will allow you to amortize larger portions of
+data transfer over each request/response overhead. `blobxfer` can
+automatically select the proper block size given your file, but will not
+automatically tune the chunk size as that depends upon your system and
+network characteristics.
+
+### Downloads
+For downloads, chunk sizes correspond to the maximum amount of data to
+request from the server for each request. It is important to keep a balance
+between the chunk size and the number of in-flight operations afforded by
+the `transfer_threads` concurrency control. `blobxfer` does not automatically
+tune this (but can automatically set it to a value that should work for
+most situations) due to varying system and network conditions.
+
+Additionally, disk write performance is typically lower than disk read
+performance so you need to ensure that the number of `disk_threads` is not
+set to a very large number to prevent thrashing and highly random write
+patterns.
 
 ## Azure File Share Performance
 File share performance can be "slow" or become a bottleneck, especially for

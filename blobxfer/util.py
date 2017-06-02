@@ -124,6 +124,20 @@ def is_not_empty(obj):
     return obj is not None and len(obj) > 0
 
 
+def join_thread(thr):
+    # type: (threading.Thread) -> None
+    """Join a thread
+    :type threading.Thread thr: thread to join
+    """
+    if on_python2():
+        while True:
+            thr.join(timeout=1)
+            if not thr.isAlive():
+                break
+    else:
+        thr.join()
+
+
 def merge_dict(dict1, dict2):
     # type: (dict, dict) -> dict
     """Recursively merge dictionaries: dict2 on to dict1. This differs

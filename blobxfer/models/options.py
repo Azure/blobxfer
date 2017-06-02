@@ -105,13 +105,14 @@ class Concurrency(object):
     """Concurrency Options"""
     def __init__(
             self, crypto_processes, md5_processes, disk_threads,
-            transfer_threads):
+            transfer_threads, is_download=None):
         """Ctor for Concurrency Options
         :param Concurrency self: this
         :param int crypto_processes: number of crypto procs
         :param int md5_processes: number of md5 procs
         :param int disk_threads: number of disk threads
         :param int transfer_threads: number of transfer threads
+        :param bool is_download: download hint
         """
         self.crypto_processes = crypto_processes
         self.md5_processes = md5_processes
@@ -131,6 +132,9 @@ class Concurrency(object):
             # cap maximum number of disk threads from cpu count to 64
             if self.disk_threads > 64:
                 self.disk_threads = 64
+            # for downloads, cap disk threads to lower value
+            if is_download and self.disk_threads > 16:
+                self.disk_threads = 16
             auto_disk = True
         if self.transfer_threads is None or self.transfer_threads < 1:
             if auto_disk:

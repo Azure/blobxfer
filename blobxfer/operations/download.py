@@ -430,7 +430,7 @@ class Downloader(object):
         if terminate:
             self._download_terminate = terminate
         for thr in self._disk_threads:
-            thr.join()
+            blobxfer.util.join_thread(thr)
 
     def _wait_for_transfer_threads(self, terminate):
         # type: (Downloader, bool) -> None
@@ -441,7 +441,7 @@ class Downloader(object):
         if terminate:
             self._download_terminate = terminate
         for thr in self._transfer_threads:
-            thr.join()
+            blobxfer.util.join_thread(thr)
 
     def _worker_thread_transfer(self):
         # type: (Downloader) -> None
@@ -452,7 +452,7 @@ class Downloader(object):
         while not self.termination_check:
             try:
                 if len(self._disk_set) > max_set_len:
-                    time.sleep(0.2)
+                    time.sleep(0.1)
                     continue
                 else:
                     dd = self._transfer_queue.get(block=False, timeout=0.1)
@@ -792,8 +792,8 @@ class Downloader(object):
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
             try:
-                self._wait_for_transfer_threads(terminate=True)
                 self._wait_for_disk_threads(terminate=True)
+                self._wait_for_transfer_threads(terminate=True)
             finally:
                 self._cleanup_temporary_files()
             raise
