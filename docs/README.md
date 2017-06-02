@@ -9,7 +9,7 @@ Please refer to the following documents detailing the usage of `blobxfer`.
 1. [Installation](01-installation.md)
 2. [Command-Line Usage](10-cli-usage.md)
 3. [YAML Configuration](20-yaml-configuration.md)
-4. [Vectored IO](30-vectored-io.md)
+4. [Vectored I/O](30-vectored-io.md)
 5. [Client-side Encryption](40-client-side-encryption.md)
 6. [blobxfer Data Movement Library](80-blobxfer-python-library.md)
 7. [Performance Considerations](98-performance-considerations.md)
