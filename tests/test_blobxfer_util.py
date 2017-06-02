@@ -1,0 +1,224 @@
+# coding=utf-8
+"""Tests for util"""
+
+# stdlib imports
+try:
+    import unittest.mock as mock
+except ImportError:  # noqa
+    import mock
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
+import sys
+# non-stdlib imports
+import pytest
+# module under test
+import blobxfer.util
+
+
+def test_on_python2():
+    py2 = sys.version_info.major == 2
+    assert py2 == blobxfer.util.on_python2()
+
+
+def test_is_none_or_empty():
+    a = None
+    assert blobxfer.util.is_none_or_empty(a)
+    a = []
+    assert blobxfer.util.is_none_or_empty(a)
+    a = {}
+    assert blobxfer.util.is_none_or_empty(a)
+    a = ''
+    assert blobxfer.util.is_none_or_empty(a)
+    a = 'asdf'
+    assert not blobxfer.util.is_none_or_empty(a)
+    a = ['asdf']
+    assert not blobxfer.util.is_none_or_empty(a)
+    a = {'asdf': 0}
+    assert not blobxfer.util.is_none_or_empty(a)
+    a = [None]
+    assert not blobxfer.util.is_none_or_empty(a)
+
+
+def test_is_not_empty():
+    a = None
+    assert not blobxfer.util.is_not_empty(a)
+    a = []
+    assert not blobxfer.util.is_not_empty(a)
+    a = {}
+    assert not blobxfer.util.is_not_empty(a)
+    a = ''
+    assert not blobxfer.util.is_not_empty(a)
+    a = 'asdf'
+    assert blobxfer.util.is_not_empty(a)
+    a = ['asdf']
+    assert blobxfer.util.is_not_empty(a)
+    a = {'asdf': 0}
+    assert blobxfer.util.is_not_empty(a)
+    a = [None]
+    assert blobxfer.util.is_not_empty(a)
+
+
+def test_merge_dict():
+    with pytest.raises(ValueError):
+        blobxfer.util.merge_dict(1, 2)
+
+    a = {'a_only': 42, 'a_and_b': 43,
+         'a_only_dict': {'a': 44}, 'a_and_b_dict': {'a_o': 45, 'a_a_b': 46}}
+    b = {'b_only': 45, 'a_and_b': 46,
+         'b_only_dict': {'a': 47}, 'a_and_b_dict': {'b_o': 48, 'a_a_b': 49}}
+    c = blobxfer.util.merge_dict(a, b)
+    assert c['a_only'] == 42
+    assert c['b_only'] == 45
+    assert c['a_and_b_dict']['a_o'] == 45
+    assert c['a_and_b_dict']['b_o'] == 48
+    assert c['a_and_b_dict']['a_a_b'] == 49
+    assert c['b_only_dict']['a'] == 47
+    assert c['a_and_b'] == 46
+    assert a['a_only'] == 42
+    assert a['a_and_b'] == 43
+    assert b['b_only'] == 45
+    assert b['a_and_b'] == 46
+
+
+def test_scantree(tmpdir):
+    tmpdir.mkdir('abc')
+    abcpath = tmpdir.join('abc')
+    abcpath.join('hello.txt').write('hello')
+    abcpath.mkdir('def')
+    defpath = abcpath.join('def')
+    defpath.join('world.txt').write('world')
+    found = set()
+    for de in blobxfer.util.scantree(str(tmpdir)):
+        if de.name != '.lock':
+            found.add(de.name)
+    assert 'hello.txt' in found
+    assert 'world.txt' in found
+    assert len(found) == 2
+
+
+def test_replace_file(tmpdir):
+    src = pathlib.Path(str(tmpdir.join('src')))
+    dst = pathlib.Path(str(tmpdir.join('dst')))
+    src.touch()
+    dst.touch()
+
+    replace_avail = sys.version_info >= (3, 3)
+
+    with mock.patch(
+            'sys.version_info',
+            new_callable=mock.PropertyMock(return_value=(3, 2, 0))):
+        blobxfer.util.replace_file(src, dst)
+        assert not src.exists()
+        assert dst.exists()
+
+    dst.unlink()
+    src.touch()
+    dst.touch()
+
+    with mock.patch(
+            'sys.version_info',
+            new_callable=mock.PropertyMock(return_value=(3, 3, 0))):
+        if replace_avail:
+            blobxfer.util.replace_file(src, dst)
+            assert not src.exists()
+            assert dst.exists()
+        else:
+            src = mock.MagicMock()
+            blobxfer.util.replace_file(src, dst)
+            assert src.replace.call_count == 1
+
+
+def test_get_mime_type():
+    a = 'b.txt'
+    mt = blobxfer.util.get_mime_type(a)
+    assert mt == 'text/plain'
+    a = 'c.probably_cant_determine_this'
+    mt = blobxfer.util.get_mime_type(a)
+    assert mt == 'application/octet-stream'
+
+
+def test_base64_encode_as_string():
+    a = b'abc'
+    enc = blobxfer.util.base64_encode_as_string(a)
+    if blobxfer.util.on_python2():
+        assert type(enc) == str
+    else:
+        assert type(enc) != bytes
+    dec = blobxfer.util.base64_decode_string(enc)
+    assert a == dec
+
+
+def test_page_align_content_length():
+    assert 0 == blobxfer.util.page_align_content_length(0)
+    assert 512 == blobxfer.util.page_align_content_length(1)
+    assert 512 == blobxfer.util.page_align_content_length(511)
+    assert 512 == blobxfer.util.page_align_content_length(512)
+    assert 1024 == blobxfer.util.page_align_content_length(513)
+    assert 1024 == blobxfer.util.page_align_content_length(1023)
+    assert 1024 == blobxfer.util.page_align_content_length(1024)
+    assert 1536 == blobxfer.util.page_align_content_length(1025)
+
+
+def test_normalize_azure_path():
+    a = '\\cont\\r1\\r2\\r3\\'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    a = '/cont/r1/r2/r3/'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    a = '/cont\\r1/r2\\r3/'
+    b = blobxfer.util.normalize_azure_path(a)
+    assert b == 'cont/r1/r2/r3'
+
+    with pytest.raises(ValueError):
+        blobxfer.util.normalize_azure_path('')
+
+
+def test_explode_azure_path():
+    p = 'cont'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == ''
+
+    p = 'cont/'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == ''
+
+    p = 'cont/a/'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'cont'
+    assert rpath == 'a'
+
+    p = '/some/remote/path'
+    cont, rpath = blobxfer.util.explode_azure_path(p)
+    assert cont == 'some'
+    assert rpath == 'remote/path'
+
+
+def test_blob_is_snapshot():
+    a = '/cont/a?snapshot=2017-02-23T22:21:14.8121864Z'
+    assert blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot=abc'
+    assert not blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot='
+    assert not blobxfer.util.blob_is_snapshot(a)
+
+    a = '/cont/a?snapshot=2017-02-23T22:21:14.8121864Z?snapshot='
+    assert not blobxfer.util.blob_is_snapshot(a)
+
+
+def test_parse_blob_snapshot_parameter():
+    base = '/cont/a'
+    param = '2017-02-23T22:21:14.8121864Z'
+    a = base + '?snapshot=' + param
+    assert blobxfer.util.parse_blob_snapshot_parameter(a) == (base, param)
+
+    a = '/cont/a?snapshot='
+    assert blobxfer.util.parse_blob_snapshot_parameter(a) is None
