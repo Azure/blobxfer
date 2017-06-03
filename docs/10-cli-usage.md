@@ -69,9 +69,6 @@ recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
 * `--resume-file` specifies the resume file to write to.
-* `--storage-account` specifies the storage account to use. This can be
-optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
-instead.
 * `--timeout` is the integral timeout value in seconds to use.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
@@ -101,13 +98,15 @@ to/from Azure Storage.
 ### Connection
 * `--endpoint` is the Azure Storage endpoint to connect to; the default is
 Azure Public regions, or `core.windows.net`.
-* `--storage-account` is the storage account to connect to.
+* `--storage-account` specifies the storage account to use. This can be
+optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
+instead.
 
 ### Encryption
 * `--rsa-private-key` is the RSA private key in PEM format to use. This can
 be provided for uploads but must be specified to decrypt encrypted remote
-entities. This can be optionally provided through an environment variable
-`BLOBXFER_RSA_PRIVATE_KEY`.
+entities for downloads. This can be optionally provided through an environment
+variable `BLOBXFER_RSA_PRIVATE_KEY`.
 * `--rsa-private-key-passphrase` is the RSA private key passphrase. This can
 be optionally provided through an environment variable
 `BLOBXFER_RSA_PRIVATE_KEY_PASSPHRASE`.
@@ -166,7 +165,7 @@ file path. The default is `1`.
 ### `download` Examples
 #### Download an Entire Encrypted Blob Container to Current Working Directory
 ```shell
-blobxfer download --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --rsa-public-key ~/mypubkey.pem
+blobxfer download --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --rsa-private-key ~/myprivatekey.pem
 ```
 
 #### Download an Entire File Share to Designated Path and Skip On Filesize Matches
@@ -197,7 +196,7 @@ blobxfer download --config myconfig.yaml
 ### `upload` Examples
 #### Upload Current Working Directory as Encrypted Block Blobs Non-recursively
 ```shell
-blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --rsa-private-key ~/myprivatekey.pem --no-recursive
+blobxfer upload --storage-account mystorageaccount --sas "mysastoken" --remote-path mycontainer --local-path . --no-recursive --rsa-public-key ~/mypubkey.pem
 ```
 
 #### Upload Specific Path Recursively to a File Share, Store File MD5 and POSIX File Attributes to a File Share and Exclude Some Files

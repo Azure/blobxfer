@@ -11,8 +11,8 @@ File shares and Storage Account types (GRS, LRS, ZRS, etc).
 maximum performance according to your system and network characteristics.
   * Disk threads: concurrency in reading (uploads) and writing (downloads) to
     disk is controlled by the number of disk threads.
-  * Transfer threads: concurrency in the number of threads from/to Azure
-    Storage is controlled by the number of transfer threads.
+  * Transfer threads: concurrency in the number of threads transferring
+    from/to Azure Storage is controlled by the number of transfer threads.
   * MD5 processes: computing MD5 for potential omission from transfer due
     to `skip_on` `md5_match` being specified are offloaded to the specified
     number of processors.

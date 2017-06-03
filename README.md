@@ -25,14 +25,14 @@ from Azure Blob and File Storage
   * `replica` mode allows replication of a file across multiple destinations
     including to multiple storage accounts
 * Client-side encryption support
-* Support all blob types for both upload and download
+* Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
 * Support for reading/pipe from `stdin`
 * Support for reading from blob snapshots
 * Configurable one-shot block upload support
 * Configurable chunk size for both upload and download
-* Automatic block blob size adjustment for uploading
+* Automatic block size selection for block blob uploading
 * Automatic uploading of VHD/VHDX files as page blobs
 * Include and exclude filtering support
 * Rsync-like delete support
@@ -46,7 +46,7 @@ the [installation guide](https://github.com/Azure/blobxfer/blob/master/docs/01-i
 on how to install `blobxfer`.
 
 ## Documentation
-Please refer to the [blobxfer Documentation](https://github.com/Azure/blobxfer/blob/master/docs)
+Please refer to the [`blobxfer` documentation](https://github.com/Azure/blobxfer/blob/master/docs)
 for more details and usage information.
 
 ## Change Log

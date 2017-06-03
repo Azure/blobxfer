@@ -18,7 +18,7 @@ how to download from multiple sources.
 
 The logic is fairly simple in how this is accomplished. Each source file
 has portions of the file read from disk, buffered in memory and then
-replicated across multiple storage accounts.
+replicated across all specified destinations.
 
 ```
                        Whole File             +---------------------+
@@ -51,9 +51,9 @@ configuration file to define multiple destinations.
 ### Stripe
 `stripe` mode will splice a file into multiple chunks and scatter these
 chunks across destinations specified. These destinations can be different
-containers within the same storage account or even containers distributed
-across multiple storage accounts if single storage account bandwidth limits
-are insufficient.
+a single or multiple containers within the same storage account or even
+containers distributed across multiple storage accounts if single storage
+account bandwidth limits are insufficient.
 
 `blobxfer` will slice the source file into multiple chunks where the
 `stripe_chunk_size_bytes` is the stripe width of each chunk. This parameter
