@@ -32,7 +32,9 @@ azure_storage:
 * `endpoint` specifies for which endpoint to connect to with Azure Storage.
 Generally this can be omitted if using Public Azure regions.
 * `accounts` is a dictionary of storage account names and either a
-storage account key or a shared access signature token.
+storage account key or a shared access signature token. Note that if you
+are downloading a striped blob (Vectored IO), then all storage accounts for
+which the blob is striped to must be populated in this list.
 
 ### <a name="options"></a>`options`
 The `options` section specifies general options that may be applied across

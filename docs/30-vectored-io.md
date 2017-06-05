@@ -92,4 +92,7 @@ keep this metadata in-tact or reconstruction will fail.
 ```
 
 In order to take advantage of `stripe` Vectored IO across multiple
-destinations, you must use a YAML configuration file.
+destinations, you must use a YAML configuration file. Additionally, when
+downloading a striped blob, you must specify all storage account locations
+of the striped blob in the `azure_storage` section of your YAML
+configuration file.
