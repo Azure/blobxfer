@@ -205,5 +205,4 @@ def output_parameters(general_options, spec):
     log = os.linesep.join(log)
     if blobxfer.util.is_not_empty(general_options.log_file):
         print(log)
-    else:
-        logger.info('{}{}'.format(os.linesep, log))
+    logger.info('{}{}'.format(os.linesep, log))

@@ -83,7 +83,7 @@ class SyncCopy(object):
         self._synccopy_bytes_sofar = 0
         self._synccopy_terminate = False
         self._start_time = None
-        self._delete_after = set()
+        self._delete_exclude = set()
         self._containers_created = set()
         self._fileshare_dir_lock = threading.Lock()
         self._dirs_created = {}
@@ -122,6 +122,18 @@ class SyncCopy(object):
              dst_ase._client.primary_endpoint, dst_ase.path)
         )
 
+    @staticmethod
+    def create_deletion_id(client, container, name):
+        # type: (azure.storage.StorageClient, str, str) -> str
+        """Create a unique deletion id
+        :param azure.storage.StorageClient client: storage client
+        :param str container: container name
+        :param str name: entity name
+        :rtype: str
+        :return: unique id for deletion
+        """
+        return ';'.join((client.primary_endpoint, container, name))
+
     def _update_progress_bar(self):
         # type: (SyncCopy) -> None
         """Update progress bar
@@ -136,6 +148,52 @@ class SyncCopy(object):
             self._synccopy_bytes_total,
             self._synccopy_bytes_sofar,
         )
+
+    def _delete_extraneous_files(self):
+        # type: (SyncCopy) -> None
+        """Delete extraneous files on the remote
+        :param SyncCopy self: this
+        """
+        if not self._spec.options.delete_extraneous_destination:
+            return
+        # list blobs for all destinations
+        checked = set()
+        deleted = 0
+        for sa, container, _, _ in self._get_destination_paths():
+            key = ';'.join((sa.name, sa.endpoint, container))
+            if key in checked:
+                continue
+            logger.debug(
+                'attempting to delete extraneous blobs/files from: {}'.format(
+                    key))
+            if (self._spec.options.mode ==
+                    blobxfer.models.azure.StorageModes.File):
+                files = blobxfer.operations.azure.file.list_all_files(
+                    sa.file_client, container,
+                    timeout=self._general_options.timeout_sec)
+                for file in files:
+                    id = blobxfer.operations.synccopy.SyncCopy.\
+                        create_deletion_id(sa.file_client, container, file)
+                    if id not in self._delete_exclude:
+                        blobxfer.operations.azure.file.delete_file(
+                            sa.file_client, container, file,
+                            timeout=self._general_options.timeout_sec)
+                        deleted += 1
+            else:
+                blobs = blobxfer.operations.azure.blob.list_all_blobs(
+                    sa.block_blob_client, container,
+                    timeout=self._general_options.timeout_sec)
+                for blob in blobs:
+                    id = blobxfer.operations.synccopy.SyncCopy.\
+                        create_deletion_id(
+                            sa.block_blob_client, container, blob.name)
+                    if id not in self._delete_exclude:
+                        blobxfer.operations.azure.blob.delete_blob(
+                            sa.block_blob_client, container, blob.name,
+                            timeout=self._general_options.timeout_sec)
+                        deleted += 1
+            checked.add(key)
+        logger.info('deleted {} extraneous blobs/files'.format(deleted))
 
     def _add_to_transfer_queue(self, src_ase, dst_ase):
         # type: (SyncCopy, blobxfer.models.azure.StorageEntity,
@@ -636,10 +694,26 @@ class SyncCopy(object):
                 if len(dest) == 0:
                     continue
                 primary_dst = dest[0]
+                # add to exclusion set
+                if self._spec.options.delete_extraneous_destination:
+                    self._delete_exclude.add(
+                        blobxfer.operations.synccopy.SyncCopy.
+                        create_deletion_id(
+                            primary_dst._client, primary_dst.container,
+                            primary_dst.name)
+                    )
                 if len(dest[1:]) > 0:
                     if primary_dst.replica_targets is None:
                         primary_dst.replica_targets = []
                     primary_dst.replica_targets.extend(dest[1:])
+                    # add replica targets to deletion exclusion set
+                    if self._spec.options.delete_extraneous_destination:
+                        for rt in primary_dst.replica_targets:
+                            self._delete_exclude.add(
+                                blobxfer.operations.synccopy.SyncCopy.
+                                create_deletion_id(
+                                    rt._client, rt.container, rt.name)
+                            )
                 yield src_ase, primary_dst
 
     def _run(self):
@@ -658,9 +732,6 @@ class SyncCopy(object):
         self._initialize_transfer_threads()
         # iterate through source paths to download
         for src_ase, dst_ase in self._bind_sources_to_destination():
-#             print(src_ase._client.primary_endpoint, src_ase.path,
-#                   dst_ase._client.primary_endpoint, dst_ase.path,
-#                   dst_ase.replica_targets)
             # add transfer to set
             with self._transfer_lock:
                 self._transfer_set.add(
@@ -700,6 +771,9 @@ class SyncCopy(object):
                 'copy mismatch: [count={}/{} bytes={}/{}]'.format(
                     self._synccopy_sofar, self._synccopy_total,
                     self._synccopy_bytes_sofar, self._synccopy_bytes_total))
+        # delete all remaining local files not accounted for if
+        # delete extraneous enabled
+        self._delete_extraneous_files()
         # delete resume file if we've gotten this far
         if self._resume is not None:
             self._resume.delete()

@@ -113,7 +113,7 @@ class Concurrency(object):
         :param int md5_processes: number of md5 procs
         :param int disk_threads: number of disk threads
         :param int transfer_threads: number of transfer threads
-        :param bool is_download: download hint
+        :param int action: action hint (1=Download, 2=Upload, 3=SyncCopy)
         """
         self.crypto_processes = crypto_processes
         self.md5_processes = md5_processes

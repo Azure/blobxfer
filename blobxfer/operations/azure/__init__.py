@@ -267,14 +267,14 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
     def _convert_to_storage_entity_with_encryption_metadata(
             self, options, store_raw_metadata, sa, entity, vio, is_file,
             container, dir):
-        # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download, StorageAccount, object,
-        #        blobxfer.models.metadata.VectoredStripe, bool, str,
+        # type: (SourcePath, StorageCredentials, any, bool, StorageAccount,
+        #        any, blobxfer.models.metadata.VectoredStripe, bool, str,
         #        str) -> StorageEntity
         """Convert entity into StorageEntity with encryption metadata if avail
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
-        :param blobxfer.models.options.Download options: download options
+        :param object options: download or synccopy options
+        :param bool store_raw_metadata: store raw metadata
         :param StorageAccount sa: storage account
         :param object entity: Storage File or Blob object
         :param blobxfer.models.metadata.VectoredStripe vio: Vectored stripe
@@ -305,15 +305,15 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
     def _handle_vectored_io_stripe(
             self, creds, options, general_options, store_raw_metadata,
             sa, entity, is_file, container, dir=None):
-        # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download,
-        #        blobxfer.models.options.General, StorageAccount, object,
+        # type: (SourcePath, StorageCredentials, any,
+        #        blobxfer.models.options.General, bool, StorageAccount, any,
         #        bool, str, str) -> StorageEntity
         """Handle Vectored IO stripe entries
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
-        :param blobxfer.models.options.Download options: download options
+        :param object options: download or synccopy options
         :param blobxfer.models.options.General general_options: general options
+        :param bool store_raw_metadata: store raw metadata
         :param StorageAccount sa: storage account
         :param object entity: Storage File or Blob object
         :param bool is_file: is a file object
@@ -367,13 +367,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             yield ase
 
     def _populate_from_list_files(self, creds, options, general_options):
-        # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download,
+        # type: (SourcePath, StorageCredentials, any,
         #        blobxfer.models.options.General) -> StorageEntity
         """Internal generator for Azure remote files
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
-        :param blobxfer.models.options.Download options: download options
+        :param object options: download or synccopy options
         :param blobxfer.models.options.General general_options: general options
         :rtype: StorageEntity
         :return: Azure storage entity object
@@ -400,13 +399,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     yield ase
 
     def _populate_from_list_blobs(self, creds, options, general_options):
-        # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download,
+        # type: (SourcePath, StorageCredentials, any,
         #        blobxfer.models.options.General) -> StorageEntity
         """Internal generator for Azure remote blobs
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
-        :param blobxfer.models.options.Download options: download options
+        :param object options: download or synccopy options
         :param blobxfer.models.options.General general_options: general options
         :rtype: StorageEntity
         :return: Azure storage entity object
