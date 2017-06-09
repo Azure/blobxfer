@@ -888,6 +888,20 @@ def test_start(
     assert d._pre_md5_skip_on_check.call_count == 0
 
 
+def test_start_exception():
+    d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.resume_file = None
+    d._run = mock.MagicMock(side_effect=RuntimeError('oops'))
+    d._wait_for_transfer_threads = mock.MagicMock()
+    d._cleanup_temporary_files = mock.MagicMock()
+    d._md5_offload = mock.MagicMock()
+
+    with pytest.raises(RuntimeError):
+        d.start()
+    assert d._wait_for_transfer_threads.call_count == 1
+    assert d._cleanup_temporary_files.call_count == 1
+
+
 def test_start_keyboard_interrupt():
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._general_options.resume_file = None
@@ -896,7 +910,6 @@ def test_start_keyboard_interrupt():
     d._cleanup_temporary_files = mock.MagicMock()
     d._md5_offload = mock.MagicMock()
 
-    with pytest.raises(KeyboardInterrupt):
-        d.start()
+    d.start()
     assert d._wait_for_transfer_threads.call_count == 1
     assert d._cleanup_temporary_files.call_count == 1

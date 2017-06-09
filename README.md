@@ -24,12 +24,14 @@ from Azure Blob and File Storage
     throughput limits
   * `replica` mode allows replication of a file across multiple destinations
     including to multiple storage accounts
+* Synchronous copy with replication support (including block-level copies
+for Block blobs)
 * Client-side encryption support
 * Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
-* Support for reading/pipe from `stdin`
-* Support for reading from blob snapshots
+* Support reading/pipe from `stdin`
+* Support reading from blob snapshots for downloading and synchronous copy
 * Configurable one-shot block upload support
 * Configurable chunk size for both upload and download
 * Automatic block size selection for block blob uploading

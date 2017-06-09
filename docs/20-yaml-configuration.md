@@ -182,6 +182,9 @@ upload:
     This corresponds to the block size for block and append blobs, page size
     for page blobs, and the file chunk for files. Only block blobs can have
     a block size of up to 100MiB, all others have a maximum of 4MiB.
+  * `delete_extraneous_destination` will cleanup any files remotely that are
+    not found on locally. Note that this interacts with include and
+    exclude filters.
   * `one_shot_bytes` is the size limit to upload block blobs in a single
     request.
   * `overwrite` specifies clobber behavior
@@ -210,4 +213,49 @@ upload:
         round-robin order amongst the destinations listed.
 
 ### <a name="synccopy"></a>`synccopy`
-TODO: not yet implemented.
+The `synccopy` section specifies synchronous copy sources and destinations.
+Note that `synccopy` refers to a list of objects, thus you may specify as many
+of these sub-configuration blocks on the `synccopy` property as you need.
+When the `synccopy` command with the YAML config is specified, the list
+is iterated and all specified sources are synchronously copied.
+
+```yaml
+synccopy:
+    - source:
+        - mystorageaccount0: mycontainer
+      destination:
+        - mystorageaccount0: othercontainer
+        - mystorageaccount1: mycontainer
+      include:
+        - "*.bin"
+      exclude:
+        - "*.tmp"
+      options:
+          mode: auto
+          delete_extraneous_destination: true
+          overwrite: true
+          recursive: true
+          skip_on:
+              filesize_match: false
+              lmt_ge: false
+              md5_match: true
+```
+
+* `source` is a list of storage account to remote path mappings. All sources
+are copied to each destination specified.
+* `destination` is a list of storage account to remote path mappings
+* `include` is a list of include patterns
+* `exclude` is a list of exclude patterns
+* `options` are synccopy-specific options
+  * `mode` is the operating mode
+  * `delete_extraneous_destination` will cleanup any files in remote
+    destinations that are not found in the remote sources. Note that this
+    interacts with include and exclude filters.
+  * `overwrite` specifies clobber behavior
+  * `recursive` specifies if source remote paths should be recursively
+    searched for files to copy
+  * `skip_on` are skip on options to use
+    * `filesize_match` skip if file size match
+    * `lmt_ge` skip if source file has a last modified time greater than or
+      equal to the destination file
+    * `md5_match` skip if MD5 match

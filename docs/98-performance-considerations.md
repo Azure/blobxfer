@@ -43,7 +43,7 @@ the maximum is 4MiB.
 For block blobs, setting the chunk size to something greater than 4MiB will
 not only allow you larger file sizes (recall that the maximum number of
 blocks for a block blob is 50000, thus at 100MiB blocks, you can create a
-5TiB block blob object) but will allow you to amortize larger portions of
+4.768TiB block blob object) but will allow you to amortize larger portions of
 data transfer over each request/response overhead. `blobxfer` can
 automatically select the proper block size given your file, but will not
 automatically tune the chunk size as that depends upon your system and
@@ -76,14 +76,18 @@ instead.
 MD5 hashing will impose some performance penalties to check if the file
 should be uploaded or downloaded. For instance, if uploading and the local
 file is determined to be different than it's remote counterpart, then the
-time spent performing the MD5 comparison is lost.
+time spent performing the MD5 comparison is effectively "lost."
 
 ## Client-side Encryption
 Client-side encryption will naturally impose a performance penalty on
 `blobxfer` both for uploads (encrypting) and downloads (decrypting) depending
 upon the processor speed and number of cores available. Additionally, for
-uploads, encryption is not parallelizable and is in-lined with the main
-process.
+uploads, encryption is not parallelizable within an object and is in-lined
+with the main process.
+
+## Resume Files (Databases)
+Enabling resume support may slightly impact performance as a key-value shelve
+for bookkeeping is kept on disk and is updated frequently.
 
 ## pyOpenSSL
 As of requests 2.6.0 and Python versions < 2.7.9 (i.e., interpreter found on

@@ -17,7 +17,8 @@ These keys are encrypted using RSAES-OAEP and encoded in the metadata.
 * MD5 for both the pre-encrypted and encrypted version of the file is stored
 in the entity metadata, if enabled. `skip_on` options will still work
 transparently with encrypted blobs/files.
-* MAC integrity checks are preferred over MD5 to validate encrypted data.
+* HMAC-SHA256 checks over encrypted data are performed instead of MD5 over
+unencrypted data to validate integrity if both are present.
 * Attempting to upload the same file that exists in Azure Storage, but the
 file in Azure Storage is not encrypted will not occur if any `skip_on` match
 condition succeeds. This behavior can be overridden by deleting the target

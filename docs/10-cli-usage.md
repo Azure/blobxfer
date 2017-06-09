@@ -10,22 +10,24 @@ command will be detailed along with all options available.
 
 ## <a name="commands"></a>Commands
 ### `download`
-Downloads a remote Azure path, which may contain many resources, to the
-local machine. This command requires at the minimum, the following options:
-* `--storage-account`
-* `--remote-path`
+Downloads remote Azure paths, which may contain many resources, to the
+local machine. This command requires at the minimum, the following options
+if invoked without a YAML configuration file:
+* `--storage-account` for the source remote Azure path
+* `--remote-path` for the source remote Azure path
 * `--local-path`
 
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
 
 ### `upload`
-Uploads a local path to a remote Azure path. The local path may contain
-many resources on the local machine. This command requires at the minimum,
-the following options:
+Uploads local paths to a remote Azure path or set of remote Azure paths.
+The local path may contain many resources on the local machine. This command
+requires at the minimum, the following options if invoked without a YAML
+configuration file:
 * `--local-path`
-* `--storage-account`
-* `--remote-path`
+* `--storage-account` for the destination remote Azure path
+* `--remote-path` for the destination remote Azure path
 
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
@@ -34,7 +36,17 @@ If piping from `stdin`, `--local-path` should be set to `-` as per
 convention.
 
 ### `synccopy`
-TODO: not yet implemented.
+Synchronously copies remote Azure paths to other remote Azure paths. This
+command requires at the minimum, the following options if invoked without
+a YAML configuration file:
+* `--storage-account` for the source remote Azure path
+* `--remote-path` for the source remote Azure path
+* `--sync-copy-dest-storage-account` for the destination remote Azure path
+* `--sync-copy-dest-remote-path` for the destination remote Azure path
+
+Additionally, an authentication option for both storage accounts is required.
+Please see the `Authentication` and `Connection` sub-section below under the
+next section.
 
 ## <a name="options"></a>Options
 ### General
@@ -70,7 +82,8 @@ to be output.
 recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
-* `--resume-file` specifies the resume file to write to or read from.
+* `--resume-file` specifies the resume database to write to or read from.
+Resume files should be specific for a session.
 * `--timeout` is the integral timeout value in seconds to use.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
@@ -80,11 +93,19 @@ sensitive help.
 `blobxfer` supports both Storage Account access keys and Shared Access
 Signature (SAS) tokens. One type must be supplied with all commands in
 order to successfully authenticate against Azure Storage. These options are:
+* `--sas` is a shared access signature (SAS) token. This can can be
+optionally provided through an environment variable `BLOBXFER_SAS` instead.
 * `--storage-account-key` is the storage account access key. This can be
 optionally provided through an environment variable
 `BLOBXFER_STORAGE_ACCOUNT_KEY` instead.
-* `--sas` is a shared access signature (sas) token. This can can be
-optionally provided through an environment variable `BLOBXFER_SAS` instead.
+* `--sync-copy-dest-sas` is a shared access signature (SAS) token for the
+destination Azure Storage account for the `synccopy` command. This can be
+optionally provided through an environment variable
+`BLOBXFER_SYNC_COPY_DEST_SAS` instead.
+* `--sync-copy-dest-storage-account-key` specifies the destination Azure
+Storage account key for the `synccopy` command. This can be optionally
+provided through an environment variable
+`BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_KEY` instead.
 
 ### Concurrency
 Please see the [performance considerations](98-performance-considerations.md)
@@ -103,6 +124,12 @@ Azure Public regions, or `core.windows.net`.
 * `--storage-account` specifies the storage account to use. This can be
 optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
 instead.
+* `--sync-copy-dest-storage-account` specifies the destination remote
+Azure storage account for the `synccopy` command. This can be optionally
+provided through an environment variable
+`BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT` instead.
+* `--sync-copy-dest-remote-path` specifies the destination remote Azure path
+under the synchronous copy destination storage account.
 
 ### Encryption
 * `--rsa-private-key` is the RSA private key in PEM format to use. This can
@@ -151,9 +178,11 @@ regarding Vectored IO operations in `blobxfer`.
 Vectored IO operations
 
 ### Other
-* `--delete` deletes extraneous files at the remote destination path on
-uploads and at the local resource on downloads. This actions occur after the
-transfer has taken place.
+* `--delete` deletes extraneous files (including blob snapshots if the parent
+is deleted) at the remote destination path on uploads and at the local
+resource on downloads. This actions occur after the transfer has taken place,
+similarly to rsync's delete after option. Note that this interacts with other
+filters such as `--include` and `--exclude`.
 * `--one-shot-bytes` controls the number of bytes to "one shot" a block
 Blob upload. The maximum value that can be specified is 256MiB. This may
 be useful when using account-level SAS keys and enforcing non-overwrite
@@ -161,7 +190,7 @@ behavior.
 * `--rename` renames a single file upload or download to the target
 destination or source path, respectively.
 * `--strip-components N` will strip the leading `N` components from the
-file path. The default is `1`.
+local file path. The default is `1`.
 
 ## <a name="examples"></a>Example Invocations
 ### `download` Examples
@@ -227,7 +256,15 @@ blobxfer upload --config myconfig.yaml
 ```
 
 ### `synccopy` Examples
-TODO: not implemented yet.
+#### Synchronously Copy an Entire Path Recursively to Another Storage Account
+```shell
+blobxfer synccopy --storage-account mystorageaccount --sas "mysastoken" --remote-path mysourcecontainer --sync-copy-dest-storage-account mydestaccount --sync-copy-dest-storage-account-key "mydestkey" --sync-copy-dest-remote-path mydestcontainer
+```
+
+#### Synchronously Copy using a YAML Configuration File
+```shell
+blobxfer synccopy --config myconfig.yaml
+```
 
 ## <a name="general-notes"></a>General Notes
 * `blobxfer` does not take any leases on blobs or containers. It is up to the
@@ -252,5 +289,3 @@ appropriate `skip_on` option, respectively.
 * Globbing of wildcards must be disabled by your shell (or properly quoted)
 during invoking `blobxfer` such that include and exclude patterns can be
 read verbatim without the shell expanding the wildcards.
-* The `--delete` operates similarly to `--delete-after` in rsync. Please
-note that this option interacts with `--include` and `--exclude` filters.

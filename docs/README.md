@@ -7,7 +7,7 @@ name. The `blobxfer` data movement library is built on the
 Please refer to the following documents detailing the usage of `blobxfer`.
 
 1. [Installation](01-installation.md)
-2. [Command-Line Usage](10-cli-usage.md)
+2. [CLI Usage](10-cli-usage.md)
 3. [YAML Configuration](20-yaml-configuration.md)
 4. [Vectored I/O](30-vectored-io.md)
 5. [Client-side Encryption](40-client-side-encryption.md)

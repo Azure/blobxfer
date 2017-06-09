@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.0.0a5] - 2017-06-09
+### Added
+- Synchronous copy support with the `synccopy` command. This command supports
+multi-destination replication.
+
+### Fixed
+- Various YAML config file and CLI interaction issues
+- Upload resume support with replication
+
 ## [1.0.0a4] - 2017-06-02
 ### Changed
 - From scratch rewrite providing a consistent CLI experience and a vast
@@ -201,11 +210,11 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0a4...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0a5...HEAD
+[1.0.0a5]: https://github.com/Azure/blobxfer/compare/1.0.0a4...1.0.0a5
 [1.0.0a4]: https://github.com/Azure/blobxfer/compare/0.12.1...1.0.0a4
 [0.12.1]: https://github.com/Azure/blobxfer/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/Azure/blobxfer/compare/0.11.5...0.12.0
 [0.11.5]: https://github.com/Azure/blobxfer/compare/0.11.4...0.11.5
 [0.11.4]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.4
 [0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...v0.11.2
-
