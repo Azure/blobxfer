@@ -325,7 +325,6 @@ class SyncCopy(object):
         with self._transfer_lock:
             self._synccopy_bytes_sofar += offsets.num_bytes
         # complete offset upload and save resume state
-        # TODO fix issue with replica targets
         sd.complete_offset_upload(offsets.chunk_num)
 
     def _prepare_upload(self, ase):
@@ -725,9 +724,9 @@ class SyncCopy(object):
         self._start_time = blobxfer.util.datetime_now()
         logger.info('blobxfer start time: {0}'.format(self._start_time))
         # initialize resume db if specified
-#         if self._general_options.resume_file is not None:
-#             self._resume = blobxfer.operations.resume.SyncCopyResumeManager(
-#                 self._general_options.resume_file)
+        if self._general_options.resume_file is not None:
+            self._resume = blobxfer.operations.resume.SyncCopyResumeManager(
+                self._general_options.resume_file)
         # initialize download threads
         self._initialize_transfer_threads()
         # iterate through source paths to download
@@ -807,6 +806,8 @@ class SyncCopy(object):
                 logger.info(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
+            else:
+                logger.exception(ex)
             self._wait_for_transfer_threads(terminate=True)
             if not isinstance(ex, KeyboardInterrupt):
                 raise

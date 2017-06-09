@@ -1151,6 +1151,8 @@ class Uploader(object):
                 logger.info(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
+            else:
+                logger.exception(ex)
             try:
                 self._wait_for_transfer_threads(terminate=True)
                 self._wait_for_disk_threads(terminate=True)

@@ -297,3 +297,136 @@ class Upload(object):
                     self.total_chunks, self.completed_chunks, self.completed,
                     self.md5hexdigest,
                 )
+
+
+class SyncCopy(object):
+    """SyncCopy resume object"""
+    def __init__(
+            self, length, src_block_list, offset, chunk_size, total_chunks,
+            completed_chunks, completed):
+        # type: (SyncCopy, int, int, int, int, bool) -> None
+        """Ctor for SyncCopy
+        :param SyncCopy self: this
+        :param int length: total bytes
+        :param int chunk_size: chunk size in bytes
+        :param int total_chunks: total chunks
+        :param int completed_chunks: completed chunks
+        :param bool completed: completed
+        """
+        self._length = length
+        self._src_block_list = src_block_list
+        self._offset = offset
+        self._chunk_size = chunk_size
+        self._total_chunks = total_chunks
+        self._completed_chunks = completed_chunks
+        self._completed = completed
+
+    @property
+    def length(self):
+        # type: (SyncCopy) -> int
+        """Content length
+        :param SyncCopy self: this
+        :rtype: int
+        :return: number of bytes
+        """
+        return self._length
+
+    @property
+    def src_block_list(self):
+        # type: (SyncCopy) -> list
+        """Source committed block list
+        :param SyncCopy self: this
+        :rtype: list
+        :return: source committed block list
+        """
+        return self._src_block_list
+
+    @property
+    def offset(self):
+        # type: (SyncCopy) -> int
+        """Current offset
+        :param SyncCopy self: this
+        :rtype: int
+        :return: current offset
+        """
+        return self._offset
+
+    @offset.setter
+    def offset(self, value):
+        # type: (SyncCopy, int) -> None
+        """Set offset
+        :param SyncCopy self: this
+        :param int value: offset
+        """
+        self._offset = value
+
+    @property
+    def chunk_size(self):
+        # type: (SyncCopy) -> int
+        """Chunk size
+        :param SyncCopy self: this
+        :rtype: int
+        :return: chunk size in bytes
+        """
+        return self._chunk_size
+
+    @property
+    def total_chunks(self):
+        # type: (SyncCopy) -> int
+        """Get total number of chunks
+        :param SyncCopy self: this
+        :rtype: int
+        :return: total chunks
+        """
+        return self._total_chunks
+
+    @property
+    def completed_chunks(self):
+        # type: (SyncCopy) -> int
+        """Get Completed chunks
+        :param SyncCopy self: this
+        :rtype: int
+        :return: completed chunks
+        """
+        return self._completed_chunks
+
+    @completed_chunks.setter
+    def completed_chunks(self, value):
+        # type: (SyncCopy, int) -> None
+        """Set Completed chunks
+        :param SyncCopy self: this
+        :param int value: completed chunks
+        """
+        self._completed_chunks = value
+
+    @property
+    def completed(self):
+        # type: (SyncCopy) -> bool
+        """Get Completed
+        :param SyncCopy self: this
+        :rtype: bool
+        :return: if completed
+        """
+        return self._completed
+
+    @completed.setter
+    def completed(self, value):
+        # type: (SyncCopy) -> None
+        """Set Completed
+        :param SyncCopy self: this
+        :param bool value: completion value
+        """
+        self._completed = value
+
+    def __repr__(self):
+        # type: (SyncCopy) -> str
+        """Return representation
+        :param SyncCopy self: this
+        :rtype: str
+        :return: representation string
+        """
+        return ('SyncCopy<length={} chunk_size={} total_chunks={} '
+                'completed_chunks={} completed={}>').format(
+                    self.length, self.chunk_size, self.total_chunks,
+                    self.completed_chunks, self.completed,
+                )

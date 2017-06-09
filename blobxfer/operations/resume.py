@@ -227,3 +227,54 @@ class UploadResumeManager(_BaseResumeManager):
                     ul.md5hexdigest = md5
             self._data[key] = ul
             self._data.sync()
+
+
+class SyncCopyResumeManager(_BaseResumeManager):
+    """SyncCopy Resume Manager"""
+    def __init__(self, resume_file):
+        # type: (SyncCopyResumeManager, str) -> None
+        """Ctor for SyncCopyResumeManager
+        :param SyncCopyResumeManager self: this
+        :param pathlib.Path resume_file: resume file
+        """
+        super(SyncCopyResumeManager, self).__init__(resume_file)
+
+    def add_or_update_record(
+            self, dst_ase, src_block_list, offset, chunk_size, total_chunks,
+            completed_chunks, completed):
+        # type: (SyncCopyResumeManager, pathlib.Path,
+        #        blobxfer.models.azure.StorageEntity, int, int, int,
+        #        bool) -> None
+        """Add or update a resume record
+        :param SyncCopyResumeManager self: this
+        :param pathlib.Path local_path: local path
+        :param blobxfer.models.azure.StorageEntity ase: Storage Entity
+        :param int chunk_size: chunk size in bytes
+        :param int total_chunks: total chunks
+        :param int completed_chunks: completed chunks bitarray
+        :param bool completed: if completed
+        """
+        key = blobxfer.operations.resume._BaseResumeManager.\
+            generate_record_key(dst_ase)
+        with self.datalock():
+            sc = self.get_record(dst_ase, key=key, lock=False)
+            if sc is None:
+                sc = blobxfer.models.resume.SyncCopy(
+                    length=dst_ase._size,
+                    src_block_list=src_block_list,
+                    offset=offset,
+                    chunk_size=chunk_size,
+                    total_chunks=total_chunks,
+                    completed_chunks=completed_chunks,
+                    completed=completed,
+                )
+            else:
+                if sc.completed or completed_chunks == sc.completed_chunks:
+                    return
+                if completed:
+                    sc.completed = completed
+                else:
+                    sc.offset = offset
+                    sc.completed_chunks = completed_chunks
+            self._data[key] = sc
+            self._data.sync()

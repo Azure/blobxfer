@@ -55,10 +55,12 @@ restore uid/gid, `blobxfer` must be run as root or under sudo.
 for a progress bar to be output to console.
 * `--mode` is the operating mode. The default is `auto` but may be set to
 `append`, `block`, `file`, or `page`. If specified with the `upload`
-command, then all files will be uploaded as the specified `mode` type.
-If specified with `download`, then only remote entities with that `mode`
-type are downloaded. Note that `file` should be specified if interacting
-with Azure File shares.
+command, then all files will be uploaded as the specified `mode` type. If
+`mode` is `auto` while uploading, then `.vhd` and `.vhdx` files are
+uploaded automatically as page blobs while all other files are uploaded
+as block blobs. If specified with `download`, then only remote entities
+with that `mode` type are downloaded. Note that `file` should be specified
+for the `mode` if interacting with Azure File shares.
 * `--overwrite` or `--no-overwrite` controls clobber semantics at the
 destination.
 * `--progress-bar` or `--no-progress-bar` controls if a progress bar is

@@ -33,9 +33,9 @@ from builtins import (  # noqa
 import collections
 import logging
 import math
-import os
 import threading
 # non-stdlib imports
+import bitstring
 # local imports
 import blobxfer.models.azure
 import blobxfer.models.crypto
@@ -120,6 +120,10 @@ class Descriptor(object):
         self._outstanding_ops = self._total_chunks
         if blobxfer.util.is_not_empty(self._dst_ase.replica_targets):
             self._outstanding_ops *= len(self._dst_ase.replica_targets) + 1
+        if self._resume_mgr:
+            self._completed_chunks = bitstring.BitArray(
+                length=self._total_chunks)
+            self._replica_counters = {}
 
     @property
     def src_entity(self):
@@ -242,34 +246,28 @@ class Descriptor(object):
         """
         with self._meta_lock:
             self._outstanding_ops -= 1
-
             # save resume state
-            # TODO fix issue with replica targets
-#             if self.is_resumable:
-#                 self._completed_chunks.set(True, chunk_num)
-#                 completed = self._outstanding_ops == 0
-#                 if not completed and self.must_compute_md5:
-#                     last_consecutive = (
-#                         self._completed_chunks.find('0b0')[0] - 1
-#                     )
-#                     md5digest = self._md5_cache[last_consecutive]
-#                 else:
-#                     md5digest = None
-#                     if completed:
-#                         last_consecutive = None
-#                         self._md5_cache.clear()
-#                 self._resume_mgr.add_or_update_record(
-#                     self.local_path.absolute_path, self._ase, self._chunk_size,
-#                     self._total_chunks, self._completed_chunks.int, completed,
-#                     md5digest,
-#                 )
-#                 # prune md5 cache
-#                 if len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES:
-#                     mkeys = sorted(list(self._md5_cache.keys()))
-#                     for key in mkeys:
-#                         if key >= last_consecutive:
-#                             break
-#                         self._md5_cache.pop(key)
+            if self.is_resumable:
+                # only set resumable completed if all replicas for this
+                # chunk are complete
+                if blobxfer.util.is_not_empty(self._dst_ase.replica_targets):
+                    if chunk_num not in self._replica_counters:
+                        # start counter at -1 since we need 1 "extra" for the
+                        # primary in addition to the replica targets
+                        self._replica_counters[chunk_num] = -1
+                    self._replica_counters[chunk_num] += 1
+                    if (self._replica_counters[chunk_num] !=
+                            len(self._dst_ase.replica_targets)):
+                        return
+                    else:
+                        self._replica_counters.pop(chunk_num)
+                self._completed_chunks.set(True, chunk_num)
+                completed = self._outstanding_ops == 0
+                self._resume_mgr.add_or_update_record(
+                    self._dst_ase, self._src_block_list, self._offset,
+                    self._chunk_size, self._total_chunks,
+                    self._completed_chunks.int, completed,
+                )
 
     def _compute_chunk_size(self):
         # type: (Descriptor) -> int
@@ -317,98 +315,60 @@ class Descriptor(object):
         :rtype: int or None
         :return: verified download offset
         """
-        if self._resume_mgr is None or self._offset > 0 or self._finalized:
+        if self._resume_mgr is None or self._offset > 0:
             return None
         # check if path exists in resume db
-        rr = self._resume_mgr.get_record(self._ase)
+        rr = self._resume_mgr.get_record(self._dst_ase)
         if rr is None:
-            logger.debug('no resume record for {}'.format(self.final_path))
+            logger.debug('no resume record for {}'.format(self._dst_ase.path))
             return None
         # ensure lengths are the same
-        if rr.length != self._ase.size:
+        if rr.length != self._src_ase.size:
             logger.warning('resume length mismatch {} -> {}'.format(
-                rr.length, self._ase.size))
+                rr.length, self._src_ase.size))
             return None
-        # calculate current chunk and offset
-        if rr.next_integrity_chunk == 0:
-            logger.debug('nothing to resume for {}'.format(self.final_path))
-            return None
-        curr_chunk = rr.next_integrity_chunk
-        # set offsets if completed and the final path exists
-        if rr.completed and self.final_path.exists():
+        # compute replica factor
+        if blobxfer.util.is_not_empty(self._dst_ase.replica_targets):
+            replica_factor = 1 + len(self._dst_ase.replica_targets)
+        else:
+            replica_factor = 1
+        # set offsets if completed
+        if rr.completed:
             with self._meta_lock:
-                logger.debug('{} download already completed'.format(
-                    self.final_path))
-                self._offset = self._ase.size
-                self._chunk_num = curr_chunk
+                logger.debug('{} upload already completed'.format(
+                    self._dst_ase.path))
+                self._offset = rr._offset
+                self._src_block_list = rr.src_block_list
+                self._chunk_num = rr.total_chunks
                 self._chunk_size = rr.chunk_size
-                self._total_chunks = self._compute_total_chunks(rr.chunk_size)
-                self._next_integrity_chunk = rr.next_integrity_chunk
+                self._total_chunks = rr.total_chunks
+                self._completed_chunks.int = rr.completed_chunks
                 self._outstanding_ops = 0
-                self._finalized = True
-            return self._ase.size
-        # encrypted files are not resumable due to hmac requirement
-        if self._ase.is_encrypted:
-            logger.debug('cannot resume encrypted entity {}'.format(
-                self._ase.path))
-            return None
-        self._allocate_disk_space()
-        # check if final path exists
-        if not self.final_path.exists():
-            logger.warning('download path {} does not exist'.format(
-                self.final_path))
-            return None
-        if self.hmac is not None:
-            raise RuntimeError(
-                'unexpected hmac object for entity {}'.format(self._ase.path))
+                return self._src_ase.size * replica_factor
         # re-hash from 0 to offset if needed
-        _fd_offset = 0
-        _end_offset = min((curr_chunk * rr.chunk_size, rr.length))
-        if self.md5 is not None and curr_chunk > 0:
-            _blocksize = blobxfer.util.MEGABYTE << 2
-            logger.debug(
-                'integrity checking existing file {} offset {} -> {}'.format(
-                    self.final_path,
-                    self.view.fd_start,
-                    self.view.fd_start + _end_offset)
-            )
-            with self._hasher_lock:
-                with self.final_path.open('rb') as filedesc:
-                    filedesc.seek(self.view.fd_start, 0)
-                    while _fd_offset < _end_offset:
-                        if (_fd_offset + _blocksize) > _end_offset:
-                            _blocksize = _end_offset - _fd_offset
-                        _buf = filedesc.read(_blocksize)
-                        self.md5.update(_buf)
-                        _fd_offset += _blocksize
-            del _blocksize
-            # compare hashes
-            hexdigest = self.md5.hexdigest()
-            if rr.md5hexdigest != hexdigest:
-                logger.warning(
-                    'MD5 mismatch resume={} computed={} for {}'.format(
-                         rr.md5hexdigest, hexdigest, self.final_path))
-                # reset hasher
-                self.md5 = blobxfer.util.new_md5_hasher()
-                return None
+        _cc = bitstring.BitArray(length=rr.total_chunks)
+        _cc.int = rr.completed_chunks
+        curr_chunk = _cc.find('0b0')[0]
+        del _cc
         # set values from resume
         with self._meta_lock:
-            self._offset = _end_offset
+            self._offset = rr.offset
+            self._src_block_list = rr.src_block_list
             self._chunk_num = curr_chunk
             self._chunk_size = rr.chunk_size
-            self._total_chunks = self._compute_total_chunks(rr.chunk_size)
-            self._next_integrity_chunk = rr.next_integrity_chunk
+            self._total_chunks = rr.total_chunks
+            self._completed_chunks = bitstring.BitArray(length=rr.total_chunks)
+            self._completed_chunks.set(True, range(0, curr_chunk + 1))
             self._outstanding_ops = (
-                self._total_chunks - self._next_integrity_chunk
+                (rr.total_chunks - curr_chunk) * replica_factor
             )
             logger.debug(
                 ('resuming file {} from byte={} chunk={} chunk_size={} '
-                 'total_chunks={} next_integrity_chunk={} '
-                 'outstanding_ops={}').format(
-                     self.final_path, self._offset, self._chunk_num,
+                 'total_chunks={} outstanding_ops={}').format(
+                     self._src_ase.path, self._offset, self._chunk_num,
                      self._chunk_size, self._total_chunks,
-                     self._next_integrity_chunk, self._outstanding_ops))
-        return _end_offset
+                     self._outstanding_ops))
+            return rr.offset * replica_factor
 
     def next_offsets(self):
         # type: (Descriptor) -> Offsets
@@ -417,9 +377,7 @@ class Descriptor(object):
         :rtype: Offsets
         :return: download offsets
         """
-        # TODO resume
-        #resume_bytes = self._resume()
-        resume_bytes = None
+        resume_bytes = self._resume()
         with self._meta_lock:
             if self._chunk_num >= self._total_chunks:
                 return None, resume_bytes
@@ -441,98 +399,3 @@ class Descriptor(object):
                 range_start=range_start,
                 range_end=range_end,
             ), resume_bytes
-
-    def _update_resume_for_completed(self):
-        # type: (Descriptor) -> None
-        """Update resume for completion
-        :param Descriptor self: this
-        """
-        if not self.is_resumable:
-            return
-        with self._meta_lock:
-            self._resume_mgr.add_or_update_record(
-                self.final_path, self._ase, self._chunk_size,
-                self._next_integrity_chunk, True, None,
-            )
-
-    def finalize_integrity(self):
-        # type: (Descriptor) -> None
-        """Finalize integrity check for download
-        :param Descriptor self: this
-        """
-        with self._meta_lock:
-            if self._finalized:
-                return
-        # check final file integrity
-        check = False
-        msg = None
-        if self.hmac is not None:
-            mac = self._ase.encryption_metadata.encryption_authentication.\
-                message_authentication_code
-            digest = blobxfer.util.base64_encode_as_string(self.hmac.digest())
-            if digest == mac:
-                check = True
-            msg = '{}: {}, {} {} <L..R> {}'.format(
-                self._ase.encryption_metadata.encryption_authentication.
-                algorithm,
-                'OK' if check else 'MISMATCH',
-                self._ase.path,
-                digest,
-                mac,
-            )
-        elif self.md5 is not None:
-            digest = blobxfer.util.base64_encode_as_string(self.md5.digest())
-            if digest == self._ase.md5:
-                check = True
-            msg = 'MD5: {}, {} {} <L..R> {}'.format(
-                'OK' if check else 'MISMATCH',
-                self._ase.path,
-                digest,
-                self._ase.md5,
-            )
-        else:
-            check = True
-            msg = 'MD5: SKIPPED, {} None <L..R> {}'.format(
-                self._ase.path,
-                self._ase.md5
-            )
-        # cleanup if download failed
-        if not check:
-            self._integrity_failed = True
-            logger.error(msg)
-        logger.info(msg)
-
-    def _restore_file_attributes(self):
-        # type: (Descriptor) -> None
-        """Restore file attributes for file
-        :param Descriptor self: this
-        """
-        if self._ase.file_attributes is None:
-            return
-        # set file uid/gid and mode
-        if blobxfer.util.on_windows():
-            # TODO not implemented yet
-            pass
-        else:
-            self.final_path.chmod(int(self._ase.file_attributes.mode, 8))
-            if os.getuid() == 0:
-                os.chown(
-                    str(self.final_path),
-                    self._ase.file_attributes.uid,
-                    self._ase.file_attributes.gid
-                )
-
-    def finalize_file(self):
-        # type: (Descriptor) -> None
-        """Finalize file for download
-        :param Descriptor self: this
-        """
-        # delete bad file if integrity failed
-        if self._integrity_failed:
-            self.final_path.unlink()
-        else:
-            self._restore_file_attributes()
-        # update resume file
-        self._update_resume_for_completed()
-        with self._meta_lock:
-            self._finalized = True

@@ -366,6 +366,7 @@ class Descriptor(object):
             self._completed_chunks = bitstring.BitArray(
                 length=self._total_chunks)
             self._md5_cache = {}
+            self._replica_counters = {}
         # initialize integrity checkers
         self.hmac = None
         self.md5 = None
@@ -508,8 +509,18 @@ class Descriptor(object):
         with self._meta_lock:
             self._outstanding_ops -= 1
             # save resume state
-            # TODO fix issue with replica targets
             if self.is_resumable:
+                # only set resumable completed if all replicas for this
+                # chunk are complete
+                if blobxfer.util.is_not_empty(self._ase.replica_targets):
+                    if chunk_num not in self._replica_counters:
+                        self._replica_counters[chunk_num] = 0
+                    self._replica_counters[chunk_num] += 1
+                    if (self._replica_counters[chunk_num] !=
+                            len(self._ase.replica_targets)):
+                        return
+                    else:
+                        self._replica_counters.pop(chunk_num)
                 self._completed_chunks.set(True, chunk_num)
                 completed = self._outstanding_ops == 0
                 if not completed and self.must_compute_md5:
@@ -528,7 +539,8 @@ class Descriptor(object):
                     md5digest,
                 )
                 # prune md5 cache
-                if len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES:
+                if (last_consecutive is not None and
+                        len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES):
                     mkeys = sorted(list(self._md5_cache.keys()))
                     for key in mkeys:
                         if key >= last_consecutive:
@@ -717,6 +729,11 @@ class Descriptor(object):
             logger.warning('resume length mismatch {} -> {}'.format(
                 rr.length, self._ase.size))
             return None
+        # compute replica factor
+        if blobxfer.util.is_not_empty(self._ase.replica_targets):
+            replica_factor = 1 + len(self._ase.replica_targets)
+        else:
+            replica_factor = 1
         # set offsets if completed
         if rr.completed:
             with self._meta_lock:
@@ -728,7 +745,7 @@ class Descriptor(object):
                 self._total_chunks = rr.total_chunks
                 self._completed_chunks.int = rr.completed_chunks
                 self._outstanding_ops = 0
-            return self._ase.size
+                return self._src_ase.size * replica_factor
         # encrypted files are not resumable due to hmac requirement
         if self._ase.is_encrypted:
             logger.debug('cannot resume encrypted entity {}'.format(
@@ -781,14 +798,16 @@ class Descriptor(object):
             self._total_chunks = rr.total_chunks
             self._completed_chunks = bitstring.BitArray(length=rr.total_chunks)
             self._completed_chunks.set(True, range(0, curr_chunk + 1))
-            self._outstanding_ops = rr.total_chunks - curr_chunk
+            self._outstanding_ops = (
+                (rr.total_chunks - curr_chunk) * replica_factor
+            )
             logger.debug(
                 ('resuming file {} from byte={} chunk={} chunk_size={} '
                  'total_chunks={} outstanding_ops={}').format(
                      self._ase.path, self._offset, self._chunk_num,
                      self._chunk_size, self._total_chunks,
                      self._outstanding_ops))
-        return _end_offset
+            return _end_offset * replica_factor
 
     def next_offsets(self):
         # type: (Descriptor) -> Offsets
