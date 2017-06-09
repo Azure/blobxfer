@@ -52,7 +52,7 @@ class StorageModes(enum.Enum):
 
 class StorageEntity(object):
     """Azure Storage Entity"""
-    def __init__(self, container, ed=None, fileattr=None):
+    def __init__(self, container, ed=None):
         # type: (StorageEntity, str
         #        blobxfer.models.crypto.EncryptionMetadata) -> None
         """Ctor for StorageEntity
@@ -75,6 +75,7 @@ class StorageEntity(object):
         self._append_create = True
         self._vio = None
         self._fileattr = None
+        self._raw_metadata = None
         self.replica_targets = None
 
     @property
@@ -267,17 +268,31 @@ class StorageEntity(object):
         """
         return self._vio
 
-    def populate_from_blob(self, sa, blob, vio=None):
+    @property
+    def raw_metadata(self):
+        # type: (StorageEntity) -> dict
+        """Return raw metadata for synccopy sources
+        :param StorageEntity self: this
+        :rtype: dict
+        :return: raw metadata
+        """
+        return self._raw_metadata
+
+    def populate_from_blob(self, sa, blob, vio=None, store_raw_metadata=False):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.blob.models.Blob) -> None
         """Populate properties from Blob
         :param StorageEntity self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param azure.storage.blob.models.Blob blob: blob to populate from
+        :param blobxfer.models.metadata.VectoredStripe vio: Vectored stripe
+        :param bool store_raw_metadata: store raw metadata
         """
-        # set props from metadata
-        self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
-            blob.metadata)
+        if store_raw_metadata:
+            self._raw_metadata = blob.metadata
+        else:
+            self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
+                blob.metadata)
         self._vio = vio
         self._create_containers = sa.create_containers
         self._name = blob.name
@@ -295,7 +310,8 @@ class StorageEntity(object):
             self._mode = StorageModes.Page
             self._client = sa.page_blob_client
 
-    def populate_from_file(self, sa, file, path, vio=None):
+    def populate_from_file(
+            self, sa, file, path, vio=None, store_raw_metadata=False):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.file.models.File, str) -> None
         """Populate properties from File
@@ -303,10 +319,14 @@ class StorageEntity(object):
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param azure.storage.file.models.File file: file to populate from
         :param str path: full path to file
+        :param blobxfer.models.metadata.VectoredStripe vio: Vectored stripe
+        :param bool store_raw_metadata: store raw metadata
         """
-        # set props from metadata
-        self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
-            file.metadata)
+        if store_raw_metadata:
+            self._raw_metadata = file.metadata
+        else:
+            self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
+                file.metadata)
         self._vio = vio
         self._create_containers = sa.create_containers
         if path is not None:

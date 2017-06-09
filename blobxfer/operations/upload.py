@@ -414,8 +414,10 @@ class Uploader(object):
                     timeout=self._general_options.timeout_sec)
                 return
             # upload block
-            blobxfer.operations.azure.blob.block.put_block(
-                ase, offsets, data, timeout=self._general_options.timeout_sec)
+            if data is not None:
+                blobxfer.operations.azure.blob.block.put_block(
+                    ase, offsets, data,
+                    timeout=self._general_options.timeout_sec)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
             # upload range
             if data is not None:
@@ -459,13 +461,11 @@ class Uploader(object):
                 with self._upload_lock:
                     self._exceptions.append(e)
 
-    def _prepare_upload(self, ase, offsets):
-        # type: (Uploader, blobxfer.models.azure.StorageEntity,
-        #        blobxfer.models.upload.Offsets) -> None
+    def _prepare_upload(self, ase):
+        # type: (Uploader, blobxfer.models.azure.StorageEntity) -> None
         """Prepare upload
         :param Uploader self: this
         :param blobxfer.models.azure.StorageEntity ase: Storage entity
-        :param blobxfer.models.upload.Offsets offsets: offsets
         """
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             if ase.append_create:
@@ -518,7 +518,7 @@ class Uploader(object):
                 self._upload_bytes_total += ud.entity.size
                 self._upload_bytes_sofar += resume_bytes
                 logger.debug('adding {} sofar {} from {}'.format(
-                    resume_bytes, self._upload_bytes_sofar, ud._ase.name))
+                    resume_bytes, self._upload_bytes_sofar, ud.entity.name))
             del resume_bytes
         # check if all operations completed
         if offsets is None and ud.all_operations_completed:
@@ -537,7 +537,12 @@ class Uploader(object):
             return
         # prepare upload
         if offsets.chunk_num == 0:
-            self._prepare_upload(ud.entity, offsets)
+            self._prepare_upload(ud.entity)
+        # prepare replicae targets
+        if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+            for ase in ud.entity.replica_targets:
+                if offsets.chunk_num == 0:
+                    self._prepare_upload(ase)
         # encrypt if necessary
         if ud.entity.is_encrypted and ud.entity.size > 0:
             # send iv through hmac if first chunk
@@ -594,6 +599,7 @@ class Uploader(object):
                 self._transfer_queue.put((ud, ase, offsets, data))
 
     def _finalize_block_blob(self, ud, metadata):
+        # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
         """Finalize Block blob
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
@@ -613,6 +619,7 @@ class Uploader(object):
                     timeout=self._general_options.timeout_sec)
 
     def _set_blob_md5(self, ud):
+        # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
         """Set blob MD5
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
@@ -626,6 +633,7 @@ class Uploader(object):
                     ase, digest, timeout=self._general_options.timeout_sec)
 
     def _set_blob_metadata(self, ud, metadata):
+        # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
         """Set blob metadata
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
@@ -639,6 +647,7 @@ class Uploader(object):
                     ase, metadata, timeout=self._general_options.timeout_sec)
 
     def _finalize_nonblock_blob(self, ud, metadata):
+        # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
         """Finalize Non-Block blob
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
@@ -696,11 +705,11 @@ class Uploader(object):
 
     def _get_destination_paths(self):
         # type: (Uploader) ->
-        #        Tuple[blobxfer.operations.azure.StorageAccount, str, str]
+        #        Tuple[blobxfer.operations.azure.StorageAccount, str, str, str]
         """Get destination paths
         :param Uploader self: this
         :rtype: tuple
-        :return: (storage account, container, name)
+        :return: (storage account, container, name, dpath)
         """
         for dst in self._spec.destinations:
             for dpath in dst.paths:
@@ -822,6 +831,8 @@ class Uploader(object):
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param str cont: container
         :param str name: entity name
+        :rtype: blobxfer.models.azure.StorageEntity
+        :return: remote storage entity
         """
         if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
@@ -1144,7 +1155,8 @@ class Uploader(object):
                 self._wait_for_transfer_threads(terminate=True)
                 self._wait_for_disk_threads(terminate=True)
             finally:
-                raise
+                if not isinstance(ex, KeyboardInterrupt):
+                    raise
         finally:
             # shutdown processes
             if self._md5_offload is not None:

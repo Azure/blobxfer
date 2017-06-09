@@ -496,23 +496,17 @@ class Downloader(object):
             with self._disk_operation_lock:
                 self._download_bytes_sofar += resume_bytes
                 logger.debug('adding {} sofar {} from {}'.format(
-                    resume_bytes, self._download_bytes_sofar, dd._ase.name))
+                    resume_bytes, self._download_bytes_sofar, dd.entity.name))
             del resume_bytes
         # check if all operations completed
         if offsets is None and dd.all_operations_completed:
             finalize = True
+            sfpath = str(dd.final_path)
             # finalize integrity
             dd.finalize_integrity()
-            # accounting
-            with self._transfer_lock:
-                sfpath = str(dd.final_path)
-                if dd.entity.is_encrypted:
-                    self._dd_map.pop(sfpath)
-                self._transfer_set.remove(
-                    blobxfer.operations.download.Downloader.
-                    create_unique_transfer_operation_id(dd.entity))
-                self._download_sofar += 1
-                if dd.entity.vectored_io is not None:
+            # vectored io checks
+            if dd.entity.vectored_io is not None:
+                with self._transfer_lock:
                     if sfpath not in self._vio_map:
                         self._vio_map[sfpath] = 1
                     else:
@@ -522,7 +516,6 @@ class Downloader(object):
                         self._vio_map.pop(sfpath)
                     else:
                         finalize = False
-            del sfpath
             # finalize file
             if finalize:
                 dd.finalize_file()
@@ -531,6 +524,14 @@ class Downloader(object):
                     self._delete_after.remove(dd.final_path)
                 except KeyError:
                     pass
+            # accounting
+            with self._transfer_lock:
+                self._download_sofar += 1
+                if dd.entity.is_encrypted:
+                    self._dd_map.pop(sfpath)
+                self._transfer_set.remove(
+                    blobxfer.operations.download.Downloader.
+                    create_unique_transfer_operation_id(dd.entity))
             return
         # re-enqueue for other threads to download
         self._transfer_queue.put(dd)
@@ -796,7 +797,8 @@ class Downloader(object):
                 self._wait_for_transfer_threads(terminate=True)
             finally:
                 self._cleanup_temporary_files()
-            raise
+            if not isinstance(ex, KeyboardInterrupt):
+                raise
         finally:
             # shutdown processes
             if self._md5_offload is not None:

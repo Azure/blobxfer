@@ -22,3 +22,6 @@ SHA256 object cannot be pickled.
 File share which has empty directories.
 * Empty directories are not deleted if `--delete` is specified and no files
 remain in the directory on the Azure File share.
+* Directories with no characters, e.g. `/mycontainer//mydir` are not
+supported.
+* `/dev/null` or `nul` destinations are not supported.

@@ -6,9 +6,9 @@ prior to invoking installation via `pip`. Alternatively, you can use the
 [blobxfer Docker image](https://hub.docker.com/r/alfpark/blobxfer/).
 
 ## Pre-requisites
-`blobxfer` depends on `cryptography` and `ruamel.yaml` which require a
-C compiler if your platform does not have a pre-made binary wheel. Please
-follow the instructions below for your platform.
+`blobxfer` has dependencies which require a C compiler if your platform does
+not have pre-made binary wheels for these dependencies. Please follow the
+instructions below for your platform.
 
 ### Ubuntu
 ```shell

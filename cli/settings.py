@@ -36,6 +36,7 @@ import enum
 import blobxfer.models.azure
 import blobxfer.models.download
 import blobxfer.models.options
+import blobxfer.models.synccopy
 import blobxfer.models.upload
 import blobxfer.operations.azure
 import blobxfer.operations.crypto
@@ -56,25 +57,20 @@ def add_cli_options(cli_options, action):
     :param TransferAction action: action
     """
     cli_options['_action'] = action.name.lower()
-    try:
-        local_resource = cli_options['local_resource']
-        if blobxfer.util.is_none_or_empty(local_resource):
-            raise KeyError()
-    except KeyError:
-        raise ValueError('--local-path must be specified')
-    try:
-        storage_account = cli_options['storage_account']
-        if blobxfer.util.is_none_or_empty(storage_account):
-            raise KeyError()
-    except KeyError:
-        raise ValueError('--storage-account must be specified')
-    try:
-        remote_path = cli_options['remote_path']
-        if blobxfer.util.is_none_or_empty(remote_path):
-            raise KeyError()
-    except KeyError:
-        raise ValueError('--remote-path must be specified')
+    storage_account = cli_options['storage_account']
     if blobxfer.util.is_not_empty(storage_account):
+        try:
+            local_resource = cli_options['local_resource']
+            if blobxfer.util.is_none_or_empty(local_resource):
+                raise KeyError()
+        except KeyError:
+            raise ValueError('--local-path must be specified')
+        try:
+            remote_path = cli_options['remote_path']
+            if blobxfer.util.is_none_or_empty(remote_path):
+                raise KeyError()
+        except KeyError:
+            raise ValueError('--remote-path must be specified')
         # add credentials
         try:
             key = cli_options['access_key']
@@ -226,7 +222,7 @@ def merge_settings(config, cli_options):
     action = cli_options['_action']
     if (action != TransferAction.Upload.name.lower() and
             action != TransferAction.Download.name.lower() and
-            action == TransferAction.Synccopy.name.lower()):
+            action != TransferAction.Synccopy.name.lower()):
         raise ValueError('invalid action: {}'.format(action))
     # create action options
     if action not in config:
@@ -293,7 +289,7 @@ def create_general_options(config, action):
             disk_threads=conc.get('disk_threads', 0),
             md5_processes=conc.get('md5_processes', 0),
             transfer_threads=conc.get('transfer_threads', 0),
-            is_download=action == TransferAction.Download,
+            action=action.value[0],
         ),
         log_file=config['options'].get('log_file', None),
         progress_bar=config['options'].get('progress_bar', True),
@@ -377,6 +373,71 @@ def create_download_specifications(config):
             ds.add_azure_source_path(asp)
         # append spec to list
         specs.append(ds)
+    return specs
+
+
+def create_synccopy_specifications(config):
+    # type: (dict) -> List[blobxfer.models.synccopy.Specification]
+    """Create a list of SyncCopy Specification objects from configuration
+    :param dict config: config dict
+    :rtype: list
+    :return: list of SyncCopy Specification objects
+    """
+    specs = []
+    for conf in config['synccopy']:
+        # create download options
+        confmode = conf['options'].get('mode', 'auto').lower()
+        if confmode == 'auto':
+            mode = blobxfer.models.azure.StorageModes.Auto
+        elif confmode == 'append':
+            mode = blobxfer.models.azure.StorageModes.Append
+        elif confmode == 'block':
+            mode = blobxfer.models.azure.StorageModes.Block
+        elif confmode == 'file':
+            mode = blobxfer.models.azure.StorageModes.File
+        elif confmode == 'page':
+            mode = blobxfer.models.azure.StorageModes.Page
+        else:
+            raise ValueError('unknown mode: {}'.format(confmode))
+        # create specification
+        sod = conf['options'].get('skip_on', {})
+        scs = blobxfer.models.synccopy.Specification(
+            synccopy_options=blobxfer.models.options.SyncCopy(
+                delete_extraneous_destination=conf['options'].get(
+                    'delete_extraneous_destination', False),
+                mode=mode,
+                overwrite=conf['options'].get('overwrite', True),
+                recursive=conf['options'].get('recursive', True),
+            ),
+            skip_on_options=blobxfer.models.options.SkipOn(
+                filesize_match=sod.get('filesize_match', False),
+                lmt_ge=sod.get('lmt_ge', False),
+                md5_match=sod.get('md5_match', False),
+            ),
+        )
+        # create remote source paths
+        for src in conf['source']:
+            sa = next(iter(src))
+            asp = blobxfer.operations.azure.SourcePath()
+            asp.add_path_with_storage_account(src[sa], sa)
+            incl = conf.get('include', None)
+            if blobxfer.util.is_not_empty(incl):
+                asp.add_includes(incl)
+            excl = conf.get('exclude', None)
+            if blobxfer.util.is_not_empty(excl):
+                asp.add_excludes(excl)
+            scs.add_azure_source_path(asp)
+        # create remote destination paths
+        for dst in conf['destination']:
+            if len(dst) != 1:
+                raise RuntimeError(
+                    'invalid number of destination pairs specified per entry')
+            sa = next(iter(dst))
+            adp = blobxfer.operations.azure.DestinationPath()
+            adp.add_path_with_storage_account(dst[sa], sa)
+            scs.add_azure_destination_path(adp)
+        # append spec to list
+        specs.append(scs)
     return specs
 
 

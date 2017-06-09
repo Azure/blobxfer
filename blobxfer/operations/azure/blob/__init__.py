@@ -62,6 +62,18 @@ def check_if_single_blob(client, container, prefix, timeout=None):
 
 
 def get_blob_properties(client, container, prefix, mode, timeout=None):
+    # type: (azure.storage.blob.BaseBlobService, str, str,
+    #        blobxfer.models.azure.StorageModes, int) ->
+    #        azure.storage.blob.models.Blob
+    """Get blob properties
+    :param azure.storage.blob.BaseBlobService client: blob client
+    :param str container: container
+    :param str prefix: path prefix
+    :param blobxfer.models.azure.StorageModes mode: storage mode
+    :param int timeout: timeout
+    :rtype: azure.storage.blob.models.Blob
+    :return: blob
+    """
     if mode == blobxfer.models.azure.StorageModes.File:
         raise RuntimeError('cannot list Azure Files from blob client')
     try:

@@ -68,7 +68,7 @@ to be output.
 recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
-* `--resume-file` specifies the resume file to write to.
+* `--resume-file` specifies the resume file to write to or read from.
 * `--timeout` is the integral timeout value in seconds to use.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
@@ -236,8 +236,8 @@ restrictions.
 * `blobxfer` will attempt to download from blob storage as-is. If the source
 filename is incompatible with the destination operating system, then failure
 may result.
-* When using SAS, the SAS key must be a container- or share-level SAS if
-performing recursive directory upload or container/file share download.
+* When using SAS, the SAS key must have container- or share-level permissions
+if performing recursive directory upload or container/file share download.
 * If uploading via service-level SAS keys, the container or file share must
 already be created in Azure storage prior to upload. Account-level SAS keys
 with the signed resource type of `c` (i.e., container-level permission) is

@@ -265,7 +265,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 yield blob
 
     def _convert_to_storage_entity_with_encryption_metadata(
-            self, options, sa, entity, vio, is_file, container, dir):
+            self, options, store_raw_metadata, sa, entity, vio, is_file,
+            container, dir):
         # type: (SourcePath, StorageCredentials,
         #        blobxfer.models.options.Download, StorageAccount, object,
         #        blobxfer.models.metadata.VectoredStripe, bool, str,
@@ -283,8 +284,9 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
-        if blobxfer.models.crypto.EncryptionMetadata.\
-                encryption_metadata_exists(entity.metadata):
+        if (not store_raw_metadata and
+                blobxfer.models.crypto.EncryptionMetadata.
+                encryption_metadata_exists(entity.metadata)):
             ed = blobxfer.models.crypto.EncryptionMetadata()
             ed.convert_from_json(
                 entity.metadata, entity.name, options.rsa_private_key)
@@ -292,14 +294,17 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             ed = None
         ase = blobxfer.models.azure.StorageEntity(container, ed)
         if is_file:
-            ase.populate_from_file(sa, entity, dir, vio)
+            ase.populate_from_file(
+                sa, entity, dir, vio=vio,
+                store_raw_metadata=store_raw_metadata)
         else:
-            ase.populate_from_blob(sa, entity, vio)
+            ase.populate_from_blob(
+                sa, entity, vio=vio, store_raw_metadata=store_raw_metadata)
         return ase
 
     def _handle_vectored_io_stripe(
-            self, creds, options, general_options, sa, entity, is_file,
-            container, dir=None):
+            self, creds, options, general_options, store_raw_metadata,
+            sa, entity, is_file, container, dir=None):
         # type: (SourcePath, StorageCredentials,
         #        blobxfer.models.options.Download,
         #        blobxfer.models.options.General, StorageAccount, object,
@@ -321,7 +326,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             entity.metadata)
         if not isinstance(vio, blobxfer.models.metadata.VectoredStripe):
             ase = self._convert_to_storage_entity_with_encryption_metadata(
-                options, sa, entity, None, is_file, container, dir)
+                options, store_raw_metadata, sa, entity, None, is_file,
+                container, dir)
             yield ase
             return
         # if this slice is not the first, ignore. the reason for this is
@@ -336,7 +342,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             return
         # yield this entity
         ase = self._convert_to_storage_entity_with_encryption_metadata(
-            options, sa, entity, vio, is_file, container, dir)
+            options, store_raw_metadata, sa, entity, vio, is_file, container,
+            dir)
         yield ase
         # iterate all slices
         while vio.next is not None:
@@ -355,7 +362,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 entity.metadata)
             # yield next
             ase = self._convert_to_storage_entity_with_encryption_metadata(
-                options, sa, entity, vio, is_file, container, dir)
+                options, store_raw_metadata, sa, entity, vio, is_file,
+                container, dir)
             yield ase
 
     def _populate_from_list_files(self, creds, options, general_options):
@@ -370,6 +378,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
+        store_raw_metadata = isinstance(
+            options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
             cont, dir = blobxfer.util.explode_azure_path(rpath)
@@ -383,8 +393,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     dir, _ = blobxfer.operations.azure.file.parse_file_path(
                         dir)
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, general_options, sa, file, True, cont,
-                        dir):
+                        creds, options, general_options, store_raw_metadata,
+                        sa, file, True, cont, dir):
                     if ase is None:
                         continue
                     yield ase
@@ -401,6 +411,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
+        store_raw_metadata = isinstance(
+            options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
             cont, dir = blobxfer.util.explode_azure_path(rpath)
@@ -411,8 +423,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 if not self._inclusion_check(blob.name):
                     continue
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, general_options, sa, blob, False,
-                        cont):
+                        creds, options, general_options, store_raw_metadata,
+                        sa, blob, False, cont):
                     if ase is None:
                         continue
                     yield ase

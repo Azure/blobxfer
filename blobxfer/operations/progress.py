@@ -40,6 +40,7 @@ import cryptography
 import requests
 # local imports
 import blobxfer.models.download
+import blobxfer.models.synccopy
 import blobxfer.models.upload
 import blobxfer.util
 import blobxfer.version
@@ -143,9 +144,15 @@ def output_parameters(general_options, spec):
                  if spec.skip_on.md5_match or
                  spec.options.store_file_properties.md5 else 0,
                  0))
-
-    # TODO handle synccopy spec
-
+    elif isinstance(spec, blobxfer.models.synccopy.Specification):
+        log.append('       transfer direction: {}'.format('Azure -> Azure'))
+        log.append(
+            ('                  workers: disk={} xfer={} md5={} '
+             'crypto={}').format(
+                 general_options.concurrency.disk_threads,
+                 general_options.concurrency.transfer_threads,
+                 general_options.concurrency.md5_processes,
+                 general_options.concurrency.crypto_processes))
     # common block
     log.append('                 log file: {}'.format(
         general_options.log_file))
@@ -160,21 +167,18 @@ def output_parameters(general_options, spec):
             spec.skip_on.filesize_match,
             spec.skip_on.lmt_ge,
             spec.skip_on.md5_match))
-    log.append('         chunk size bytes: {}'.format(
-        spec.options.chunk_size_bytes))
     log.append('        delete extraneous: {}'.format(
         spec.options.delete_extraneous_destination))
     log.append('                overwrite: {}'.format(
         spec.options.overwrite))
     log.append('                recursive: {}'.format(
         spec.options.recursive))
-
-    # TODO only output rename single if not synccopy
-    log.append('            rename single: {}'.format(
-        spec.options.rename))
-
     # specific epilog
     if isinstance(spec, blobxfer.models.download.Specification):
+        log.append('            rename single: {}'.format(
+            spec.options.rename))
+        log.append('         chunk size bytes: {}'.format(
+            spec.options.chunk_size_bytes))
         log.append('         compute file md5: {}'.format(
             spec.options.check_file_md5))
         log.append('  restore file attributes: {}'.format(
@@ -184,6 +188,10 @@ def output_parameters(general_options, spec):
         log.append('        local destination: {}'.format(
             spec.destination.path))
     elif isinstance(spec, blobxfer.models.upload.Specification):
+        log.append('            rename single: {}'.format(
+            spec.options.rename))
+        log.append('         chunk size bytes: {}'.format(
+            spec.options.chunk_size_bytes))
         log.append('           one shot bytes: {}'.format(
             spec.options.one_shot_bytes))
         log.append('         store properties: attr={} md5={}'.format(

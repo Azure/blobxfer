@@ -141,3 +141,25 @@ def put_block_list(ase, last_block_num, md5, metadata, timeout=None):
         metadata=metadata,
         validate_content=False,  # integrity is enforced with HTTPS
         timeout=timeout)
+
+
+def get_committed_block_list(ase, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> list
+    """Get committed block list
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    :rtype: list
+    :return: list of committed blocks
+    """
+    if blobxfer.util.blob_is_snapshot(ase.name):
+        blob_name, snapshot = blobxfer.util.parse_blob_snapshot_parameter(
+            ase.name)
+    else:
+        blob_name = ase.name
+        snapshot = None
+    return ase.client.get_block_list(
+        container_name=ase.container,
+        blob_name=blob_name,
+        snapshot=snapshot,
+        block_list_type=azure.storage.blob.BlockListType.Committed,
+        timeout=timeout).committed_blocks

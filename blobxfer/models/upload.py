@@ -508,6 +508,7 @@ class Descriptor(object):
         with self._meta_lock:
             self._outstanding_ops -= 1
             # save resume state
+            # TODO fix issue with replica targets
             if self.is_resumable:
                 self._completed_chunks.set(True, chunk_num)
                 completed = self._outstanding_ops == 0

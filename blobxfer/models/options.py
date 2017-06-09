@@ -94,9 +94,10 @@ Download = collections.namedtuple(
 )
 SyncCopy = collections.namedtuple(
     'SyncCopy', [
-        'chunk_size_bytes',
+        'delete_extraneous_destination',
         'mode',
         'overwrite',
+        'recursive',
     ]
 )
 
@@ -105,7 +106,7 @@ class Concurrency(object):
     """Concurrency Options"""
     def __init__(
             self, crypto_processes, md5_processes, disk_threads,
-            transfer_threads, is_download=None):
+            transfer_threads, action=None):
         """Ctor for Concurrency Options
         :param Concurrency self: this
         :param int crypto_processes: number of crypto procs
@@ -132,10 +133,16 @@ class Concurrency(object):
             # cap maximum number of disk threads from cpu count to 64
             if self.disk_threads > 64:
                 self.disk_threads = 64
-            # for downloads, cap disk threads to lower value
-            if is_download and self.disk_threads > 16:
+            # for download action, cap disk threads to lower value
+            if action == 1 and self.disk_threads > 16:
                 self.disk_threads = 16
             auto_disk = True
+        # for synccopy action, set all non-transfer counts to zero
+        if action == 3:
+            auto_disk = False
+            self.md5_processes = 0
+            self.crypto_processes = 0
+            self.disk_threads = 0
         if self.transfer_threads is None or self.transfer_threads < 1:
             if auto_disk:
                 self.transfer_threads = self.disk_threads << 1

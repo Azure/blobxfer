@@ -749,7 +749,7 @@ def sync_copy_options(f):
 @click.version_option(version=blobxfer.__version__)
 @click.pass_context
 def cli(ctx):
-    """Blobxfer: Azure Storage transfer tool"""
+    """blobxfer: Azure Storage transfer tool"""
     pass
 
 
@@ -775,9 +775,13 @@ def download(ctx):
 @pass_cli_context
 def synccopy(ctx):
     """Synchronously copy blobs between Azure Storage accounts"""
-    raise NotImplementedError()
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Synccopy)
     ctx.initialize(settings.TransferAction.Synccopy)
+    specs = settings.create_synccopy_specifications(ctx.config)
+    for spec in specs:
+        blobxfer.api.SyncCopy(
+            ctx.general_options, ctx.credentials, spec
+        ).start()
 
 
 @cli.command('upload')
