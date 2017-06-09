@@ -7,16 +7,13 @@ python:
   - 3.5
   - 3.6
 install:
-  - travis_retry pip install coveralls
+  - travis_retry pip install --upgrade pip
+  - travis_retry pip install --upgrade setuptools wheel coveralls
 script:
   - |
     if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]] || [[ $TRAVIS_PYTHON_VERSION == '3.3' ]] || [[ $TRAVIS_PYTHON_VERSION == '3.4' ]]; then
-        virtualenv venv
-        source venv/bin/activate
-        travis_retry pip install --upgrade pip
-        travis_retry pip install --upgrade setuptools wheel tox
+        travis_retry pip install tox
         tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d .)
-        deactivate
     else
         travis_retry pip install tox-travis
         tox
