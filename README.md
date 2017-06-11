@@ -39,6 +39,7 @@ for Block blobs)
 * Include and exclude filtering support
 * Rsync-like delete support
 * No clobber support in either direction
+* Automatic content type tagging
 * File logging support
 
 ## Installation

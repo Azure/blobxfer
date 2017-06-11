@@ -8,8 +8,8 @@ Azure Files.
 * `stdin` sources cannot be encrypted.
 * Azure KeyVault key references are currently not supported.
 
-### Platform-specific Issues
-* File attribute store/restore is not supported on Windows.
+### Platform-specific
+* File attribute store/restore is currently not supported on Windows.
 
 ### Resume Support
 * Encrypted uploads/downloads cannot currently be resumed as the Python
@@ -22,6 +22,6 @@ SHA256 object cannot be pickled.
 File share which has empty directories.
 * Empty directories are not deleted if `--delete` is specified and no files
 remain in the directory on the Azure File share.
-* Directories with no characters, e.g. `/mycontainer//mydir` are not
+* Directories with no characters, e.g. `mycontainer//mydir` are not
 supported.
 * `/dev/null` or `nul` destinations are not supported.

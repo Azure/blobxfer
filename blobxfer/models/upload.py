@@ -514,7 +514,9 @@ class Descriptor(object):
                 # chunk are complete
                 if blobxfer.util.is_not_empty(self._ase.replica_targets):
                     if chunk_num not in self._replica_counters:
-                        self._replica_counters[chunk_num] = 0
+                        # start counter at -1 since we need 1 "extra" for the
+                        # primary in addition to the replica targets
+                        self._replica_counters[chunk_num] = -1
                     self._replica_counters[chunk_num] += 1
                     if (self._replica_counters[chunk_num] !=
                             len(self._ase.replica_targets)):

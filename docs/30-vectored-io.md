@@ -50,16 +50,16 @@ configuration file to define multiple destinations.
 
 ### Stripe
 `stripe` mode will splice a file into multiple chunks and scatter these
-chunks across destinations specified. These destinations can be different
-a single or multiple containers within the same storage account or even
-containers distributed across multiple storage accounts if single storage
-account bandwidth limits are insufficient.
+chunks across destinations specified. These destinations can be single or
+multiple containers within the same storage account or even containers
+distributed across multiple storage accounts if single storage account
+bandwidth limits are insufficient.
 
 `blobxfer` will slice the source file into multiple chunks where the
 `stripe_chunk_size_bytes` is the stripe width of each chunk. This parameter
 will allow you to effectively control how many blobs/files are created on
 Azure. `blobxfer` will then round-robin through all of the destinations
-specified to store the slices. Information required to reconstruct the
+specified to scatter the slices. Information required to reconstruct the
 original file is stored on the blob or file metadata. It is important to
 keep this metadata in-tact or reconstruction will fail.
 
