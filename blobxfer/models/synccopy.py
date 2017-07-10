@@ -186,7 +186,7 @@ class Descriptor(object):
         :rtype: bool
         :return: remote is an Azure File
         """
-        return self.src_entity.mode == blobxfer.models.azure.StorageModes.File
+        return self.dst_entity.mode == blobxfer.models.azure.StorageModes.File
 
     @property
     def remote_is_page_blob(self):
@@ -196,7 +196,7 @@ class Descriptor(object):
         :rtype: bool
         :return: remote is an Azure Page Blob
         """
-        return self.src_entity.mode == blobxfer.models.azure.StorageModes.Page
+        return self.dst_entity.mode == blobxfer.models.azure.StorageModes.Page
 
     @property
     def remote_is_append_blob(self):
@@ -207,7 +207,7 @@ class Descriptor(object):
         :return: remote is an Azure Append Blob
         """
         return (
-            self.src_entity.mode == blobxfer.models.azure.StorageModes.Append
+            self.dst_entity.mode == blobxfer.models.azure.StorageModes.Append
         )
 
     @property
@@ -219,7 +219,7 @@ class Descriptor(object):
         :return: if upload is a one-shot block blob
         """
         return (
-            self.src_entity.mode ==
+            self.dst_entity.mode ==
             blobxfer.models.azure.StorageModes.Block and
             self._total_chunks == 1
         )
@@ -233,7 +233,7 @@ class Descriptor(object):
         :return: if finalize requires a put block list
         """
         return (
-            self.src_entity.mode ==
+            self.dst_entity.mode ==
             blobxfer.models.azure.StorageModes.Block and
             self._total_chunks > 1
         )

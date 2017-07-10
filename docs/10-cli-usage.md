@@ -41,8 +41,9 @@ command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
-* `--sync-copy-dest-storage-account` for the destination remote Azure path
+* `--sync-copy-dest-mode` for the destination mode
 * `--sync-copy-dest-remote-path` for the destination remote Azure path
+* `--sync-copy-dest-storage-account` for the destination remote Azure path
 
 Additionally, an authentication option for both storage accounts is required.
 Please see the `Authentication` and `Connection` sub-section below under the

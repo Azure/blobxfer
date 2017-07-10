@@ -232,6 +232,7 @@ synccopy:
         - "*.tmp"
       options:
           mode: auto
+          dest_mode: auto
           delete_extraneous_destination: true
           overwrite: true
           recursive: true
@@ -247,7 +248,8 @@ are copied to each destination specified.
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns
 * `options` are synccopy-specific options
-  * `mode` is the operating mode
+  * `mode` is the source mode
+  * `dest_mode` is the destination mode
   * `delete_extraneous_destination` will cleanup any files in remote
     destinations that are not found in the remote sources. Note that this
     interacts with include and exclude filters.

@@ -166,7 +166,7 @@ class SyncCopy(object):
             logger.debug(
                 'attempting to delete extraneous blobs/files from: {}'.format(
                     key))
-            if (self._spec.options.mode ==
+            if (self._spec.options.dest_mode ==
                     blobxfer.models.azure.StorageModes.File):
                 files = blobxfer.operations.azure.file.list_all_files(
                     sa.file_client, container,
@@ -205,7 +205,8 @@ class SyncCopy(object):
         """
         # prepare remote file for download
         # if remote file is a block blob, need to retrieve block list
-        if src_ase.mode == blobxfer.models.azure.StorageModes.Block:
+        if (src_ase.mode == dst_ase.mode ==
+                blobxfer.models.azure.StorageModes.Block):
             bl = blobxfer.operations.azure.blob.block.get_committed_block_list(
                 src_ase, timeout=self._general_options.timeout_sec)
         else:
@@ -608,13 +609,14 @@ class SyncCopy(object):
         :rtype: blobxfer.models.azure.StorageEntity
         :return: remote storage entity
         """
-        if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
+        if (self._spec.options.dest_mode ==
+                blobxfer.models.azure.StorageModes.File):
             fp = blobxfer.operations.azure.file.get_file_properties(
                 sa.file_client, cont, name,
                 timeout=self._general_options.timeout_sec)
         else:
             fp = blobxfer.operations.azure.blob.get_blob_properties(
-                sa.block_blob_client, cont, name, self._spec.options.mode,
+                sa.block_blob_client, cont, name, self._spec.options.dest_mode,
                 timeout=self._general_options.timeout_sec)
         if fp is not None:
             if blobxfer.models.crypto.EncryptionMetadata.\
@@ -624,7 +626,7 @@ class SyncCopy(object):
             else:
                 ed = None
             ase = blobxfer.models.azure.StorageEntity(cont, ed)
-            if (self._spec.options.mode ==
+            if (self._spec.options.dest_mode ==
                     blobxfer.models.azure.StorageModes.File):
                 dir, _ = blobxfer.operations.azure.file.parse_file_path(name)
                 ase.populate_from_file(sa, fp, dir)
@@ -666,7 +668,8 @@ class SyncCopy(object):
             if dst_ase is None:
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 dst_ase.populate_from_local(
-                    sa, cont, name, self._spec.options.mode)
+                    sa, cont, name, self._spec.options.dest_mode)
+                dst_ase.size = src_ase.size
             # check condition for dst
             action = self._check_copy_conditions(src_ase, dst_ase)
             if action == SynccopyAction.Copy:

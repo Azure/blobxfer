@@ -184,6 +184,7 @@ def add_cli_options(cli_options, action):
                 'exclude': cli_options['exclude'],
                 'options': {
                     'chunk_size_bytes': cli_options['chunk_size_bytes'],
+                    'dest_mode': cli_options['sync_copy_dest_mode'],
                     'mode': cli_options['mode'],
                     'overwrite': cli_options['overwrite'],
                     'skip_on': {
@@ -309,19 +310,19 @@ def create_download_specifications(config):
     specs = []
     for conf in config['download']:
         # create download options
-        confmode = conf['options'].get('mode', 'auto').lower()
-        if confmode == 'auto':
+        mode = conf['options'].get('mode', 'auto').lower()
+        if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
-        elif confmode == 'append':
+        elif mode == 'append':
             mode = blobxfer.models.azure.StorageModes.Append
-        elif confmode == 'block':
+        elif mode == 'block':
             mode = blobxfer.models.azure.StorageModes.Block
-        elif confmode == 'file':
+        elif mode == 'file':
             mode = blobxfer.models.azure.StorageModes.File
-        elif confmode == 'page':
+        elif mode == 'page':
             mode = blobxfer.models.azure.StorageModes.Page
         else:
-            raise ValueError('unknown mode: {}'.format(confmode))
+            raise ValueError('unknown mode: {}'.format(mode))
         # load RSA private key PEM file if specified
         rpk = conf['options'].get('rsa_private_key', None)
         if blobxfer.util.is_not_empty(rpk):
@@ -385,26 +386,45 @@ def create_synccopy_specifications(config):
     """
     specs = []
     for conf in config['synccopy']:
-        # create download options
-        confmode = conf['options'].get('mode', 'auto').lower()
-        if confmode == 'auto':
+        # get source mode
+        mode = conf['options'].get('mode', 'auto').lower()
+        if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
-        elif confmode == 'append':
+        elif mode == 'append':
             mode = blobxfer.models.azure.StorageModes.Append
-        elif confmode == 'block':
+        elif mode == 'block':
             mode = blobxfer.models.azure.StorageModes.Block
-        elif confmode == 'file':
+        elif mode == 'file':
             mode = blobxfer.models.azure.StorageModes.File
-        elif confmode == 'page':
+        elif mode == 'page':
             mode = blobxfer.models.azure.StorageModes.Page
         else:
-            raise ValueError('unknown mode: {}'.format(confmode))
+            raise ValueError('unknown source mode: {}'.format(mode))
+        # get destination mode
+        destmode = conf['options'].get('dest_mode')
+        if blobxfer.util.is_none_or_empty(destmode):
+            destmode = mode
+        else:
+            destmode = destmode.lower()
+            if destmode == 'auto':
+                destmode = blobxfer.models.azure.StorageModes.Auto
+            elif destmode == 'append':
+                destmode = blobxfer.models.azure.StorageModes.Append
+            elif destmode == 'block':
+                destmode = blobxfer.models.azure.StorageModes.Block
+            elif destmode == 'file':
+                destmode = blobxfer.models.azure.StorageModes.File
+            elif destmode == 'page':
+                destmode = blobxfer.models.azure.StorageModes.Page
+            else:
+                raise ValueError('unknown dest mode: {}'.format(destmode))
         # create specification
         sod = conf['options'].get('skip_on', {})
         scs = blobxfer.models.synccopy.Specification(
             synccopy_options=blobxfer.models.options.SyncCopy(
                 delete_extraneous_destination=conf['options'].get(
                     'delete_extraneous_destination', False),
+                dest_mode=destmode,
                 mode=mode,
                 overwrite=conf['options'].get('overwrite', True),
                 recursive=conf['options'].get('recursive', True),
@@ -451,19 +471,19 @@ def create_upload_specifications(config):
     specs = []
     for conf in config['upload']:
         # create upload options
-        confmode = conf['options'].get('mode', 'auto').lower()
-        if confmode == 'auto':
+        mode = conf['options'].get('mode', 'auto').lower()
+        if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
-        elif confmode == 'append':
+        elif mode == 'append':
             mode = blobxfer.models.azure.StorageModes.Append
-        elif confmode == 'block':
+        elif mode == 'block':
             mode = blobxfer.models.azure.StorageModes.Block
-        elif confmode == 'file':
+        elif mode == 'file':
             mode = blobxfer.models.azure.StorageModes.File
-        elif confmode == 'page':
+        elif mode == 'page':
             mode = blobxfer.models.azure.StorageModes.Page
         else:
-            raise ValueError('unknown mode: {}'.format(confmode))
+            raise ValueError('unknown mode: {}'.format(mode))
         # load RSA public key PEM if specified
         rpk = conf['options'].get('rsa_public_key', None)
         if blobxfer.util.is_not_empty(rpk):

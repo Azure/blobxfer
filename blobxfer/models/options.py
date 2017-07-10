@@ -95,6 +95,7 @@ Download = collections.namedtuple(
 SyncCopy = collections.namedtuple(
     'SyncCopy', [
         'delete_extraneous_destination',
+        'dest_mode',
         'mode',
         'overwrite',
         'recursive',

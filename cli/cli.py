@@ -637,16 +637,15 @@ def _sync_copy_dest_access_key_option(f):
         callback=callback)(f)
 
 
-def _sync_copy_dest_storage_account_option(f):
+def _sync_copy_dest_mode_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['sync_copy_dest_storage_account'] = value
+        clictx.cli_options['sync_copy_dest_mode'] = value
         return value
     return click.option(
-        '--sync-copy-dest-storage-account',
+        '--sync-copy-dest-mode',
         expose_value=False,
-        help='Storage account name for synccopy destination',
-        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT',
+        help='Mode for synccopy destination',
         callback=callback)(f)
 
 
@@ -672,6 +671,19 @@ def _sync_copy_dest_sas_option(f):
         expose_value=False,
         help='Shared access signature for synccopy destination',
         envvar='BLOBXFER_SYNC_COPY_DEST_SAS',
+        callback=callback)(f)
+
+
+def _sync_copy_dest_storage_account_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sync_copy_dest_storage_account'] = value
+        return value
+    return click.option(
+        '--sync-copy-dest-storage-account',
+        expose_value=False,
+        help='Storage account name for synccopy destination',
+        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT',
         callback=callback)(f)
 
 
@@ -728,6 +740,7 @@ def sync_copy_options(f):
     f = _sync_copy_dest_storage_account_option(f)
     f = _sync_copy_dest_sas_option(f)
     f = _sync_copy_dest_remote_path_option(f)
+    f = _sync_copy_dest_mode_option(f)
     f = _sync_copy_dest_access_key_option(f)
     f = _storage_account_option(f)
     f = _skip_on_md5_match_option(f)
