@@ -493,7 +493,7 @@ class Descriptor(object):
             if rr.md5hexdigest != hexdigest:
                 logger.warning(
                     'MD5 mismatch resume={} computed={} for {}'.format(
-                         rr.md5hexdigest, hexdigest, self.final_path))
+                        rr.md5hexdigest, hexdigest, self.final_path))
                 # reset hasher
                 self.md5 = blobxfer.util.new_md5_hasher()
                 return None

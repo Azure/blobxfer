@@ -961,7 +961,7 @@ class Uploader(object):
                 ase = slice_map[i]
                 if i < slices - 1:
                     next_entry = blobxfer.models.metadata.\
-                        create_vectored_io_next_entry(slice_map[i+1])
+                        create_vectored_io_next_entry(slice_map[i + 1])
                 else:
                     next_entry = None
                 lp_slice = blobxfer.models.upload.LocalPath(

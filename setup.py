@@ -38,16 +38,15 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage==0.34.2',
+    'azure-storage==0.35.1',
     'bitstring==3.1.5',
     'click==6.7',
-    'cryptography>=1.9',
-    'enum34==1.1.6;python_version<"3.4"',
+    'cryptography>=2.0.3',
     'future==0.16.0',
-    'pathlib2==2.2.1;python_version<"3.5"',
-    'python-dateutil==2.6.0',
-    'requests==2.14.2',
-    'ruamel.yaml==0.14.12',
+    'pathlib2==2.3.0;python_version<"3.5"',
+    'python-dateutil==2.6.1',
+    'requests==2.18.3',
+    'ruamel.yaml==0.15.24',
     'scandir==1.5;python_version<"3.5"',
 ]
 
@@ -80,7 +79,6 @@ setup(
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
