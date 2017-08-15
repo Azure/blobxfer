@@ -194,6 +194,8 @@ def output_parameters(general_options, spec):
             spec.options.chunk_size_bytes))
         log.append('           one shot bytes: {}'.format(
             spec.options.one_shot_bytes))
+        log.append('         strip components: {}'.format(
+            spec.options.strip_components))
         log.append('         store properties: attr={} md5={}'.format(
             spec.options.store_file_properties.attributes,
             spec.options.store_file_properties.md5))

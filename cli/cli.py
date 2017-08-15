@@ -108,8 +108,6 @@ class CliContext(object):
         if self.config['options'].get('verbose', False):
             blobxfer.util.set_verbose_logger_handlers()
             logger.debug('config: \n' + json.dumps(self.config, indent=4))
-        # free mem
-        del self.cli_options
 
 
 # create a pass decorator for shared context between commands
@@ -124,6 +122,7 @@ def _config_option(f):
     return click.option(
         '--config',
         expose_value=False,
+        default=None,
         help='YAML configuration file',
         envvar='BLOBXFER_CONFIG_FILE',
         callback=callback)(f)
@@ -138,7 +137,7 @@ def _crypto_processes_option(f):
         '--crypto-processes',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='Concurrent crypto processes (download only)',
         callback=callback)(f)
 
@@ -152,7 +151,7 @@ def _disk_threads_option(f):
         '--disk-threads',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='Concurrent disk threads',
         callback=callback)(f)
 
@@ -180,7 +179,7 @@ def _md5_processes_option(f):
         '--md5-processes',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='Concurrent MD5 processes',
         callback=callback)(f)
 
@@ -193,7 +192,7 @@ def _progress_bar_option(f):
     return click.option(
         '--progress-bar/--no-progress-bar',
         expose_value=False,
-        default=True,
+        default=None,
         help='Display progress bar instead of console logs; log file must '
         'be specified [True]',
         callback=callback)(f)
@@ -221,6 +220,7 @@ def _timeout_option(f):
         '--timeout',
         expose_value=False,
         type=int,
+        default=None,
         help='Individual chunk transfer timeout',
         callback=callback)(f)
 
@@ -234,7 +234,7 @@ def _transfer_threads_option(f):
         '--transfer-threads',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='Concurrent transfer threads',
         callback=callback)(f)
 
@@ -248,6 +248,7 @@ def _verbose_option(f):
         '-v', '--verbose',
         expose_value=False,
         is_flag=True,
+        default=None,
         help='Verbose output',
         callback=callback)(f)
 
@@ -260,6 +261,7 @@ def _local_resource_option(f):
     return click.option(
         '--local-path',
         expose_value=False,
+        default=None,
         help='Local path; use - for stdin',
         callback=callback)(f)
 
@@ -272,6 +274,7 @@ def _storage_account_option(f):
     return click.option(
         '--storage-account',
         expose_value=False,
+        default=None,
         help='Storage account name',
         envvar='BLOBXFER_STORAGE_ACCOUNT',
         callback=callback)(f)
@@ -285,6 +288,7 @@ def _remote_path_option(f):
     return click.option(
         '--remote-path',
         expose_value=False,
+        default=None,
         help='Remote path on Azure Storage',
         callback=callback)(f)
 
@@ -318,6 +322,7 @@ def _access_key_option(f):
     return click.option(
         '--storage-account-key',
         expose_value=False,
+        default=None,
         help='Storage account access key',
         envvar='BLOBXFER_STORAGE_ACCOUNT_KEY',
         callback=callback)(f)
@@ -332,7 +337,7 @@ def _chunk_size_bytes_option(f):
         '--chunk-size-bytes',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='Block or chunk size in bytes; set to 0 for auto-select '
         'on upload [0]',
         callback=callback)(f)
@@ -347,6 +352,7 @@ def _delete_option(f):
         '--delete',
         expose_value=False,
         is_flag=True,
+        default=None,
         help='Delete extraneous files on target [False]',
         callback=callback)(f)
 
@@ -354,12 +360,12 @@ def _delete_option(f):
 def _distribution_mode(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['distribution_mode'] = value.lower()
+        clictx.cli_options['distribution_mode'] = value
         return value
     return click.option(
         '--distribution-mode',
         expose_value=False,
-        default='disabled',
+        default=None,
         help='Vectored IO distribution mode: disabled, replica, '
         'stripe [disabled]',
         callback=callback)(f)
@@ -373,7 +379,7 @@ def _endpoint_option(f):
     return click.option(
         '--endpoint',
         expose_value=False,
-        default='core.windows.net',
+        default=None,
         help='Azure Storage endpoint [core.windows.net]',
         callback=callback)(f)
 
@@ -386,8 +392,8 @@ def _exclude_option(f):
     return click.option(
         '--exclude',
         expose_value=False,
-        default=None,
         multiple=True,
+        default=None,
         help='Exclude pattern',
         callback=callback)(f)
 
@@ -400,7 +406,7 @@ def _file_attributes(f):
     return click.option(
         '--file-attributes/--no-file-attributes',
         expose_value=False,
-        default=False,
+        default=None,
         help='Store or restore file attributes [False]',
         callback=callback)(f)
 
@@ -413,7 +419,7 @@ def _file_md5_option(f):
     return click.option(
         '--file-md5/--no-file-md5',
         expose_value=False,
-        default=False,
+        default=None,
         help='Compute file MD5 [False]',
         callback=callback)(f)
 
@@ -426,8 +432,8 @@ def _include_option(f):
     return click.option(
         '--include',
         expose_value=False,
-        default=None,
         multiple=True,
+        default=None,
         help='Include pattern',
         callback=callback)(f)
 
@@ -440,7 +446,7 @@ def _mode_option(f):
     return click.option(
         '--mode',
         expose_value=False,
-        default='auto',
+        default=None,
         help='Transfer mode: auto, append, block, file, page [auto]',
         callback=callback)(f)
 
@@ -454,7 +460,7 @@ def _one_shot_bytes_option(f):
         '--one-shot-bytes',
         expose_value=False,
         type=int,
-        default=0,
+        default=None,
         help='File sizes less than or equal to the specified byte threshold '
         'will be uploaded as one-shot for block blobs; the valid range that '
         'can be specified is 0 to 256MiB [0]',
@@ -469,7 +475,7 @@ def _overwrite_option(f):
     return click.option(
         '--overwrite/--no-overwrite',
         expose_value=False,
-        default=True,
+        default=None,
         help='Overwrite destination if exists. For append blobs, '
         '--no-overwrite will append to any existing blob. [True]',
         callback=callback)(f)
@@ -483,7 +489,7 @@ def _recursive_option(f):
     return click.option(
         '--recursive/--no-recursive',
         expose_value=False,
-        default=True,
+        default=None,
         help='Recursive [True]',
         callback=callback)(f)
 
@@ -497,7 +503,7 @@ def _rename_option(f):
         '--rename',
         expose_value=False,
         is_flag=True,
-        default=False,
+        default=None,
         help='Rename a single file upload or download [False]',
         callback=callback)(f)
 
@@ -552,6 +558,7 @@ def _sas_option(f):
     return click.option(
         '--sas',
         expose_value=False,
+        default=None,
         help='Shared access signature',
         envvar='BLOBXFER_SAS',
         callback=callback)(f)
@@ -566,6 +573,7 @@ def _skip_on_filesize_match_option(f):
         '--skip-on-filesize-match',
         expose_value=False,
         is_flag=True,
+        default=None,
         help='Skip on equivalent file size [False]',
         callback=callback)(f)
 
@@ -579,6 +587,7 @@ def _skip_on_lmt_ge_option(f):
         '--skip-on-lmt-ge',
         expose_value=False,
         is_flag=True,
+        default=None,
         help='Skip on last modified time greater than or equal to [False]',
         callback=callback)(f)
 
@@ -592,6 +601,7 @@ def _skip_on_md5_match_option(f):
         '--skip-on-md5-match',
         expose_value=False,
         is_flag=True,
+        default=None,
         help='Skip on MD5 match [False]',
         callback=callback)(f)
 
@@ -605,8 +615,8 @@ def _strip_components_option(f):
         '--strip-components',
         expose_value=False,
         type=int,
-        default=1,
-        help='Strip leading file path components on upload [1]',
+        default=None,
+        help='Strip leading file path components on upload [0]',
         callback=callback)(f)
 
 
@@ -619,7 +629,7 @@ def _stripe_chunk_size_bytes_option(f):
         '--stripe-chunk-size-bytes',
         expose_value=False,
         type=int,
-        default=1073741824,
+        default=None,
         help='Vectored IO stripe width in bytes [1073741824]',
         callback=callback)(f)
 
@@ -632,6 +642,7 @@ def _sync_copy_dest_access_key_option(f):
     return click.option(
         '--sync-copy-dest-storage-account-key',
         expose_value=False,
+        default=None,
         help='Storage account access key for synccopy destination',
         envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT_KEY',
         callback=callback)(f)
@@ -645,6 +656,7 @@ def _sync_copy_dest_mode_option(f):
     return click.option(
         '--sync-copy-dest-mode',
         expose_value=False,
+        default=None,
         help='Mode for synccopy destination',
         callback=callback)(f)
 
@@ -657,6 +669,7 @@ def _sync_copy_dest_remote_path_option(f):
     return click.option(
         '--sync-copy-dest-remote-path',
         expose_value=False,
+        default=None,
         help='Remote path on Azure Storage for synccopy destination',
         callback=callback)(f)
 
@@ -669,6 +682,7 @@ def _sync_copy_dest_sas_option(f):
     return click.option(
         '--sync-copy-dest-sas',
         expose_value=False,
+        default=None,
         help='Shared access signature for synccopy destination',
         envvar='BLOBXFER_SYNC_COPY_DEST_SAS',
         callback=callback)(f)
@@ -682,6 +696,7 @@ def _sync_copy_dest_storage_account_option(f):
     return click.option(
         '--sync-copy-dest-storage-account',
         expose_value=False,
+        default=None,
         help='Storage account name for synccopy destination',
         envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT',
         callback=callback)(f)
@@ -775,7 +790,9 @@ def download(ctx):
     """Download blobs or files from Azure Storage"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Download)
     ctx.initialize(settings.TransferAction.Download)
-    specs = settings.create_download_specifications(ctx.config)
+    specs = settings.create_download_specifications(
+        ctx.cli_options, ctx.config)
+    del ctx.cli_options
     for spec in specs:
         blobxfer.api.Downloader(
             ctx.general_options, ctx.credentials, spec
@@ -790,7 +807,9 @@ def synccopy(ctx):
     """Synchronously copy blobs between Azure Storage accounts"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Synccopy)
     ctx.initialize(settings.TransferAction.Synccopy)
-    specs = settings.create_synccopy_specifications(ctx.config)
+    specs = settings.create_synccopy_specifications(
+        ctx.cli_options, ctx.config)
+    del ctx.cli_options
     for spec in specs:
         blobxfer.api.SyncCopy(
             ctx.general_options, ctx.credentials, spec
@@ -806,7 +825,9 @@ def upload(ctx):
     """Upload files to Azure Storage"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Upload)
     ctx.initialize(settings.TransferAction.Upload)
-    specs = settings.create_upload_specifications(ctx.config)
+    specs = settings.create_upload_specifications(
+        ctx.cli_options, ctx.config)
+    del ctx.cli_options
     for spec in specs:
         blobxfer.api.Uploader(
             ctx.general_options, ctx.credentials, spec

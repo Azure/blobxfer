@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- Cross-mode synchronous copy support
+- Duplicate detection (different local source paths mapping to the same
+destination) on upload
+
+### Changed
+- Python 3.3 is no longer supported (due to `cryptography` dropping support
+for 3.3).
+- `--strip-components` now defaults to `0`
+
+### Fixed
+- Properly merge CLI options with YAML config options. You can now override
+most YAML config settings with CLI options at runtime.
+- Issue with zero-byte uploads
+- Check for max page blob size
+
 ## [1.0.0a5] - 2017-06-09
 ### Added
 - Synchronous copy support with the `synccopy` command. This command supports

@@ -191,7 +191,7 @@ behavior.
 * `--rename` renames a single file upload or download to the target
 destination or source path, respectively.
 * `--strip-components N` will strip the leading `N` components from the
-local file path. The default is `1`.
+local file path on upload. The default is `0`.
 
 ## <a name="examples"></a>Example Invocations
 ### `download` Examples

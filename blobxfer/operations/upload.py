@@ -173,14 +173,14 @@ class Uploader(object):
         )
 
     @staticmethod
-    def create_deletion_id(client, container, name):
+    def create_destination_id(client, container, name):
         # type: (azure.storage.StorageClient, str, str) -> str
-        """Create a unique deletion id
+        """Create a unique destination id
         :param azure.storage.StorageClient client: storage client
         :param str container: container name
         :param str name: entity name
         :rtype: str
-        :return: unique id for deletion
+        :return: unique id for the destination
         """
         return ';'.join((client.primary_endpoint, container, name))
 
@@ -580,7 +580,7 @@ class Uploader(object):
         if ud.entity.mode != blobxfer.models.azure.StorageModes.Append:
             self._upload_queue.put(ud)
         # no data can be returned on stdin uploads
-        if not data:
+        if ud.local_path.use_stdin and not data:
             return
         # add data to transfer queue
         with self._transfer_lock:
@@ -743,7 +743,7 @@ class Uploader(object):
                     timeout=self._general_options.timeout_sec)
                 for file in files:
                     id = blobxfer.operations.upload.Uploader.\
-                        create_deletion_id(sa.file_client, container, file)
+                        create_destination_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.file.delete_file(
                             sa.file_client, container, file,
@@ -755,7 +755,7 @@ class Uploader(object):
                     timeout=self._general_options.timeout_sec)
                 for blob in blobs:
                     id = blobxfer.operations.upload.Uploader.\
-                        create_deletion_id(
+                        create_destination_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.blob.delete_blob(
@@ -1007,7 +1007,7 @@ class Uploader(object):
                             for rt in primary_ase.replica_targets:
                                 self._delete_exclude.add(
                                     blobxfer.operations.upload.Uploader.
-                                    create_deletion_id(
+                                    create_destination_id(
                                         rt._client, rt.container, rt.name)
                                 )
                         yield action, local_path, primary_ase
@@ -1056,6 +1056,7 @@ class Uploader(object):
             raise RuntimeError(
                 'cannot rename to specified destination with multiple sources')
         # iterate through source paths to upload
+        dupes = set()
         for src in self._spec.sources.files():
             # create a destination array for the source
             dest = [
@@ -1063,11 +1064,15 @@ class Uploader(object):
                 self._generate_destination_for_source(src)
             ]
             for action, lp, ase in self._vectorize_and_bind(src, dest):
+                dest_id = blobxfer.operations.upload.Uploader.\
+                    create_destination_id(ase._client, ase.container, ase.name)
+                if dest_id in dupes:
+                    raise RuntimeError(
+                        'duplicate destination entity detected: {}/{}'.format(
+                            ase._client.primary_endpoint, ase.path))
+                dupes.add(dest_id)
                 if self._spec.options.delete_extraneous_destination:
-                    self._delete_exclude.add(
-                        blobxfer.operations.upload.Uploader.create_deletion_id(
-                            ase._client, ase.container, ase.name)
-                    )
+                    self._delete_exclude.add(dest_id)
                 if action == UploadAction.Skip:
                     skipped_files += 1
                     skipped_size += ase.size if ase.size is not None else 0
@@ -1085,6 +1090,7 @@ class Uploader(object):
                     self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
                     self._add_to_upload_queue(lp, ase, uid)
+        del dupes
         # set remote files processed
         with self._md5_meta_lock:
             self._all_files_processed = True

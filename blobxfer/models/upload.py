@@ -57,6 +57,7 @@ _MAX_BLOCK_BLOB_ONESHOT_BYTES = 268435456
 _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 104857600
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 _MAX_NUM_CHUNKS = 50000
+_MAX_PAGE_BLOB_SIZE = 8796093022208
 _DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
 _MAX_MD5_CACHE_RESUME_ENTRIES = 25
 
@@ -656,6 +657,11 @@ class Descriptor(object):
                     'adjusting chunk size to {} for file from {}'.format(
                         self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Page:
+            if self._ase.size > _MAX_PAGE_BLOB_SIZE:
+                raise RuntimeError(
+                    '{} size {} exceeds maximum page blob size of {}'.format(
+                        self.local_path.absolute_path, self._ase.size,
+                        _MAX_PAGE_BLOB_SIZE))
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
@@ -676,7 +682,8 @@ class Descriptor(object):
             chunks = 1
         if self.local_path.use_stdin and chunks == 0:
             chunks = 1
-        if chunks > 50000:
+        if (self._ase.mode != blobxfer.models.azure.StorageModes.Page and
+                chunks > 50000):
             max_vector = False
             if self._ase.mode == blobxfer.models.azure.StorageModes.Block:
                 if self._chunk_size == _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
@@ -719,6 +726,12 @@ class Descriptor(object):
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def _resume(self):
+        # type: (Descriptor) -> int
+        """Resume upload
+        :param Descriptor self: this
+        :rtype: int
+        :return: resume bytes
+        """
         if self._resume_mgr is None or self._offset > 0:
             return None
         # check if path exists in resume db

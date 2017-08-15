@@ -93,6 +93,10 @@ class StorageAccount(object):
         self._block_blob_client = None
         self._file_client = None
         self._page_blob_client = None
+        if blobxfer.util.is_none_or_empty(key):
+            raise ValueError(
+                ('no authentication credential given for storage '
+                 'account: {}').format(name))
         self.name = name
         self.key = key
         self.endpoint = endpoint
