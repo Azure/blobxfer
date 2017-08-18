@@ -42,9 +42,8 @@ except ImportError:  # noqa
     from scandir import scandir as scandir
 import platform
 import re
-import sys
 # non-stdlib imports
-import dateutil
+import dateutil.parser
 import dateutil.tz
 import future.utils
 # local imports
@@ -170,9 +169,9 @@ def datetime_now():
 
 
 def datetime_from_timestamp(ts, tz=None):
-    # type: (int, dateutil.tz) -> datetime.datetime
+    # type: (float, dateutil.tz) -> datetime.datetime
     """Convert a timestamp into datetime with offset
-    :param int ts: timestamp
+    :param float ts: timestamp
     :param dateutil.tz tz: time zone or local tz if not specified
     :rtype: datetime.datetime
     :return: converted timestamp to datetime
@@ -196,20 +195,6 @@ def scantree(path):
                 yield t
         else:
             yield entry
-
-
-def replace_file(src, dst):
-    # type: (pathlib.Path, pathlib.Path) -> None
-    """Replace a file, using atomic replace if available
-    :param pathlib.Path src: source path
-    :param pathlib.Path dst: destination path
-    """
-    if sys.version_info < (3, 3):
-        if dst.exists():
-            dst.unlink()
-        src.rename(dst)
-    else:
-        src.replace(dst)
 
 
 def get_mime_type(filename):

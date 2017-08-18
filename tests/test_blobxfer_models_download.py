@@ -91,6 +91,48 @@ def test_downloadspecification():
     assert p in ds.sources[0]._path_map
     assert ds.sources[0]._path_map[p] == 'sa'
 
+    with pytest.raises(ValueError):
+        ds = models.Specification(
+            download_options=options.Download(
+                check_file_md5=False,
+                chunk_size_bytes=4194304,
+                delete_extraneous_destination=False,
+                mode=azmodels.StorageModes.Auto,
+                overwrite=True,
+                recursive=True,
+                rename=False,
+                restore_file_attributes=False,
+                rsa_private_key=None,
+            ),
+            skip_on_options=options.SkipOn(
+                filesize_match=True,
+                lmt_ge=False,
+                md5_match=True,
+            ),
+            local_destination_path=models.LocalDestinationPath('dest'),
+        )
+
+    with pytest.raises(ValueError):
+        ds = models.Specification(
+            download_options=options.Download(
+                check_file_md5=True,
+                chunk_size_bytes=-1,
+                delete_extraneous_destination=False,
+                mode=azmodels.StorageModes.Auto,
+                overwrite=True,
+                recursive=True,
+                rename=False,
+                restore_file_attributes=True,
+                rsa_private_key=None,
+            ),
+            skip_on_options=options.SkipOn(
+                filesize_match=True,
+                lmt_ge=False,
+                md5_match=True,
+            ),
+            local_destination_path=models.LocalDestinationPath('dest'),
+        )
+
 
 def test_downloaddescriptor(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
@@ -139,6 +181,7 @@ def test_downloaddescriptor(tmpdir):
     assert d.final_path.stat().st_size == ase._size
 
     # pre-existing file check
+    opts.chunk_size_bytes = 0
     ase._size = 0
     d = models.Descriptor(lp, ase, opts, None)
     d._allocate_disk_space()
@@ -147,7 +190,61 @@ def test_downloaddescriptor(tmpdir):
     assert d.final_path.stat().st_size == ase._size
 
 
-@unittest.skipIf(util.on_python2(), 'fallocate does not exist')
+def test_downloaddescriptor_compute_allocated_size():
+    with pytest.raises(RuntimeError):
+        models.Descriptor.compute_allocated_size(1, True)
+
+    assert models.Descriptor.compute_allocated_size(32, True) == 16
+    assert models.Descriptor.compute_allocated_size(1, False) == 1
+
+
+def test_downloaddescriptor_generate_view():
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 1024
+    view, total_size = models.Descriptor.generate_view(ase)
+    assert view.fd_start == 0
+    assert view.fd_end == 1024
+    assert total_size == ase._size
+
+    ase._vio = mock.MagicMock()
+    ase._vio.offset_start = 2048
+    ase._vio.total_size = 3072
+    view, total_size = models.Descriptor.generate_view(ase)
+    assert view.fd_start == ase.vectored_io.offset_start
+    assert view.fd_end == ase.vectored_io.offset_start + ase._size
+    assert total_size == ase.vectored_io.total_size
+
+
+def test_convert_vectored_io_slice_to_final_path_name():
+    lp = pathlib.Path('/local/path/abc.bxslice-0')
+    ase = azmodels.StorageEntity('cont')
+    ase._vio = mock.MagicMock()
+    ase._vio.slice_id = 0
+
+    fp = models.Descriptor.convert_vectored_io_slice_to_final_path_name(
+        lp, ase)
+    assert str(fp) == '/local/path/abc'
+
+
+def test_set_final_path_view():
+    lp = pathlib.Path('/local/path/abc.bxslice-0')
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 16
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 1024
+    ase._vio = mock.MagicMock()
+    ase._vio.slice_id = 0
+    ase._vio.total_size = 1024
+    d = models.Descriptor(lp, ase, opts, None)
+
+    total_size = d._set_final_path_view()
+    assert total_size == ase._size
+
+
+@unittest.skipIf(
+    util.on_python2() or util.on_windows(), 'fallocate does not exist')
 def test_downloaddescriptor_allocate_disk_space_via_seek(tmpdir):
     fp = pathlib.Path(str(tmpdir.join('fp')))
     opts = mock.MagicMock()
@@ -186,8 +283,10 @@ def test_downloaddescriptor_resume(tmpdir):
 
     # test length mismatch
     rmgr.add_or_update_record(str(fp), ase, 0, 0, False, None)
+    ase._size = 127
     rb = d._resume()
     assert rb is None
+    ase._size = 128
 
     # test nothing to resume
     rmgr.delete()
@@ -472,6 +571,22 @@ def test_write_unchecked_hmac_data(tmpdir):
     assert not ucc['decrypted']
 
 
+def test_mark_unchecked_chunk_decrypted():
+    opts = mock.MagicMock()
+    opts.check_file_md5 = False
+    opts.chunk_size_bytes = 32
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    d = models.Descriptor(mock.MagicMock(), ase, opts, None)
+
+    d._unchecked_chunks[0] = {
+        'decrypted': False
+    }
+
+    d.mark_unchecked_chunk_decrypted(0)
+    assert d._unchecked_chunks[0]
+
+
 def test_perform_chunked_integrity_check(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
 
@@ -595,6 +710,10 @@ def test_cleanup_all_temporary_files(tmpdir):
     d.cleanup_all_temporary_files()
     assert not d.final_path.exists()
     assert not d._unchecked_chunks[0]['ucc'].file_path.exists()
+
+    # go through except path
+    d.cleanup_all_temporary_files()
+    assert not d.final_path.exists()
 
 
 def test_write_data(tmpdir):
@@ -724,6 +843,28 @@ def test_finalize_integrity_and_file(tmpdir):
     d.finalize_file()
 
     assert not d.final_path.exists()
+
+
+def test_restore_file_attributes(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    lp.touch(mode=0o666, exist_ok=False)
+    lp.exists()
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 16
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    ase._fileattr = mock.MagicMock()
+    ase._fileattr.mode = '0o100777'
+    ase._fileattr.uid = 1000
+    ase._fileattr.gid = 1000
+
+    d = models.Descriptor(lp, ase, opts, None)
+    d._restore_file_attributes()
+    stat = lp.stat()
+    assert str(oct(stat.st_mode)).replace('o', '') == \
+        ase._fileattr.mode.replace('o', '')
 
 
 def test_operations(tmpdir):

@@ -77,7 +77,7 @@ def create_blob(ase, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name)
         ),
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def put_page(ase, page_start, page_end, data, timeout=None):
@@ -97,4 +97,4 @@ def put_page(ase, page_start, page_end, data, timeout=None):
         start_range=page_start,
         end_range=page_end,
         validate_content=False,  # integrity is enforced with HTTPS
-        timeout=timeout)
+        timeout=timeout)  # noqa

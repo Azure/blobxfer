@@ -191,7 +191,7 @@ class Descriptor(object):
     _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
     def __init__(self, lpath, ase, options, resume_mgr):
-        # type: (Descriptior, pathlib.Path,
+        # type: (Descriptor, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity,
         #        blobxfer.models.options.Download,
         #        blobxfer.operations.resume.DownloadResumeManager) -> None
@@ -321,10 +321,10 @@ class Descriptor(object):
                     size //
                     blobxfer.models.download.Descriptor._AES_BLOCKSIZE - 1
                 ) * blobxfer.models.download.Descriptor._AES_BLOCKSIZE
+                if allocatesize < 0:
+                    raise RuntimeError('allocatesize is negative')
             else:
                 allocatesize = size
-            if allocatesize < 0:
-                allocatesize = 0
         else:
             allocatesize = 0
         return allocatesize
@@ -364,10 +364,9 @@ class Descriptor(object):
         :rtype: pathlib.Path
         :return: converted final path
         """
-        name = local_path.name
         name = blobxfer.models.metadata.\
             remove_vectored_io_slice_suffix_from_name(
-                name, ase.vectored_io.slice_id)
+                local_path.name, ase.vectored_io.slice_id)
         _tmp = list(local_path.parts[:-1])
         _tmp.append(name)
         return pathlib.Path(*_tmp)
@@ -460,7 +459,7 @@ class Descriptor(object):
             return None
         self._allocate_disk_space()
         # check if final path exists
-        if not self.final_path.exists():
+        if not self.final_path.exists():  # noqa
             logger.warning('download path {} does not exist'.format(
                 self.final_path))
             return None
@@ -768,12 +767,12 @@ class Descriptor(object):
         if self._ase.file_attributes is None:
             return
         # set file uid/gid and mode
-        if blobxfer.util.on_windows():
+        if blobxfer.util.on_windows():  # noqa
             # TODO not implemented yet
             pass
         else:
             self.final_path.chmod(int(self._ase.file_attributes.mode, 8))
-            if os.getuid() == 0:
+            if os.getuid() == 0:  # noqa
                 os.chown(
                     str(self.final_path),
                     self._ase.file_attributes.uid,

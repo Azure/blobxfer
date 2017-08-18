@@ -2,15 +2,13 @@
 """Tests for util"""
 
 # stdlib imports
+import datetime
 try:
     import unittest.mock as mock
 except ImportError:  # noqa
     import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
 import sys
+import time
 # non-stdlib imports
 import pytest
 # module under test
@@ -60,6 +58,21 @@ def test_is_not_empty():
     assert blobxfer.util.is_not_empty(a)
 
 
+def test_join_thread():
+    with mock.patch('blobxfer.util.on_python2', return_value=True):
+        thr = mock.MagicMock()
+        thr.isAlive.side_effect = [True, False]
+        blobxfer.util.join_thread(thr)
+        assert thr.isAlive.call_count == 2
+
+    with mock.patch('blobxfer.util.on_python2', return_value=False):
+        thr = mock.MagicMock()
+        thr.isAlive.side_effect = [True, False]
+        blobxfer.util.join_thread(thr)
+        thr.join.assert_called_once_with()
+        thr.isAlive.assert_not_called()
+
+
 def test_merge_dict():
     with pytest.raises(ValueError):
         blobxfer.util.merge_dict(1, 2)
@@ -82,6 +95,17 @@ def test_merge_dict():
     assert b['a_and_b'] == 46
 
 
+def test_datetime_now():
+    a = blobxfer.util.datetime_now()
+    assert type(a) == datetime.datetime
+
+
+def test_datetime_from_timestamp():
+    ts = time.time()
+    a = blobxfer.util.datetime_from_timestamp(ts)
+    assert type(a) == datetime.datetime
+
+
 def test_scantree(tmpdir):
     tmpdir.mkdir('abc')
     abcpath = tmpdir.join('abc')
@@ -96,38 +120,6 @@ def test_scantree(tmpdir):
     assert 'hello.txt' in found
     assert 'world.txt' in found
     assert len(found) == 2
-
-
-def test_replace_file(tmpdir):
-    src = pathlib.Path(str(tmpdir.join('src')))
-    dst = pathlib.Path(str(tmpdir.join('dst')))
-    src.touch()
-    dst.touch()
-
-    replace_avail = sys.version_info >= (3, 3)
-
-    with mock.patch(
-            'sys.version_info',
-            new_callable=mock.PropertyMock(return_value=(3, 2, 0))):
-        blobxfer.util.replace_file(src, dst)
-        assert not src.exists()
-        assert dst.exists()
-
-    dst.unlink()
-    src.touch()
-    dst.touch()
-
-    with mock.patch(
-            'sys.version_info',
-            new_callable=mock.PropertyMock(return_value=(3, 3, 0))):
-        if replace_avail:
-            blobxfer.util.replace_file(src, dst)
-            assert not src.exists()
-            assert dst.exists()
-        else:
-            src = mock.MagicMock()
-            blobxfer.util.replace_file(src, dst)
-            assert src.replace.call_count == 1
 
 
 def test_get_mime_type():
@@ -148,6 +140,10 @@ def test_base64_encode_as_string():
         assert type(enc) != bytes
     dec = blobxfer.util.base64_decode_string(enc)
     assert a == dec
+
+
+def test_new_md5_hasher():
+    assert blobxfer.util.new_md5_hasher() is not None
 
 
 def test_page_align_content_length():

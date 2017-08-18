@@ -76,7 +76,7 @@ def create_blob(ase, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name)
         ),
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def append_block(ase, data, timeout=None):
@@ -91,4 +91,4 @@ def append_block(ase, data, timeout=None):
         blob_name=ase.name,
         block=data,
         validate_content=False,  # integrity is enforced with HTTPS
-        timeout=timeout)
+        timeout=timeout)  # noqa

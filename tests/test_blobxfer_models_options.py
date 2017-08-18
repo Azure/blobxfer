@@ -55,6 +55,30 @@ def test_concurrency_options_max_disk_and_transfer_threads(patched_cc):
     assert a.disk_threads == 64
     assert a.transfer_threads == 96
 
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        disk_threads=None,
+        transfer_threads=None,
+        action=1,
+    )
+
+    assert a.disk_threads == 16
+    assert a.transfer_threads == 32
+
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        disk_threads=None,
+        transfer_threads=None,
+        action=3,
+    )
+
+    assert a.md5_processes == 0
+    assert a.crypto_processes == 0
+    assert a.disk_threads == 0
+    assert a.transfer_threads == 96
+
 
 def test_general_options():
     a = options.General(

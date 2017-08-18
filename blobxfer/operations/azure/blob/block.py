@@ -84,7 +84,7 @@ def create_blob(ase, data, md5, metadata, timeout=None):
         ),
         metadata=metadata,
         validate_content=False,  # integrity is enforced with HTTPS
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def _format_block_id(chunk_num):
@@ -112,7 +112,7 @@ def put_block(ase, offsets, data, timeout=None):
         block=data,
         block_id=_format_block_id(offsets.chunk_num),
         validate_content=False,  # integrity is enforced with HTTPS
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def put_block_list(ase, last_block_num, md5, metadata, timeout=None):
