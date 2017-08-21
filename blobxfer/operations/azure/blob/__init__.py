@@ -75,27 +75,23 @@ def get_blob_properties(client, container, prefix, mode, timeout=None):
     :return: blob
     """
     if mode == blobxfer.models.azure.StorageModes.File:
-        raise RuntimeError('cannot list Azure Files from blob client')
+        raise RuntimeError(
+            'cannot list Azure Blobs with incompatible mode: {}'.format(
+                mode))
     try:
         blob = client.get_blob_properties(
             container_name=container, blob_name=prefix, timeout=timeout)
     except azure.common.AzureMissingResourceHttpError:
         return None
-    if (mode == blobxfer.models.azure.StorageModes.Append and
-            blob.properties.blob_type !=
-            azure.storage.blob.models._BlobTypes.AppendBlob):
-        raise RuntimeError(
-            'existing blob type {} mismatch with mode {}'.format(
-                blob.properties.blob_type, mode))
-    elif (mode == blobxfer.models.azure.StorageModes.Block and
-            blob.properties.blob_type !=
-            azure.storage.blob.models._BlobTypes.BlockBlob):
-        raise RuntimeError(
-            'existing blob type {} mismatch with mode {}'.format(
-                blob.properties.blob_type, mode))
-    elif (mode == blobxfer.models.azure.StorageModes.Page and
-            blob.properties.blob_type !=
-            azure.storage.blob.models._BlobTypes.PageBlob):
+    if ((mode == blobxfer.models.azure.StorageModes.Append and
+         blob.properties.blob_type !=
+         azure.storage.blob.models._BlobTypes.AppendBlob) or
+            (mode == blobxfer.models.azure.StorageModes.Block and
+             blob.properties.blob_type !=
+             azure.storage.blob.models._BlobTypes.BlockBlob) or
+            (mode == blobxfer.models.azure.StorageModes.Page and
+             blob.properties.blob_type !=
+             azure.storage.blob.models._BlobTypes.PageBlob)):
         raise RuntimeError(
             'existing blob type {} mismatch with mode {}'.format(
                 blob.properties.blob_type, mode))
@@ -183,7 +179,7 @@ def delete_blob(client, container, name, timeout=None):
         blob_name=name,
         delete_snapshots=azure.storage.blob.models.DeleteSnapshot.Include,
         timeout=timeout,
-    )
+    )  # noqa
 
 
 def get_blob_range(ase, offsets, timeout=None):
@@ -208,10 +204,10 @@ def get_blob_range(ase, offsets, timeout=None):
 
 
 def create_container(ase, containers_created, timeout=None):
-    # type: (blobxfer.models.azure.StorageEntity, dict, int) -> None
+    # type: (blobxfer.models.azure.StorageEntity, set, int) -> None
     """Create blob container
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
-    :param dict containers_created: containers already created map
+    :param set containers_created: containers already created map
     :param int timeout: timeout
     """
     # check if auth allows create container
@@ -247,7 +243,7 @@ def set_blob_md5(ase, md5, timeout=None):
             content_type=blobxfer.util.get_mime_type(ase.name),
             content_md5=md5,
         ),
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def set_blob_metadata(ase, metadata, timeout=None):
@@ -261,4 +257,4 @@ def set_blob_metadata(ase, metadata, timeout=None):
         container_name=ase.container,
         blob_name=ase.name,
         metadata=metadata,
-        timeout=timeout)
+        timeout=timeout)  # noqa

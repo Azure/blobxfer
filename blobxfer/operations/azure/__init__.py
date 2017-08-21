@@ -34,7 +34,9 @@ from builtins import (  # noqa
 import requests
 # local imports
 import blobxfer.models
+import blobxfer.models.crypto
 import blobxfer.models.metadata
+import blobxfer.models.options
 import blobxfer.operations.azure.blob.append
 import blobxfer.operations.azure.blob.block
 import blobxfer.operations.azure.blob.page
@@ -89,14 +91,14 @@ class StorageAccount(object):
         :param str endpoint: endpoint
         :param int transfer_threads: number of transfer threads
         """
-        self._append_blob_client = None
-        self._block_blob_client = None
-        self._file_client = None
-        self._page_blob_client = None
         if blobxfer.util.is_none_or_empty(key):
             raise ValueError(
                 ('no authentication credential given for storage '
                  'account: {}').format(name))
+        self._append_blob_client = None
+        self._block_blob_client = None
+        self._file_client = None
+        self._page_blob_client = None
         self.name = name
         self.key = key
         self.endpoint = endpoint

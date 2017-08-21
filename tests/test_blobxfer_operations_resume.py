@@ -11,8 +11,21 @@ try:
 except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
+# local imports
 # module under test
 import blobxfer.operations.resume as ops
+
+
+def test_generate_record_key():
+    ase = mock.MagicMock()
+    ase._client.primary_endpoint = 'ep'
+    ase.path = 'abc'
+
+    with mock.patch('blobxfer.util.on_python2', return_value=True):
+        assert ops._BaseResumeManager.generate_record_key(ase) == b'ep:abc'
+
+    with mock.patch('blobxfer.util.on_python2', return_value=False):
+        assert ops._BaseResumeManager.generate_record_key(ase) == 'ep:abc'
 
 
 def test_download_resume_manager(tmpdir):
@@ -71,4 +84,152 @@ def test_download_resume_manager(tmpdir):
     tmpdb.unlink()
     drm.delete()
     assert drm._data is None
+    assert not tmpdb.exists()
+
+
+def test_upload_resume_manager(tmpdir):
+    tmpdb = pathlib.Path(str(tmpdir.join('tmp.db')))
+
+    urm = ops.UploadResumeManager(tmpdb)
+    assert urm._data is not None
+    urm.close()
+    assert urm._data is None
+    assert tmpdb.exists()
+    urm.delete()
+    assert urm._data is None
+    assert not tmpdb.exists()
+
+    ase = mock.MagicMock()
+    ase._name = 'name'
+    ase._client.primary_endpoint = 'ep'
+    ase._size = 16
+
+    local_path = 'fp'
+    urm = ops.UploadResumeManager(tmpdb)
+    urm.add_or_update_record(local_path, ase, 2, 8, 0, False, None)
+    u = urm.get_record(ase)
+
+    assert u.local_path == local_path
+    assert u.length == ase._size
+    assert u.chunk_size == 2
+    assert u.total_chunks == 8
+    assert u.completed_chunks == 0
+    assert not u.completed
+
+    urm.add_or_update_record(local_path, ase, 2, 8, 1, False, 'abc')
+    u = urm.get_record(ase)
+
+    assert u.local_path == local_path
+    assert u.length == ase._size
+    assert u.chunk_size == 2
+    assert u.total_chunks == 8
+    assert u.completed_chunks == 1
+    assert not u.completed
+    assert u.md5hexdigest == 'abc'
+
+    urm.add_or_update_record(local_path, ase, 2, 8, 8, True, None)
+    u = urm.get_record(ase)
+
+    assert u.local_path == local_path
+    assert u.length == ase._size
+    assert u.chunk_size == 2
+    assert u.total_chunks == 8
+    assert u.completed_chunks == 8
+    assert u.completed
+    assert u.md5hexdigest == 'abc'
+
+    # idempotent check after completed
+    urm.add_or_update_record(local_path, ase, 2, 8, 8, True, None)
+    u = urm.get_record(ase)
+
+    assert u.local_path == local_path
+    assert u.length == ase._size
+    assert u.chunk_size == 2
+    assert u.total_chunks == 8
+    assert u.completed_chunks == 8
+    assert u.completed
+    assert u.md5hexdigest == 'abc'
+
+    urm.close()
+    assert urm._data is None
+    assert tmpdb.exists()
+
+    tmpdb.unlink()
+    urm.delete()
+    assert urm._data is None
+    assert not tmpdb.exists()
+
+
+def test_synccopy_resume_manager(tmpdir):
+    tmpdb = pathlib.Path(str(tmpdir.join('tmp.db')))
+
+    srm = ops.SyncCopyResumeManager(tmpdb)
+    assert srm._data is not None
+    srm.close()
+    assert srm._data is None
+    assert tmpdb.exists()
+    srm.delete()
+    assert srm._data is None
+    assert not tmpdb.exists()
+
+    ase = mock.MagicMock()
+    ase._name = 'name'
+    ase._client.primary_endpoint = 'ep'
+    ase._size = 16
+
+    src_block_list = 'srcbl'
+
+    srm = ops.SyncCopyResumeManager(tmpdb)
+    srm.add_or_update_record(ase, src_block_list, 0, 2, 8, 0, False)
+    s = srm.get_record(ase)
+
+    assert s.src_block_list == src_block_list
+    assert s.length == ase._size
+    assert s.offset == 0
+    assert s.chunk_size == 2
+    assert s.total_chunks == 8
+    assert s.completed_chunks == 0
+    assert not s.completed
+
+    srm.add_or_update_record(ase, src_block_list, 1, 2, 8, 1, False)
+    s = srm.get_record(ase)
+
+    assert s.src_block_list == src_block_list
+    assert s.length == ase._size
+    assert s.offset == 1
+    assert s.chunk_size == 2
+    assert s.total_chunks == 8
+    assert s.completed_chunks == 1
+    assert not s.completed
+
+    srm.add_or_update_record(ase, src_block_list, 8, 2, 8, 8, True)
+    s = srm.get_record(ase)
+
+    assert s.src_block_list == src_block_list
+    assert s.length == ase._size
+    assert s.offset == 8
+    assert s.chunk_size == 2
+    assert s.total_chunks == 8
+    assert s.completed_chunks == 8
+    assert s.completed
+
+    # idempotent check after completed
+    srm.add_or_update_record(ase, src_block_list, 8, 2, 8, 8, True)
+    s = srm.get_record(ase)
+
+    assert s.src_block_list == src_block_list
+    assert s.length == ase._size
+    assert s.offset == 8
+    assert s.chunk_size == 2
+    assert s.total_chunks == 8
+    assert s.completed_chunks == 8
+    assert s.completed
+
+    srm.close()
+    assert srm._data is None
+    assert tmpdb.exists()
+
+    tmpdb.unlink()
+    srm.delete()
+    assert srm._data is None
     assert not tmpdb.exists()

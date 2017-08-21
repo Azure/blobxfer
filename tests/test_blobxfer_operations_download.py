@@ -164,6 +164,10 @@ def test_check_download_conditions(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), ds)
     result = d._check_download_conditions(nep, mock.MagicMock())
     assert result == ops.DownloadAction.Download
+    rfile = mock.MagicMock()
+    rfile.vectored_io = None
+    result = d._check_download_conditions(nep, rfile)
+    assert result == ops.DownloadAction.Download
     result = d._check_download_conditions(ep, mock.MagicMock())
     assert result == ops.DownloadAction.Skip
 
@@ -292,14 +296,18 @@ def test_pre_md5_skip_on_check():
     rfile._client = mock.MagicMock()
     rfile._client.primary_endpoint = 'ep'
     rfile._name = 'name'
-    rfile._vio = None
+    rfile._size = 32
+    rfile._vio = mock.MagicMock()
+    rfile._vio.offset_start = 0
+    rfile._vio.total_size = 32
 
-    lpath = 'lpath'
+    lpath = pathlib.Path('lpath')
     key = ops.Downloader.create_unique_transfer_operation_id(rfile)
     d._pre_md5_skip_on_check(lpath, rfile)
     assert key in d._md5_map
 
     rfile._name = 'name2'
+    rfile._vio = None
     lpath = 'lpath2'
     rfile._encryption = None
     rfile._md5 = 'abc'
@@ -330,7 +338,7 @@ def test_post_md5_skip_on_check(tmpdir):
     d._transfer_set.add(key)
     assert key in d._md5_map
 
-    d._post_md5_skip_on_check(key, lpath, rfile._size, True)
+    d._post_md5_skip_on_check(key, lpath, None, True)
     assert key not in d._md5_map
 
     d._add_to_download_queue = mock.MagicMock()
@@ -444,8 +452,9 @@ def test_check_for_crypto_done():
         d._crypto_offload.pop_done_queue.side_effect = [
             None,
             (lpath, offsets),
+            None,
         ]
-        patched_tc.side_effect = [False, False, True]
+        patched_tc.side_effect = [False, False, False, True, True]
         d._complete_chunk_download = mock.MagicMock()
         d._check_for_crypto_done()
         assert dd.perform_chunked_integrity_check.call_count == 1
@@ -487,9 +496,10 @@ def test_add_to_download_queue(tmpdir):
     assert path in d._dd_map
 
 
-def test_initialize_and_terminate_transfer_threads():
+def test_initialize_and_terminate_threads():
     opts = mock.MagicMock()
     opts.concurrency.transfer_threads = 2
+    opts.concurrency.disk_threads = 2
     d = ops.Downloader(opts, mock.MagicMock(), mock.MagicMock())
     d._worker_thread_transfer = mock.MagicMock()
 
@@ -501,24 +511,89 @@ def test_initialize_and_terminate_transfer_threads():
     for thr in d._transfer_threads:
         assert not thr.is_alive()
 
+    d._initialize_disk_threads()
+    assert len(d._disk_threads) == 2
+
+    d._wait_for_disk_threads(terminate=True)
+    assert d._download_terminate
+    for thr in d._disk_threads:
+        assert not thr.is_alive()
+
+
+def test_process_download_descriptor_vio(tmpdir):
+    with mock.patch(
+            'blobxfer.models.download.Descriptor.all_operations_completed',
+            new_callable=mock.PropertyMock) as patched_aoc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.concurrency.transfer_threads = 1
+        d._general_options.concurrency.disk_threads = 1
+        opts = mock.MagicMock()
+        opts.check_file_md5 = True
+        opts.chunk_size_bytes = 16
+        ase = azmodels.StorageEntity('cont')
+        ase._mode = azmodels.StorageModes.File
+        ase._size = 16
+        ase._client = mock.MagicMock()
+        ase._client.primary_endpoint = 'ep'
+        ase._name = 'name'
+        ase._vio = mock.MagicMock()
+        ase._vio.total_slices = 2
+
+        lp = pathlib.Path(str(tmpdir.join('b')))
+        dd = models.Descriptor(lp, ase, opts, None)
+        dd.next_offsets = mock.MagicMock()
+        dd.next_offsets.return_value = (None, None)
+        patched_aoc.return_value = True
+        dd.finalize_file = mock.MagicMock()
+        key = ops.Downloader.create_unique_transfer_operation_id(ase)
+        d._transfer_set.add(key)
+        d._dd_map[str(lp)] = mock.MagicMock()
+
+        d._process_download_descriptor(dd)
+        assert dd.finalize_file.call_count == 0
+
+        d._transfer_set.add(key)
+        d._dd_map[str(lp)] = mock.MagicMock()
+        d._process_download_descriptor(dd)
+        assert dd.finalize_file.call_count == 1
+
 
 @mock.patch('blobxfer.operations.crypto.aes_cbc_decrypt_data')
 @mock.patch('blobxfer.operations.azure.file.get_file_range')
 @mock.patch('blobxfer.operations.azure.blob.get_blob_range')
 def test_worker_thread_transfer(
         patched_gbr, patched_gfr, patched_acdd, tmpdir):
+    # test disk set > max set length
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._process_download_descriptor = mock.MagicMock()
+        d._general_options.concurrency.disk_threads = 1
+        d._disk_set.add(0)
+        d._disk_set.add(1)
+        d._disk_set.add(2)
+        d._disk_set.add(3)
+        d._disk_set.add(4)
+
+        patched_tc.side_effect = [False, True]
+        d._worker_thread_transfer()
+        assert d._process_download_descriptor.call_count == 0
+
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
-    d._complete_chunk_download = mock.MagicMock()
+    d._process_download_descriptor = mock.MagicMock()
     d._download_terminate = True
     d._general_options.concurrency.transfer_threads = 1
     d._general_options.concurrency.disk_threads = 1
     d._worker_thread_transfer()
-    assert d._complete_chunk_download.call_count == 0
+    assert d._process_download_descriptor.call_count == 0
 
     d._download_terminate = False
     d._all_remote_files_processed = True
     d._worker_thread_transfer()
-    assert d._complete_chunk_download.call_count == 0
+    assert d._process_download_descriptor.call_count == 0
 
     with mock.patch(
             'blobxfer.operations.download.Downloader.termination_check',
@@ -703,6 +778,43 @@ def test_worker_thread_transfer(
         assert dd.perform_chunked_integrity_check.call_count == 1
 
 
+def test_worker_thread_disk():
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.concurrency.disk_threads = 1
+
+        d._disk_queue = mock.MagicMock()
+        d._disk_queue.get.side_effect = [
+            (mock.MagicMock(), mock.MagicMock(), mock.MagicMock()),
+        ]
+        d._process_data = mock.MagicMock()
+        patched_tc.side_effect = [False, True]
+
+        d._worker_thread_disk()
+        assert d._process_data.call_count == 1
+
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.concurrency.disk_threads = 1
+
+        d._disk_queue = mock.MagicMock()
+        d._disk_queue.get.side_effect = [
+            (mock.MagicMock(), mock.MagicMock(), mock.MagicMock()),
+        ]
+        d._process_data = mock.MagicMock()
+        d._process_data.side_effect = Exception()
+        patched_tc.side_effect = [False, True]
+
+        d._worker_thread_disk()
+        assert len(d._exceptions) == 1
+
+
 def test_cleanup_temporary_files(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
     opts = mock.MagicMock()
@@ -791,7 +903,7 @@ def _create_downloader_for_start(td):
     d._cleanup_temporary_files = mock.MagicMock()
     d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     d._initialize_transfer_threads = mock.MagicMock()
-    d._general_options.concurrency.crypto_processes = 0
+    d._general_options.concurrency.crypto_processes = 1
     d._general_options.concurrency.md5_processes = 1
     d._general_options.concurrency.disk_threads = 1
     d._general_options.concurrency.transfer_threads = 1
@@ -840,9 +952,11 @@ def _create_downloader_for_start(td):
     'blobxfer.operations.download.Downloader._wait_for_disk_threads',
     return_value=None
 )
+@mock.patch(
+    'blobxfer.operations.crypto.CryptoOffload', return_value=mock.MagicMock())
 def test_start(
-        patched_wdt, patched_wtt, patched_cutoi, patched_eld, patched_lb,
-        patched_lfmo, tmpdir):
+        patched_crypto, patched_wdt, patched_wtt, patched_cutoi, patched_eld,
+        patched_lb, patched_lfmo, tmpdir):
     patched_lfmo._check_thread = mock.MagicMock()
 
     b = azure.storage.blob.models.Blob(name='remote/path/name')

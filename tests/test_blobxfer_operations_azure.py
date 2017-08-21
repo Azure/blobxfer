@@ -11,6 +11,8 @@ import azure.storage
 import azure.storage.blob
 import azure.storage.file
 import pytest
+# local imports
+import blobxfer.models.metadata as md
 # module under test
 import blobxfer.models.azure as azmodels
 import blobxfer.operations.azure as azops
@@ -18,6 +20,10 @@ import blobxfer.operations.azure as azops
 
 def test_storage_credentials():
     creds = azops.StorageCredentials(mock.MagicMock())
+
+    with pytest.raises(ValueError):
+        creds.add_storage_account('sa1', '', 'endpoint')
+
     creds.add_storage_account('sa1', 'somekey1', 'endpoint')
 
     a = creds.get_storage_account('sa1')
@@ -73,6 +79,134 @@ def test_key_is_sas():
     assert a.is_sas
 
 
+def test_container_creation_allowed():
+    a = azops.StorageAccount('name', 'abcdef', 'endpoint', 10)
+    assert a._container_creation_allowed()
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10)
+    assert not a._container_creation_allowed()
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=a&sig=2', 'endpoint', 10)
+    assert not a._container_creation_allowed()
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=c&sig=2', 'endpoint', 10)
+    assert a._container_creation_allowed()
+
+
+@mock.patch('blobxfer.operations.azure.file.get_file_properties')
+def test_handle_vectored_io_stripe(patched_gfp):
+    creds = mock.MagicMock()
+    options = mock.MagicMock()
+    options.mode = azmodels.StorageModes.Block
+    go = mock.MagicMock()
+    store_raw_metadata = False
+    sa = mock.MagicMock()
+    is_file = False
+    container = 'cont'
+    entity = mock.MagicMock()
+
+    p = '/cont/remote/path'
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+
+    # test not first slice
+    with mock.patch(
+            'blobxfer.models.metadata.vectored_io_from_metadata',
+            return_value=md.VectoredStripe(
+                next='nextpr',
+                offset_start=0,
+                slice_id=1,
+                total_size=10,
+                total_slices=10,
+            )):
+        for part in asp._handle_vectored_io_stripe(
+                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                container, dir=None):
+            assert part is None
+
+    # blob test
+    with mock.patch(
+            'blobxfer.models.metadata.'
+            'vectored_io_from_metadata') as patched_vifm:
+        patched_vifm.side_effect = [
+            md.VectoredStripe(
+                next=md.VectoredNextEntry(
+                    storage_account_name='sa0',
+                    endpoint='core.windows.net',
+                    container='cont',
+                    name='path-bxslice-0',
+                ),
+                offset_start=0,
+                slice_id=0,
+                total_size=2,
+                total_slices=2,
+            ),
+            md.VectoredStripe(
+                next=md.VectoredNextEntry(
+                    storage_account_name='sa1',
+                    endpoint='core.windows.net',
+                    container='cont',
+                    name='path-bxslice-1',
+                ),
+                offset_start=1,
+                slice_id=1,
+                total_size=2,
+                total_slices=2,
+            ),
+        ]
+        options.mode = azmodels.StorageModes.Block
+        i = 0
+        for part in asp._handle_vectored_io_stripe(
+                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                container, dir=None):
+            i += 1
+        assert i == 2
+
+    # file test
+    with mock.patch(
+            'blobxfer.models.metadata.'
+            'vectored_io_from_metadata') as patched_vifm:
+        patched_vifm.side_effect = [
+            md.VectoredStripe(
+                next=md.VectoredNextEntry(
+                    storage_account_name='sa0',
+                    endpoint='core.windows.net',
+                    container='cont',
+                    name='path-bxslice-0',
+                ),
+                offset_start=0,
+                slice_id=0,
+                total_size=2,
+                total_slices=2,
+            ),
+            md.VectoredStripe(
+                next=md.VectoredNextEntry(
+                    storage_account_name='sa1',
+                    endpoint='core.windows.net',
+                    container='cont',
+                    name='path-bxslice-1',
+                ),
+                offset_start=1,
+                slice_id=1,
+                total_size=2,
+                total_slices=2,
+            ),
+        ]
+        options.mode = azmodels.StorageModes.File
+        is_file = True
+        f = azure.storage.file.models.File(name='path-bxslice-1')
+        patched_gfp.side_effect = [f]
+        i = 0
+        for part in asp._handle_vectored_io_stripe(
+                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                container, dir=None):
+            i += 1
+        assert i == 2
+
+
 def test_azuresourcepath():
     p = '/cont/remote/path'
     asp = azops.SourcePath()
@@ -110,6 +244,26 @@ def test_azuresourcepath_files(patched_lf, patched_em):
         assert file.encryption_metadata is None
     assert i == 1
 
+    # test filter
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+    asp.add_includes(['zzz'])
+    patched_lf.side_effect = [[f]]
+    assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+
+    # test no vio return
+    with mock.patch(
+            'blobxfer.operations.azure.SourcePath.'
+            '_handle_vectored_io_stripe') as patched_hvios:
+        patched_hvios.side_effect = [[None]]
+        asp = azops.SourcePath()
+        asp.add_path_with_storage_account(p, 'sa')
+        patched_lf.side_effect = [[f]]
+        assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+
+    # test encrypted
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
     fe = azure.storage.file.models.File(name='name')
     fe.metadata = {'encryptiondata': {'a': 'b'}}
     patched_lf.side_effect = [[fe]]
@@ -150,6 +304,23 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
         assert file.encryption_metadata is None
     assert i == 1
 
+    # test filter
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+    asp.add_includes(['zzz'])
+    patched_lb.side_effect = [[b]]
+    assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+
+    # test no vio return
+    with mock.patch(
+            'blobxfer.operations.azure.SourcePath.'
+            '_handle_vectored_io_stripe') as patched_hvios:
+        patched_hvios.side_effect = [[None]]
+        asp = azops.SourcePath()
+        asp.add_path_with_storage_account(p, 'sa')
+        patched_lb.side_effect = [[b]]
+        assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+
     be = azure.storage.blob.models.Blob(name='name')
     be.metadata = {'encryptiondata': {'a': 'b'}}
     patched_lb.side_effect = [[be]]
@@ -162,3 +333,17 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
         assert file.name == 'name'
         assert file.encryption_metadata is not None
     assert i == 1
+
+
+def test_destinationpath():
+    dp = azops.DestinationPath()
+    sa = mock.MagicMock()
+    dp.add_path_with_storage_account('/remote/path/', sa)
+
+    assert len(dp._paths) == 1
+    assert len(dp._path_map) == 1
+
+    with pytest.raises(RuntimeError):
+        dp.add_path_with_storage_account('/remote/path2/', sa)
+
+    assert dp.lookup_storage_account('/remote/path/') is not None

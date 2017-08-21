@@ -36,6 +36,43 @@ def test_check_if_single_blob():
     assert not result
 
 
+def test_get_blob_properties():
+    with pytest.raises(RuntimeError):
+        ops.get_blob_properties(
+            None, 'cont', None, azmodels.StorageModes.File)
+
+    client = mock.MagicMock()
+    blob = mock.MagicMock()
+    client.get_blob_properties.side_effect = \
+        azure.common.AzureMissingResourceHttpError('msg', 'code')
+
+    ret = ops.get_blob_properties(
+        client, 'cont', None, azmodels.StorageModes.Append)
+    assert ret is None
+
+    blob = mock.MagicMock()
+    blob.properties.blob_type = azure.storage.blob.models._BlobTypes.PageBlob
+    client = mock.MagicMock()
+    client.get_blob_properties.return_value = blob
+
+    with pytest.raises(RuntimeError):
+        ops.get_blob_properties(
+            client, 'cont', None, azmodels.StorageModes.Append)
+
+    with pytest.raises(RuntimeError):
+        ops.get_blob_properties(
+            client, 'cont', None, azmodels.StorageModes.Block)
+
+    blob.properties.blob_type = azure.storage.blob.models._BlobTypes.BlockBlob
+    with pytest.raises(RuntimeError):
+        ops.get_blob_properties(
+            client, 'cont', None, azmodels.StorageModes.Page)
+
+    ret = ops.get_blob_properties(
+        client, 'cont', None, azmodels.StorageModes.Block)
+    assert ret == blob
+
+
 def test_list_blobs():
     with pytest.raises(RuntimeError):
         for blob in ops.list_blobs(
@@ -100,6 +137,14 @@ def test_list_blobs():
     assert i == 1
 
 
+def test_list_all_blobs():
+    client = mock.MagicMock()
+    blob = mock.MagicMock()
+    client.list_blobs.return_value = [blob, blob]
+
+    assert len(list(ops.list_all_blobs(client, 'cont'))) == 2
+
+
 def test_get_blob_range():
     ase = mock.MagicMock()
     ret = mock.MagicMock()
@@ -113,3 +158,25 @@ def test_get_blob_range():
     offsets.end_range = 1
 
     assert ops.get_blob_range(ase, offsets) == ret.content
+
+
+def test_create_container():
+    ase = mock.MagicMock()
+    ase.create_containers = False
+
+    ops.create_container(ase, None)
+    assert ase.client.create_container.call_count == 0
+
+    ase.create_containers = True
+    ase.client.account_name = 'sa'
+    ase.container = 'cont'
+
+    cc = set()
+    ops.create_container(ase, cc)
+    assert len(cc) == 1
+
+    ase.client.create_container.side_effect = \
+        azure.common.AzureConflictHttpError('msg', 'code')
+    ase.container = 'cont2'
+    ops.create_container(ase, cc)
+    assert len(cc) == 1
