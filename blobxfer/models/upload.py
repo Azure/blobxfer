@@ -59,7 +59,7 @@ _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 _MAX_NUM_CHUNKS = 50000
 _MAX_PAGE_BLOB_SIZE = 8796093022208
 _DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
-_MAX_MD5_CACHE_RESUME_ENTRIES = 25
+_MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD = 25
 
 
 # named tuples
@@ -112,7 +112,7 @@ class LocalPath(object):
         # populate properties
         if self.use_stdin:
             # create dummy stat object
-            self._stat = type('stat', (object,), {})
+            self._stat = lambda: None
             self._stat.st_size = 0
             self._stat.st_mtime = 0
             self._stat.st_mode = 0
@@ -533,17 +533,17 @@ class Descriptor(object):
                     md5digest = self._md5_cache[last_consecutive]
                 else:
                     md5digest = None
-                    if completed:
-                        last_consecutive = None
-                        self._md5_cache.clear()
                 self._resume_mgr.add_or_update_record(
                     self.local_path.absolute_path, self._ase, self._chunk_size,
                     self._total_chunks, self._completed_chunks.int, completed,
                     md5digest,
                 )
                 # prune md5 cache
-                if (last_consecutive is not None and
-                        len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES):
+                if completed:
+                    self._md5_cache.clear()
+                elif (last_consecutive is not None and
+                      len(self._md5_cache) >
+                      _MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD):
                     mkeys = sorted(list(self._md5_cache.keys()))
                     for key in mkeys:
                         if key >= last_consecutive:
@@ -588,8 +588,6 @@ class Descriptor(object):
                     self._AES_BLOCKSIZE
             else:
                 allocatesize = size
-            if allocatesize < 0:
-                allocatesize = 0
         else:
             allocatesize = 0
         self._ase.size = allocatesize
