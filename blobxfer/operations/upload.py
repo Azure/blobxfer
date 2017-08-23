@@ -297,7 +297,7 @@ class Uploader(object):
         :param Uploader self: this
         """
         logger.debug('spawning {} disk threads'.format(
-            self._general_options.concurrency.transfer_threads))
+            self._general_options.concurrency.disk_threads))
         for _ in range(self._general_options.concurrency.disk_threads):
             thr = threading.Thread(target=self._worker_thread_upload)
             self._disk_threads.append(thr)
@@ -1024,6 +1024,10 @@ class Uploader(object):
         # mark start
         self._start_time = blobxfer.util.datetime_now()
         logger.info('blobxfer start time: {0}'.format(self._start_time))
+        # check renames
+        if not self._spec.sources.can_rename() and self._spec.options.rename:
+            raise RuntimeError(
+                'cannot rename to specified destination with multiple sources')
         # initialize resume db if specified
         if self._general_options.resume_file is not None:
             self._resume = blobxfer.operations.resume.UploadResumeManager(
@@ -1052,9 +1056,6 @@ class Uploader(object):
         skipped_files = 0
         skipped_size = 0
         approx_total_bytes = 0
-        if not self._spec.sources.can_rename() and self._spec.options.rename:
-            raise RuntimeError(
-                'cannot rename to specified destination with multiple sources')
         # iterate through source paths to upload
         dupes = set()
         for src in self._spec.sources.files():
