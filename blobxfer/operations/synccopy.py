@@ -46,6 +46,7 @@ import threading
 import blobxfer.models.metadata
 import blobxfer.operations.azure.blob
 import blobxfer.operations.azure.file
+import blobxfer.operations.md5
 import blobxfer.operations.progress
 import blobxfer.operations.resume
 import blobxfer.util
@@ -548,7 +549,7 @@ class SyncCopy(object):
             self._finalize_azure_file(sd, metadata, digest)
 
     def _check_copy_conditions(self, src, dst):
-        # type: (SyncCopy, blobxfer.models.upload.LocalPath,
+        # type: (SyncCopy, blobxfer.models.azure.StorageEntity,
         #        blobxfer.models.azure.StorageEntity) -> UploadAction
         """Check for synccopy conditions
         :param SyncCopy self: this
