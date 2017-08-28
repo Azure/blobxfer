@@ -44,7 +44,7 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
-_DEFAULT_REQUESTS_TIMEOUT = (7, 21)
+_DEFAULT_REQUESTS_TIMEOUT = (3.1, 12.1)
 
 # named tuples
 VectoredIo = collections.namedtuple(

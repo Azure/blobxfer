@@ -336,6 +336,8 @@ def create_download_specifications(cli_options, config):
     """
     specs = []
     for conf in config['download']:
+        if 'options' not in conf:
+            conf['options'] = {}
         # create download options
         mode = _merge_setting(
             cli_options, conf['options'], 'mode', default='auto').lower()
@@ -433,6 +435,8 @@ def create_synccopy_specifications(cli_options, config):
     """
     specs = []
     for conf in config['synccopy']:
+        if 'options' not in conf:
+            conf['options'] = {}
         # get source mode
         mode = _merge_setting(
             cli_options, conf['options'], 'mode', default='auto').lower()

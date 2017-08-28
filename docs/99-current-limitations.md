@@ -16,6 +16,10 @@ Azure Files.
 SHA256 object cannot be pickled.
 * Append blobs currently cannot be resumed for upload.
 
+### General Azure File Limitations
+* Please see [this article](https://msdn.microsoft.com/en-us/library/azure/dn744326.aspx)
+for more information.
+
 ### Other Limitations
 * MD5 is not computed for append blobs.
 * Empty directories are not created locally when downloading from an Azure

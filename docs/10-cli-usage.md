@@ -87,8 +87,7 @@ Blob container or File share at the begining, e.g., `mycontainer/vdir`
 Resume files should be specific for a session.
 * `--timeout` is the timeout value, in seconds, applied to both connect
 and read operations. To apply separate values for these operations
-individually, use YAML configuration instead. The default is `7` for
-connect and `21` for read, if not specified.
+individually, use YAML configuration instead.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
 * `-v` will output verbose messages including the configuration used
