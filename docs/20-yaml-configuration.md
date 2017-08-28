@@ -46,7 +46,9 @@ options:
     resume_file: /path/to/resumefile.db
     progress_bar: true
     verbose: true
-    timeout_sec: null
+    timeout:
+        connect: null
+        read: null
     concurrency:
         md5_processes: 2
         crypto_processes: 2
@@ -58,7 +60,9 @@ options:
 * `resume_file` is the location of the resume database to create
 * `progress_bar` controls display of a progress bar output to the console
 * `verbose` controls if verbose logging is enabled
-* `timeout_sec` is the timeout to apply to requests/responses
+* `timeout` is a dictionary of timeout values in seconds
+  * `connect` is the connect timeout to apply to the request
+  * `read` is the read timeout to apply to the request
 * `concurrency` is a dictionary of concurrency limits
   * `md5_processes` is the number of MD5 offload processes to create for
     MD5 comparison checking

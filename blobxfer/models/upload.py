@@ -256,17 +256,17 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
                         relative_path=pathlib.Path(tmp.name),
                         use_stdin=False,
                     )
-                continue
-            del tmp
-            for entry in blobxfer.util.scantree(_ppath):
-                _rpath = pathlib.Path(entry.path).relative_to(_ppath)
-                if not self._inclusion_check(_rpath):
-                    continue
-                yield LocalPath(
-                    parent_path=_expath,
-                    relative_path=_rpath,
-                    use_stdin=False,
-                )
+            else:
+                del tmp
+                for entry in blobxfer.util.scantree(_ppath):
+                    _rpath = pathlib.Path(entry.path).relative_to(_ppath)
+                    if not self._inclusion_check(_rpath):
+                        continue
+                    yield LocalPath(
+                        parent_path=_expath,
+                        relative_path=_rpath,
+                        use_stdin=False,
+                    )
 
 
 class Specification(object):

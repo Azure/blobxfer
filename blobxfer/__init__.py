@@ -30,9 +30,6 @@ import azure.storage
 azure.storage._constants.USER_AGENT_STRING = 'blobxfer/{} {}'.format(
     __version__, azure.storage._constants.USER_AGENT_STRING)
 
-# monkeypatch SOCKET_TIMEOUT value in Azure Storage SDK
-azure.storage._constants.SOCKET_TIMEOUT = (5, 300)
-
 # set stdin source
 if sys.version_info >= (3, 0):  # noqa
     STDIN = sys.stdin.buffer

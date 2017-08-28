@@ -57,42 +57,46 @@ def test_storage_credentials():
 
 
 def test_key_is_sas():
-    a = azops.StorageAccount('name', 'abcdef', 'endpoint', 10)
+    a = azops.StorageAccount(
+        'name', 'abcdef', 'endpoint', 10, mock.MagicMock())
     assert not a.is_sas
 
-    a = azops.StorageAccount('name', 'abcdef&blah', 'endpoint', 10)
+    a = azops.StorageAccount(
+        'name', 'abcdef&blah', 'endpoint', 10, mock.MagicMock())
     assert not a.is_sas
 
-    a = azops.StorageAccount('name', '?abcdef', 'endpoint', 10)
+    a = azops.StorageAccount(
+        'name', '?abcdef', 'endpoint', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10)
+        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sv=0&sr=1&sig=2', 'endpoint', 10)
+        'name', 'sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint', 10)
+        'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint', 10, mock.MagicMock())
     assert a.is_sas
 
 
 def test_container_creation_allowed():
-    a = azops.StorageAccount('name', 'abcdef', 'endpoint', 10)
+    a = azops.StorageAccount(
+        'name', 'abcdef', 'endpoint', 10, mock.MagicMock())
     assert a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10)
+        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=a&sig=2', 'endpoint', 10)
+        'name', '?sv=0&sr=1&srt=a&sig=2', 'endpoint', 10, mock.MagicMock())
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=c&sig=2', 'endpoint', 10)
+        'name', '?sv=0&sr=1&srt=c&sig=2', 'endpoint', 10, mock.MagicMock())
     assert a._container_creation_allowed()
 
 
@@ -101,7 +105,6 @@ def test_handle_vectored_io_stripe(patched_gfp):
     creds = mock.MagicMock()
     options = mock.MagicMock()
     options.mode = azmodels.StorageModes.Block
-    go = mock.MagicMock()
     store_raw_metadata = False
     sa = mock.MagicMock()
     is_file = False
@@ -123,7 +126,7 @@ def test_handle_vectored_io_stripe(patched_gfp):
                 total_slices=10,
             )):
         for part in asp._handle_vectored_io_stripe(
-                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                creds, options, store_raw_metadata, sa, entity, is_file,
                 container, dir=None):
             assert part is None
 
@@ -160,7 +163,7 @@ def test_handle_vectored_io_stripe(patched_gfp):
         options.mode = azmodels.StorageModes.Block
         i = 0
         for part in asp._handle_vectored_io_stripe(
-                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                creds, options, store_raw_metadata, sa, entity, is_file,
                 container, dir=None):
             i += 1
         assert i == 2
@@ -201,7 +204,7 @@ def test_handle_vectored_io_stripe(patched_gfp):
         patched_gfp.side_effect = [f]
         i = 0
         for part in asp._handle_vectored_io_stripe(
-                creds, options, go, store_raw_metadata, sa, entity, is_file,
+                creds, options, store_raw_metadata, sa, entity, is_file,
                 container, dir=None):
             i += 1
         assert i == 2
@@ -238,7 +241,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     patched_em.encryption_metadata_exists.return_value = False
 
     i = 0
-    for file in asp.files(creds, options, mock.MagicMock()):
+    for file in asp.files(creds, options):
         i += 1
         assert file.name == 'remote/name'
         assert file.encryption_metadata is None
@@ -249,7 +252,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     asp.add_path_with_storage_account(p, 'sa')
     asp.add_includes(['zzz'])
     patched_lf.side_effect = [[f]]
-    assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+    assert len(list(asp.files(creds, options))) == 0
 
     # test no vio return
     with mock.patch(
@@ -259,7 +262,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
         asp = azops.SourcePath()
         asp.add_path_with_storage_account(p, 'sa')
         patched_lf.side_effect = [[f]]
-        assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+        assert len(list(asp.files(creds, options))) == 0
 
     # test encrypted
     asp = azops.SourcePath()
@@ -271,7 +274,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     patched_em.convert_from_json = mock.MagicMock()
 
     i = 0
-    for file in asp.files(creds, options, mock.MagicMock()):
+    for file in asp.files(creds, options):
         i += 1
         assert file.name == 'remote/name'
         assert file.encryption_metadata is not None
@@ -298,7 +301,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     patched_em.encryption_metadata_exists.return_value = False
 
     i = 0
-    for file in asp.files(creds, options, mock.MagicMock()):
+    for file in asp.files(creds, options):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is None
@@ -309,7 +312,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     asp.add_path_with_storage_account(p, 'sa')
     asp.add_includes(['zzz'])
     patched_lb.side_effect = [[b]]
-    assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+    assert len(list(asp.files(creds, options))) == 0
 
     # test no vio return
     with mock.patch(
@@ -319,7 +322,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
         asp = azops.SourcePath()
         asp.add_path_with_storage_account(p, 'sa')
         patched_lb.side_effect = [[b]]
-        assert len(list(asp.files(creds, options, mock.MagicMock()))) == 0
+        assert len(list(asp.files(creds, options))) == 0
 
     be = azure.storage.blob.models.Blob(name='name')
     be.metadata = {'encryptiondata': {'a': 'b'}}
@@ -328,7 +331,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     patched_em.convert_from_json = mock.MagicMock()
 
     i = 0
-    for file in asp.files(creds, options, mock.MagicMock()):
+    for file in asp.files(creds, options):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is not None

@@ -170,28 +170,24 @@ class SyncCopy(object):
             if (self._spec.options.dest_mode ==
                     blobxfer.models.azure.StorageModes.File):
                 files = blobxfer.operations.azure.file.list_all_files(
-                    sa.file_client, container,
-                    timeout=self._general_options.timeout_sec)
+                    sa.file_client, container)
                 for file in files:
                     id = blobxfer.operations.synccopy.SyncCopy.\
                         create_deletion_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.file.delete_file(
-                            sa.file_client, container, file,
-                            timeout=self._general_options.timeout_sec)
+                            sa.file_client, container, file)
                         deleted += 1
             else:
                 blobs = blobxfer.operations.azure.blob.list_all_blobs(
-                    sa.block_blob_client, container,
-                    timeout=self._general_options.timeout_sec)
+                    sa.block_blob_client, container)
                 for blob in blobs:
                     id = blobxfer.operations.synccopy.SyncCopy.\
                         create_deletion_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.blob.delete_blob(
-                            sa.block_blob_client, container, blob.name,
-                            timeout=self._general_options.timeout_sec)
+                            sa.block_blob_client, container, blob.name)
                         deleted += 1
             checked.add(key)
         logger.info('deleted {} extraneous blobs/files'.format(deleted))
@@ -209,7 +205,7 @@ class SyncCopy(object):
         if (src_ase.mode == dst_ase.mode ==
                 blobxfer.models.azure.StorageModes.Block):
             bl = blobxfer.operations.azure.blob.block.get_committed_block_list(
-                src_ase, timeout=self._general_options.timeout_sec)
+                src_ase)
         else:
             bl = None
         # TODO future optimization for page blob synccopies: query
@@ -276,8 +272,7 @@ class SyncCopy(object):
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             # append block
             if data is not None:
-                blobxfer.operations.azure.blob.append.append_block(
-                    ase, data, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.append.append_block(ase, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # handle one-shot uploads
             if sd.is_one_shot_block_blob:
@@ -286,20 +281,17 @@ class SyncCopy(object):
                 else:
                     digest = None
                 blobxfer.operations.azure.blob.block.create_blob(
-                    ase, data, digest, sd.src_entity.raw_metadata,
-                    timeout=self._general_options.timeout_sec)
+                    ase, data, digest, sd.src_entity.raw_metadata)
                 return
             # upload block
             if data is not None:
                 blobxfer.operations.azure.blob.block.put_block(
-                    ase, offsets, data,
-                    timeout=self._general_options.timeout_sec)
+                    ase, offsets, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
             # upload range
             if data is not None:
                 blobxfer.operations.azure.file.put_file_range(
-                    ase, offsets, data,
-                    timeout=self._general_options.timeout_sec)
+                    ase, offsets, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
             if data is not None:
                 # no need to align page as page should already be aligned
@@ -307,8 +299,7 @@ class SyncCopy(object):
                     return
                 # upload page
                 blobxfer.operations.azure.blob.page.put_page(
-                    ase, offsets.range_start, offsets.range_end,
-                    data, timeout=self._general_options.timeout_sec)
+                    ase, offsets.range_start, offsets.range_end, data)
 
     def _process_data(self, sd, ase, offsets, data):
         # type: (SyncCopy, blobxfer.models.download.Descriptor,
@@ -339,38 +330,30 @@ class SyncCopy(object):
             if ase.append_create:
                 # create container if necessary
                 blobxfer.operations.azure.blob.create_container(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._containers_created)
                 # create remote blob
-                blobxfer.operations.azure.blob.append.create_blob(
-                    ase, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.append.create_blob(ase)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
-                ase, self._containers_created,
-                timeout=self._general_options.timeout_sec)
+                ase, self._containers_created)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
             # create share directory structure
             with self._fileshare_dir_lock:
                 # create container if necessary
                 blobxfer.operations.azure.file.create_share(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._containers_created)
                 # create parent directories
                 blobxfer.operations.azure.file.create_all_parent_directories(
-                    ase, self._dirs_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._dirs_created)
             # create remote file
-            blobxfer.operations.azure.file.create_file(
-                ase, timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.file.create_file(ase)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
-                ase, self._containers_created,
-                timeout=self._general_options.timeout_sec)
+                ase, self._containers_created)
             # create remote blob
-            blobxfer.operations.azure.blob.page.create_blob(
-                ase, timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.blob.page.create_blob(ase)
 
     def _process_synccopy_descriptor(self, sd):
         # type: (SyncCopy, blobxfer.models.download.Descriptor) -> None
@@ -421,10 +404,10 @@ class SyncCopy(object):
         # issue get range
         if sd.src_entity.mode == blobxfer.models.azure.StorageModes.File:
             data = blobxfer.operations.azure.file.get_file_range(
-                sd.src_entity, offsets, self._general_options.timeout_sec)
+                sd.src_entity, offsets)
         else:
             data = blobxfer.operations.azure.blob.get_blob_range(
-                sd.src_entity, offsets, self._general_options.timeout_sec)
+                sd.src_entity, offsets)
         # process data for upload
         self._process_data(sd, sd.dst_entity, offsets, data)
         # iterate replicas
@@ -445,13 +428,11 @@ class SyncCopy(object):
         :param str digest: md5 digest
         """
         blobxfer.operations.azure.blob.block.put_block_list(
-            sd.dst_entity, sd.last_block_num, digest, metadata,
-            timeout=self._general_options.timeout_sec)
+            sd.dst_entity, sd.last_block_num, digest, metadata)
         if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
             for ase in sd.dst_entity.replica_targets:
                 blobxfer.operations.azure.blob.block.put_block_list(
-                    ase, sd.last_block_num, digest, metadata,
-                    timeout=self._general_options.timeout_sec)
+                    ase, sd.last_block_num, digest, metadata)
 
     def _set_blob_md5(self, sd, digest):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor, str) -> None
@@ -460,12 +441,10 @@ class SyncCopy(object):
         :param blobxfer.models.synccopy.Descriptor sd: synccopy descriptor
         :param str digest: md5 digest
         """
-        blobxfer.operations.azure.blob.set_blob_md5(
-            sd.dst_entity, digest, timeout=self._general_options.timeout_sec)
+        blobxfer.operations.azure.blob.set_blob_md5(sd.dst_entity, digest)
         if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
             for ase in sd.dst_entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_md5(
-                    ase, digest, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.set_blob_md5(ase, digest)
 
     def _set_blob_metadata(self, sd, metadata):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor, dict) -> None
@@ -476,11 +455,10 @@ class SyncCopy(object):
         :param dict metadata: metadata dict
         """
         blobxfer.operations.azure.blob.set_blob_metadata(
-            sd.dst_entity, metadata, timeout=self._general_options.timeout_sec)
+            sd.dst_entity, metadata)
         if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
             for ase in sd.dst_entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_metadata(
-                    ase, metadata, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.set_blob_metadata(ase, metadata)
 
     def _finalize_nonblock_blob(self, sd, metadata, digest):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor, dict,
@@ -509,23 +487,18 @@ class SyncCopy(object):
         """
         # set md5 file property if required
         if blobxfer.util.is_not_empty(digest):
-            blobxfer.operations.azure.file.set_file_md5(
-                sd.dst_entity, digest,
-                timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.file.set_file_md5(sd.dst_entity, digest)
             if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
                 for ase in sd.dst_entity.replica_targets:
-                    blobxfer.operations.azure.file.set_file_md5(
-                        ase, digest, timeout=self._general_options.timeout_sec)
+                    blobxfer.operations.azure.file.set_file_md5(ase, digest)
         # set file metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             blobxfer.operations.azure.file.set_file_metadata(
-                sd.dst_entity, metadata,
-                timeout=self._general_options.timeout_sec)
+                sd.dst_entity, metadata)
             if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
                 for ase in sd.dst_entity.replica_targets:
                     blobxfer.operations.azure.file.set_file_metadata(
-                        ase, metadata,
-                        timeout=self._general_options.timeout_sec)
+                        ase, metadata)
 
     def _finalize_upload(self, sd):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor) -> None
@@ -613,12 +586,10 @@ class SyncCopy(object):
         if (self._spec.options.dest_mode ==
                 blobxfer.models.azure.StorageModes.File):
             fp = blobxfer.operations.azure.file.get_file_properties(
-                sa.file_client, cont, name,
-                timeout=self._general_options.timeout_sec)
+                sa.file_client, cont, name)
         else:
             fp = blobxfer.operations.azure.blob.get_blob_properties(
-                sa.block_blob_client, cont, name, self._spec.options.dest_mode,
-                timeout=self._general_options.timeout_sec)
+                sa.block_blob_client, cont, name, self._spec.options.dest_mode)
         if fp is not None:
             if blobxfer.models.crypto.EncryptionMetadata.\
                     encryption_metadata_exists(fp.metadata):
@@ -687,8 +658,7 @@ class SyncCopy(object):
         """
         # iterate through source paths to download
         for src in self._spec.sources:
-            for src_ase in src.files(
-                    self._creds, self._spec.options, self._general_options):
+            for src_ase in src.files(self._creds, self._spec.options):
                 # generate copy destinations for source
                 dest = [
                     dst_ase for dst_ase in

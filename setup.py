@@ -38,7 +38,7 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage==0.35.1',
+    'azure-storage==0.36.0',
     'bitstring==3.1.5',
     'click==6.7',
     'cryptography>=2.0.3',
@@ -46,7 +46,7 @@ install_requires = [
     'pathlib2==2.3.0;python_version<"3.5"',
     'python-dateutil==2.6.1',
     'requests==2.18.4',
-    'ruamel.yaml==0.15.31',
+    'ruamel.yaml==0.15.32',
     'scandir==1.5;python_version<"3.5"',
 ]
 
@@ -70,7 +70,7 @@ setup(
     install_requires=install_requires,
     tests_require=['pytest'],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: System Administrators',

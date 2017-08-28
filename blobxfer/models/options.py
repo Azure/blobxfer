@@ -43,6 +43,8 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
+# global defines
+_DEFAULT_REQUESTS_TIMEOUT = (7, 21)
 
 # named tuples
 VectoredIo = collections.namedtuple(
@@ -103,6 +105,48 @@ SyncCopy = collections.namedtuple(
 )
 
 
+class Timeout(object):
+    """Timeout Options"""
+    def __init__(self, connect, read):
+        """Ctor for Timeout options
+        :param Timeout self: this
+        :param float connect: connect timeout
+        :param float read: read timeout
+        """
+        if connect is None or connect <= 0:
+            self._connect = _DEFAULT_REQUESTS_TIMEOUT[0]
+        else:
+            self._connect = connect
+        if read is None or read <= 0:
+            self._read = _DEFAULT_REQUESTS_TIMEOUT[1]
+        else:
+            self._read = read
+
+    @property
+    def connect(self):
+        """Connect timeout
+        :rtype: float
+        :return: connect timeout
+        """
+        return self._connect
+
+    @property
+    def read(self):
+        """Read timeout
+        :rtype: float
+        :return: read timeout
+        """
+        return self._read
+
+    @property
+    def timeout(self):
+        """Timeout property in requests format
+        :rtype: tuple
+        :return: (connect, read) timeout tuple
+        """
+        return (self._connect, self._read)
+
+
 class Concurrency(object):
     """Concurrency Options"""
     def __init__(
@@ -158,14 +202,14 @@ class General(object):
     """General Options"""
     def __init__(
             self, concurrency, log_file=None, progress_bar=True,
-            resume_file=None, timeout_sec=None, verbose=False):
+            resume_file=None, timeout=None, verbose=False):
         """Ctor for General Options
         :param General self: this
         :param Concurrency concurrency: concurrency options
         :param bool progress_bar: progress bar
         :param str log_file: log file
         :param str resume_file: resume file
-        :param int timeout_sec: timeout in seconds
+        :param Timeout timeout: timeout options
         :param bool verbose: verbose output
         """
         if concurrency is None:
@@ -177,5 +221,5 @@ class General(object):
             self.resume_file = pathlib.Path(resume_file)
         else:
             self.resume_file = None
-        self.timeout_sec = timeout_sec
+        self.timeout = timeout
         self.verbose = verbose

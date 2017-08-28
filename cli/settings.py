@@ -244,14 +244,22 @@ def merge_settings(config, cli_options):
         config['options'] = {}
     if 'concurrency' not in config['options']:
         config['options']['concurrency'] = {}
+    if 'timeout' not in config['options']:
+        config['options']['timeout'] = {}
     options = {
         'log_file': _merge_setting(cli_options, config['options'], 'log_file'),
         'progress_bar': _merge_setting(
             cli_options, config['options'], 'progress_bar', default=True),
         'resume_file': _merge_setting(
             cli_options, config['options'], 'resume_file'),
-        'timeout_sec': _merge_setting(
-            cli_options, config['options'], 'timeout'),
+        'timeout': {
+            'connect': _merge_setting(
+                cli_options, config['options']['timeout'], 'connect',
+                name_cli='timeout'),
+            'read': _merge_setting(
+                cli_options, config['options']['timeout'], 'read',
+                name_cli='timeout'),
+        },
         'verbose': _merge_setting(
             cli_options, config['options'], 'verbose', default=False),
         'concurrency': {
@@ -310,7 +318,10 @@ def create_general_options(config, action):
         log_file=config['options']['log_file'],
         progress_bar=config['options']['progress_bar'],
         resume_file=config['options']['resume_file'],
-        timeout_sec=config['options']['timeout_sec'],
+        timeout=blobxfer.models.options.Timeout(
+            connect=config['options']['timeout']['connect'],
+            read=config['options']['timeout']['read'],
+        ),
         verbose=config['options']['verbose'],
     )
 

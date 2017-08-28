@@ -158,8 +158,8 @@ def output_parameters(general_options, spec):
         general_options.log_file))
     log.append('              resume file: {}'.format(
         general_options.resume_file))
-    log.append('                  timeout: {}'.format(
-        general_options.timeout_sec))
+    log.append('                  timeout: connect={} read={}'.format(
+        general_options.timeout.connect, general_options.timeout.read))
     log.append('                     mode: {}'.format(
         spec.options.mode))
     log.append(

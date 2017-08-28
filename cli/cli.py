@@ -219,9 +219,10 @@ def _timeout_option(f):
     return click.option(
         '--timeout',
         expose_value=False,
-        type=int,
+        type=float,
         default=None,
-        help='Individual chunk transfer timeout',
+        help='Timeout, in seconds, applied to both connect and read '
+        'operations',
         callback=callback)(f)
 
 
