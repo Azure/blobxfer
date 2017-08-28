@@ -49,10 +49,12 @@ _MAX_PAGE_SIZE_BYTES = 4194304
 
 def compute_md5_for_file_asbase64(
         filename, pagealign=False, start=None, end=None, blocksize=65536):
-    # type: (str, bool, int) -> str
+    # type: (str, bool, int, int, int) -> str
     """Compute MD5 hash for file and encode as Base64
     :param str filename: file to compute MD5 for
     :param bool pagealign: page align data
+    :param int start: file start offset
+    :param int end: file end offset
     :param int blocksize: block size
     :rtype: str
     :return: MD5 for file encoded as Base64

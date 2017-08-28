@@ -45,11 +45,12 @@ import blobxfer.util
 logger = logging.getLogger(__name__)
 
 
-def create_client(storage_account):
-    # type: (blobxfer.operations.azure.StorageAccount) -> FileService
+def create_client(storage_account, timeout):
+    # type: (blobxfer.operations.azure.StorageAccount, tuple) -> FileService
     """Create file client
     :param blobxfer.operations.azure.StorageAccount storage_account:
         storage account
+    :param tuple timeout: timeout tuple
     :rtype: FileService
     :return: file service client
     """
@@ -58,13 +59,15 @@ def create_client(storage_account):
             account_name=storage_account.name,
             sas_token=storage_account.key,
             endpoint_suffix=storage_account.endpoint,
-            request_session=storage_account.session)
+            request_session=storage_account.session,
+            socket_timeout=timeout)
     else:
         client = azure.storage.file.FileService(
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint,
-            request_session=storage_account.session)
+            request_session=storage_account.session,
+            socket_timeout=timeout)
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client

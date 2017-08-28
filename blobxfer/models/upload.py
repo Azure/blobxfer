@@ -57,8 +57,9 @@ _MAX_BLOCK_BLOB_ONESHOT_BYTES = 268435456
 _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES = 104857600
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 _MAX_NUM_CHUNKS = 50000
+_MAX_PAGE_BLOB_SIZE = 8796093022208
 _DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
-_MAX_MD5_CACHE_RESUME_ENTRIES = 25
+_MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD = 25
 
 
 # named tuples
@@ -111,7 +112,7 @@ class LocalPath(object):
         # populate properties
         if self.use_stdin:
             # create dummy stat object
-            self._stat = type('stat', (object,), {})
+            self._stat = lambda: None
             self._stat.st_size = 0
             self._stat.st_mtime = 0
             self._stat.st_mode = 0
@@ -255,17 +256,17 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
                         relative_path=pathlib.Path(tmp.name),
                         use_stdin=False,
                     )
-                continue
-            del tmp
-            for entry in blobxfer.util.scantree(_ppath):
-                _rpath = pathlib.Path(entry.path).relative_to(_ppath)
-                if not self._inclusion_check(_rpath):
-                    continue
-                yield LocalPath(
-                    parent_path=_expath,
-                    relative_path=_rpath,
-                    use_stdin=False,
-                )
+            else:
+                del tmp
+                for entry in blobxfer.util.scantree(_ppath):
+                    _rpath = pathlib.Path(entry.path).relative_to(_ppath)
+                    if not self._inclusion_check(_rpath):
+                        continue
+                    yield LocalPath(
+                        parent_path=_expath,
+                        relative_path=_rpath,
+                        use_stdin=False,
+                    )
 
 
 class Specification(object):
@@ -514,7 +515,9 @@ class Descriptor(object):
                 # chunk are complete
                 if blobxfer.util.is_not_empty(self._ase.replica_targets):
                     if chunk_num not in self._replica_counters:
-                        self._replica_counters[chunk_num] = 0
+                        # start counter at -1 since we need 1 "extra" for the
+                        # primary in addition to the replica targets
+                        self._replica_counters[chunk_num] = -1
                     self._replica_counters[chunk_num] += 1
                     if (self._replica_counters[chunk_num] !=
                             len(self._ase.replica_targets)):
@@ -530,17 +533,17 @@ class Descriptor(object):
                     md5digest = self._md5_cache[last_consecutive]
                 else:
                     md5digest = None
-                    if completed:
-                        last_consecutive = None
-                        self._md5_cache.clear()
                 self._resume_mgr.add_or_update_record(
                     self.local_path.absolute_path, self._ase, self._chunk_size,
                     self._total_chunks, self._completed_chunks.int, completed,
                     md5digest,
                 )
                 # prune md5 cache
-                if (last_consecutive is not None and
-                        len(self._md5_cache) > _MAX_MD5_CACHE_RESUME_ENTRIES):
+                if completed:
+                    self._md5_cache.clear()
+                elif (last_consecutive is not None and
+                      len(self._md5_cache) >
+                      _MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD):
                     mkeys = sorted(list(self._md5_cache.keys()))
                     for key in mkeys:
                         if key >= last_consecutive:
@@ -585,8 +588,6 @@ class Descriptor(object):
                     self._AES_BLOCKSIZE
             else:
                 allocatesize = size
-            if allocatesize < 0:
-                allocatesize = 0
         else:
             allocatesize = 0
         self._ase.size = allocatesize
@@ -654,6 +655,11 @@ class Descriptor(object):
                     'adjusting chunk size to {} for file from {}'.format(
                         self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Page:
+            if self._ase.size > _MAX_PAGE_BLOB_SIZE:
+                raise RuntimeError(
+                    '{} size {} exceeds maximum page blob size of {}'.format(
+                        self.local_path.absolute_path, self._ase.size,
+                        _MAX_PAGE_BLOB_SIZE))
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
                 logger.debug(
@@ -674,7 +680,8 @@ class Descriptor(object):
             chunks = 1
         if self.local_path.use_stdin and chunks == 0:
             chunks = 1
-        if chunks > 50000:
+        if (self._ase.mode != blobxfer.models.azure.StorageModes.Page and
+                chunks > 50000):
             max_vector = False
             if self._ase.mode == blobxfer.models.azure.StorageModes.Block:
                 if self._chunk_size == _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
@@ -717,6 +724,12 @@ class Descriptor(object):
             self.md5 = blobxfer.util.new_md5_hasher()
 
     def _resume(self):
+        # type: (Descriptor) -> int
+        """Resume upload
+        :param Descriptor self: this
+        :rtype: int
+        :return: resume bytes
+        """
         if self._resume_mgr is None or self._offset > 0:
             return None
         # check if path exists in resume db
@@ -786,7 +799,7 @@ class Descriptor(object):
             if rr.md5hexdigest != hexdigest:
                 logger.warning(
                     'MD5 mismatch resume={} computed={} for {}'.format(
-                         rr.md5hexdigest, hexdigest, self._ase.path))
+                        rr.md5hexdigest, hexdigest, self._ase.path))
                 # reset hasher
                 self.md5 = blobxfer.util.new_md5_hasher()
                 return None

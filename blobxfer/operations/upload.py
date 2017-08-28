@@ -173,14 +173,14 @@ class Uploader(object):
         )
 
     @staticmethod
-    def create_deletion_id(client, container, name):
+    def create_destination_id(client, container, name):
         # type: (azure.storage.StorageClient, str, str) -> str
-        """Create a unique deletion id
+        """Create a unique destination id
         :param azure.storage.StorageClient client: storage client
         :param str container: container name
         :param str name: entity name
         :rtype: str
-        :return: unique id for deletion
+        :return: unique id for the destination
         """
         return ';'.join((client.primary_endpoint, container, name))
 
@@ -297,7 +297,7 @@ class Uploader(object):
         :param Uploader self: this
         """
         logger.debug('spawning {} disk threads'.format(
-            self._general_options.concurrency.transfer_threads))
+            self._general_options.concurrency.disk_threads))
         for _ in range(self._general_options.concurrency.disk_threads):
             thr = threading.Thread(target=self._worker_thread_upload)
             self._disk_threads.append(thr)
@@ -398,8 +398,7 @@ class Uploader(object):
         if ase.mode == blobxfer.models.azure.StorageModes.Append:
             # append block
             if data is not None:
-                blobxfer.operations.azure.blob.append.append_block(
-                    ase, data, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.append.append_block(ase, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # handle one-shot uploads
             if ud.is_one_shot_block_blob:
@@ -410,20 +409,17 @@ class Uploader(object):
                 else:
                     digest = None
                 blobxfer.operations.azure.blob.block.create_blob(
-                    ase, data, digest, metadata,
-                    timeout=self._general_options.timeout_sec)
+                    ase, data, digest, metadata)
                 return
             # upload block
             if data is not None:
                 blobxfer.operations.azure.blob.block.put_block(
-                    ase, offsets, data,
-                    timeout=self._general_options.timeout_sec)
+                    ase, offsets, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
             # upload range
             if data is not None:
                 blobxfer.operations.azure.file.put_file_range(
-                    ase, offsets, data,
-                    timeout=self._general_options.timeout_sec)
+                    ase, offsets, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
             if data is None:
                 return
@@ -438,7 +434,7 @@ class Uploader(object):
             # upload page
             blobxfer.operations.azure.blob.page.put_page(
                 ase, offsets.range_start, offsets.range_start + aligned - 1,
-                data, timeout=self._general_options.timeout_sec)
+                data)
 
     def _worker_thread_upload(self):
         # type: (Uploader) -> None
@@ -471,38 +467,30 @@ class Uploader(object):
             if ase.append_create:
                 # create container if necessary
                 blobxfer.operations.azure.blob.create_container(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._containers_created)
                 # create remote blob
-                blobxfer.operations.azure.blob.append.create_blob(
-                    ase, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.append.create_blob(ase)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
-                ase, self._containers_created,
-                timeout=self._general_options.timeout_sec)
+                ase, self._containers_created)
         elif ase.mode == blobxfer.models.azure.StorageModes.File:
             # create share directory structure
             with self._fileshare_dir_lock:
                 # create container if necessary
                 blobxfer.operations.azure.file.create_share(
-                    ase, self._containers_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._containers_created)
                 # create parent directories
                 blobxfer.operations.azure.file.create_all_parent_directories(
-                    ase, self._dirs_created,
-                    timeout=self._general_options.timeout_sec)
+                    ase, self._dirs_created)
             # create remote file
-            blobxfer.operations.azure.file.create_file(
-                ase, timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.file.create_file(ase)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
             # create container if necessary
             blobxfer.operations.azure.blob.create_container(
-                ase, self._containers_created,
-                timeout=self._general_options.timeout_sec)
+                ase, self._containers_created)
             # create remote blob
-            blobxfer.operations.azure.blob.page.create_blob(
-                ase, timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.blob.page.create_blob(ase)
 
     def _process_upload_descriptor(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
@@ -580,7 +568,7 @@ class Uploader(object):
         if ud.entity.mode != blobxfer.models.azure.StorageModes.Append:
             self._upload_queue.put(ud)
         # no data can be returned on stdin uploads
-        if not data:
+        if ud.local_path.use_stdin and not data:
             return
         # add data to transfer queue
         with self._transfer_lock:
@@ -610,13 +598,11 @@ class Uploader(object):
         else:
             digest = None
         blobxfer.operations.azure.blob.block.put_block_list(
-            ud.entity, ud.last_block_num, digest, metadata,
-            timeout=self._general_options.timeout_sec)
+            ud.entity, ud.last_block_num, digest, metadata)
         if blobxfer.util.is_not_empty(ud.entity.replica_targets):
             for ase in ud.entity.replica_targets:
                 blobxfer.operations.azure.blob.block.put_block_list(
-                    ase, ud.last_block_num, digest, metadata,
-                    timeout=self._general_options.timeout_sec)
+                    ase, ud.last_block_num, digest, metadata)
 
     def _set_blob_md5(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
@@ -625,12 +611,10 @@ class Uploader(object):
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
         """
         digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-        blobxfer.operations.azure.blob.set_blob_md5(
-            ud.entity, digest, timeout=self._general_options.timeout_sec)
+        blobxfer.operations.azure.blob.set_blob_md5(ud.entity, digest)
         if blobxfer.util.is_not_empty(ud.entity.replica_targets):
             for ase in ud.entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_md5(
-                    ase, digest, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.set_blob_md5(ase, digest)
 
     def _set_blob_metadata(self, ud, metadata):
         # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
@@ -639,12 +623,10 @@ class Uploader(object):
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
         :param dict metadata: metadata dict
         """
-        blobxfer.operations.azure.blob.set_blob_metadata(
-            ud.entity, metadata, timeout=self._general_options.timeout_sec)
+        blobxfer.operations.azure.blob.set_blob_metadata(ud.entity, metadata)
         if blobxfer.util.is_not_empty(ud.entity.replica_targets):
             for ase in ud.entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_metadata(
-                    ase, metadata, timeout=self._general_options.timeout_sec)
+                blobxfer.operations.azure.blob.set_blob_metadata(ase, metadata)
 
     def _finalize_nonblock_blob(self, ud, metadata):
         # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
@@ -670,21 +652,18 @@ class Uploader(object):
         # set md5 file property if required
         if ud.requires_non_encrypted_md5_put:
             digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-            blobxfer.operations.azure.file.set_file_md5(
-                ud.entity, digest, timeout=self._general_options.timeout_sec)
+            blobxfer.operations.azure.file.set_file_md5(ud.entity, digest)
             if blobxfer.util.is_not_empty(ud.entity.replica_targets):
                 for ase in ud.entity.replica_targets:
-                    blobxfer.operations.azure.file.set_file_md5(
-                        ase, digest, timeout=self._general_options.timeout_sec)
+                    blobxfer.operations.azure.file.set_file_md5(ase, digest)
         # set file metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             blobxfer.operations.azure.file.set_file_metadata(
-                ud.entity, metadata, timeout=self._general_options.timeout_sec)
+                ud.entity, metadata)
             if blobxfer.util.is_not_empty(ud.entity.replica_targets):
                 for ase in ud.entity.replica_targets:
                     blobxfer.operations.azure.file.set_file_metadata(
-                        ase, metadata,
-                        timeout=self._general_options.timeout_sec)
+                        ase, metadata)
 
     def _finalize_upload(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
@@ -739,28 +718,24 @@ class Uploader(object):
             if (self._spec.options.mode ==
                     blobxfer.models.azure.StorageModes.File):
                 files = blobxfer.operations.azure.file.list_all_files(
-                    sa.file_client, container,
-                    timeout=self._general_options.timeout_sec)
+                    sa.file_client, container)
                 for file in files:
                     id = blobxfer.operations.upload.Uploader.\
-                        create_deletion_id(sa.file_client, container, file)
+                        create_destination_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.file.delete_file(
-                            sa.file_client, container, file,
-                            timeout=self._general_options.timeout_sec)
+                            sa.file_client, container, file)
                         deleted += 1
             else:
                 blobs = blobxfer.operations.azure.blob.list_all_blobs(
-                    sa.block_blob_client, container,
-                    timeout=self._general_options.timeout_sec)
+                    sa.block_blob_client, container)
                 for blob in blobs:
                     id = blobxfer.operations.upload.Uploader.\
-                        create_deletion_id(
+                        create_destination_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
                         blobxfer.operations.azure.blob.delete_blob(
-                            sa.block_blob_client, container, blob.name,
-                            timeout=self._general_options.timeout_sec)
+                            sa.block_blob_client, container, blob.name)
                         deleted += 1
             checked.add(key)
         logger.info('deleted {} extraneous blobs/files'.format(deleted))
@@ -836,12 +811,10 @@ class Uploader(object):
         """
         if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
-                sa.file_client, cont, name,
-                timeout=self._general_options.timeout_sec)
+                sa.file_client, cont, name)
         else:
             fp = blobxfer.operations.azure.blob.get_blob_properties(
-                sa.block_blob_client, cont, name, self._spec.options.mode,
-                timeout=self._general_options.timeout_sec)
+                sa.block_blob_client, cont, name, self._spec.options.mode)
         if fp is not None:
             if blobxfer.models.crypto.EncryptionMetadata.\
                     encryption_metadata_exists(fp.metadata):
@@ -961,7 +934,7 @@ class Uploader(object):
                 ase = slice_map[i]
                 if i < slices - 1:
                     next_entry = blobxfer.models.metadata.\
-                        create_vectored_io_next_entry(slice_map[i+1])
+                        create_vectored_io_next_entry(slice_map[i + 1])
                 else:
                     next_entry = None
                 lp_slice = blobxfer.models.upload.LocalPath(
@@ -1007,7 +980,7 @@ class Uploader(object):
                             for rt in primary_ase.replica_targets:
                                 self._delete_exclude.add(
                                     blobxfer.operations.upload.Uploader.
-                                    create_deletion_id(
+                                    create_destination_id(
                                         rt._client, rt.container, rt.name)
                                 )
                         yield action, local_path, primary_ase
@@ -1024,6 +997,10 @@ class Uploader(object):
         # mark start
         self._start_time = blobxfer.util.datetime_now()
         logger.info('blobxfer start time: {0}'.format(self._start_time))
+        # check renames
+        if not self._spec.sources.can_rename() and self._spec.options.rename:
+            raise RuntimeError(
+                'cannot rename to specified destination with multiple sources')
         # initialize resume db if specified
         if self._general_options.resume_file is not None:
             self._resume = blobxfer.operations.resume.UploadResumeManager(
@@ -1052,10 +1029,8 @@ class Uploader(object):
         skipped_files = 0
         skipped_size = 0
         approx_total_bytes = 0
-        if not self._spec.sources.can_rename() and self._spec.options.rename:
-            raise RuntimeError(
-                'cannot rename to specified destination with multiple sources')
         # iterate through source paths to upload
+        dupes = set()
         for src in self._spec.sources.files():
             # create a destination array for the source
             dest = [
@@ -1063,11 +1038,15 @@ class Uploader(object):
                 self._generate_destination_for_source(src)
             ]
             for action, lp, ase in self._vectorize_and_bind(src, dest):
+                dest_id = blobxfer.operations.upload.Uploader.\
+                    create_destination_id(ase._client, ase.container, ase.name)
+                if dest_id in dupes:
+                    raise RuntimeError(
+                        'duplicate destination entity detected: {}/{}'.format(
+                            ase._client.primary_endpoint, ase.path))
+                dupes.add(dest_id)
                 if self._spec.options.delete_extraneous_destination:
-                    self._delete_exclude.add(
-                        blobxfer.operations.upload.Uploader.create_deletion_id(
-                            ase._client, ase.container, ase.name)
-                    )
+                    self._delete_exclude.add(dest_id)
                 if action == UploadAction.Skip:
                     skipped_files += 1
                     skipped_size += ase.size if ase.size is not None else 0
@@ -1085,6 +1064,7 @@ class Uploader(object):
                     self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
                     self._add_to_upload_queue(lp, ase, uid)
+        del dupes
         # set remote files processed
         with self._md5_meta_lock:
             self._all_files_processed = True

@@ -16,6 +16,18 @@ import pytest
 import blobxfer.models.options as options
 
 
+def test_timeout():
+    a = options.Timeout(connect=None, read=1)
+    assert a.connect == options._DEFAULT_REQUESTS_TIMEOUT[0]
+    assert a.read == 1
+    assert a.timeout == (options._DEFAULT_REQUESTS_TIMEOUT[0], 1)
+
+    a = options.Timeout(connect=2, read=0)
+    assert a.connect == 2
+    assert a.read == options._DEFAULT_REQUESTS_TIMEOUT[1]
+    assert a.timeout == (2, options._DEFAULT_REQUESTS_TIMEOUT[1])
+
+
 @mock.patch('multiprocessing.cpu_count', return_value=1)
 def test_concurrency_options(patched_cc):
     a = options.Concurrency(
@@ -55,6 +67,30 @@ def test_concurrency_options_max_disk_and_transfer_threads(patched_cc):
     assert a.disk_threads == 64
     assert a.transfer_threads == 96
 
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        disk_threads=None,
+        transfer_threads=None,
+        action=1,
+    )
+
+    assert a.disk_threads == 16
+    assert a.transfer_threads == 32
+
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        disk_threads=None,
+        transfer_threads=None,
+        action=3,
+    )
+
+    assert a.md5_processes == 0
+    assert a.crypto_processes == 0
+    assert a.disk_threads == 0
+    assert a.transfer_threads == 96
+
 
 def test_general_options():
     a = options.General(
@@ -67,7 +103,7 @@ def test_general_options():
         log_file='abc.log',
         progress_bar=False,
         resume_file='abc',
-        timeout_sec=1,
+        timeout=options.Timeout(1, 2),
         verbose=True,
     )
 
@@ -78,7 +114,7 @@ def test_general_options():
     assert a.log_file == 'abc.log'
     assert not a.progress_bar
     assert a.resume_file == pathlib.Path('abc')
-    assert a.timeout_sec == 1
+    assert a.timeout.timeout == (1, 2)
     assert a.verbose
 
     a = options.General(
@@ -90,7 +126,7 @@ def test_general_options():
         ),
         progress_bar=False,
         resume_file=None,
-        timeout_sec=1,
+        timeout=options.Timeout(2, 1),
         verbose=True,
     )
 
@@ -101,7 +137,7 @@ def test_general_options():
     assert a.log_file is None
     assert not a.progress_bar
     assert a.resume_file is None
-    assert a.timeout_sec == 1
+    assert a.timeout.timeout == (2, 1)
     assert a.verbose
 
     with pytest.raises(ValueError):

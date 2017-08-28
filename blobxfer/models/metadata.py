@@ -164,18 +164,6 @@ def fileattr_from_metadata(md):
         return fileattr
 
 
-def restore_fileattr(path, metadata):
-    # type: (pathlib.Path, dict) -> None
-    """Restore file attributes from metadata
-    :param pathlib.Path path: path to modify
-    :param dict metadata: existing metadata dict
-    """
-    if blobxfer.util.on_windows():
-        logger.warning(
-            'file attributes store/restore on Windows is not supported yet')
-    raise NotImplementedError()
-
-
 def create_vectored_io_next_entry(ase):
     # type: (blobxfer.models.azure.StorageEntity) -> str
     """Create Vectored IO next entry id

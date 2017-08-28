@@ -17,16 +17,17 @@ import blobxfer.operations.azure.file as ops
 
 
 def test_create_client():
-    sa = azops.StorageAccount('name', 'key', 'endpoint', 10)
-    client = ops.create_client(sa)
+    sa = azops.StorageAccount('name', 'key', 'endpoint', 10, mock.MagicMock())
+    client = ops.create_client(sa, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
     assert isinstance(
         client.authentication,
         azure.storage._auth._StorageSharedKeyAuthentication)
 
-    sa = azops.StorageAccount('name', '?key&sig=key', 'endpoint', 10)
-    client = ops.create_client(sa)
+    sa = azops.StorageAccount(
+        'name', '?key&sig=key', 'endpoint', 10, mock.MagicMock())
+    client = ops.create_client(sa, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
     assert isinstance(
@@ -96,6 +97,24 @@ def test_list_files_single_file():
     assert i == 1
 
 
+def test_list_all_files():
+    client = mock.MagicMock()
+    client.list_directories_and_files.side_effect = [
+        [
+            azure.storage.file.models.Directory(name='dir'),
+        ],
+        [
+            azure.storage.file.models.File(name='a'),
+        ],
+    ]
+
+    i = 0
+    for f in ops.list_all_files(client, 'fshare'):
+        assert f == 'dir/a'
+        i += 1
+    assert i == 1
+
+
 @mock.patch(
     'blobxfer.operations.azure.file.check_if_single_file',
     return_value=(False, None)
@@ -126,6 +145,10 @@ def test_list_files_directory(patched_cisf):
     assert i == 1
 
 
+def test_delete_file():
+    assert ops.delete_file(mock.MagicMock(), 'fshare', 'dir/name') is None
+
+
 def test_get_file_range():
     ase = mock.MagicMock()
     ret = mock.MagicMock()
@@ -138,3 +161,65 @@ def test_get_file_range():
     offsets.end_range = 1
 
     assert ops.get_file_range(ase, offsets) == ret.content
+
+
+def test_create_share():
+    ase = mock.MagicMock()
+    ase.create_containers = False
+
+    ops.create_share(ase, None)
+    assert ase.client.create_share.call_count == 0
+
+    ase.create_containers = True
+    ase.client.account_name = 'sa'
+    ase.container = 'cont'
+
+    cc = set()
+    ops.create_share(ase, cc)
+    assert len(cc) == 1
+
+    ase.client.create_share.side_effect = \
+        azure.common.AzureConflictHttpError('msg', 'code')
+    ase.container = 'cont2'
+    ops.create_share(ase, cc)
+    assert len(cc) == 1
+
+
+def test_create_all_parent_directories():
+    ase = mock.MagicMock()
+    ase.client.account_name = 'sa'
+    ase.container = 'cont'
+    ase.name = 'abc'
+
+    dirs = {}
+    ops.create_all_parent_directories(ase, dirs)
+    assert len(dirs) == 0
+
+    ase.name = 'a/b/c.bin'
+    ops.create_all_parent_directories(ase, dirs)
+    assert len(dirs) == 1
+    assert len(dirs['sa:cont']) == 2
+
+
+def test_create_file():
+    ase = mock.MagicMock()
+    ase.name = 'a/b/c.bin'
+    assert ops.create_file(ase) is None
+
+
+def test_put_file_range():
+    ase = mock.MagicMock()
+    ase.name = 'a/b/c.bin'
+    assert ops.put_file_range(ase, mock.MagicMock(), b'\0') is None
+
+
+def test_set_file_md5():
+    ase = mock.MagicMock()
+    ase.name = 'a/b/c.bin'
+    assert ops.set_file_md5(ase, 'md5') is None
+
+
+def test_set_file_metadata():
+    ase = mock.MagicMock()
+    ase.name = 'a/b/c.bin'
+    assert ops.set_file_metadata(ase, 'md') is None

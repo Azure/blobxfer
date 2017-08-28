@@ -36,7 +36,7 @@ import azure.storage.retry
 
 
 class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
-    """Exponential Retry with Max Wait (infinite retries)"""
+    """Exponential Retry with Max Wait Reset"""
     def __init__(
             self, initial_backoff=0.1, max_backoff=1, max_retries=None,
             reset_at_max=True):

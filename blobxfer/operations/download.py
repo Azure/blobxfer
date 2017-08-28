@@ -540,10 +540,10 @@ class Downloader(object):
         # issue get range
         if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
             data = blobxfer.operations.azure.file.get_file_range(
-                dd.entity, offsets, self._general_options.timeout_sec)
+                dd.entity, offsets)
         else:
             data = blobxfer.operations.azure.blob.get_blob_range(
-                dd.entity, offsets, self._general_options.timeout_sec)
+                dd.entity, offsets)
         # enqueue data for processing
         with self._disk_operation_lock:
             self._disk_set.add(
@@ -696,8 +696,7 @@ class Downloader(object):
         skipped_size = 0
         # iterate through source paths to download
         for src in self._spec.sources:
-            for rfile in src.files(
-                    self._creds, self._spec.options, self._general_options):
+            for rfile in src.files(self._creds, self._spec.options):
                 # form local path for remote file
                 if (not self._spec.destination.is_dir and
                         self._spec.options.rename):

@@ -24,8 +24,8 @@ from Azure Blob and File Storage
     throughput limits
   * `replica` mode allows replication of a file across multiple destinations
     including to multiple storage accounts
-* Synchronous copy with replication support (including block-level copies
-for Block blobs)
+* Synchronous copy with cross-mode replication support (including block-level
+copies for Block blobs)
 * Client-side encryption support
 * Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations
@@ -39,6 +39,7 @@ for Block blobs)
 * Include and exclude filtering support
 * Rsync-like delete support
 * No clobber support in either direction
+* Automatic content type tagging
 * File logging support
 
 ## Installation
@@ -56,11 +57,6 @@ For recent changes, please refer to the
 [CHANGELOG.md](https://github.com/Azure/blobxfer/blob/master/CHANGELOG.md)
 file.
 
-------------------------------------------------------------------------
-
-This project has adopted the
-[Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the
-[Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/)
-or contact [<opencode@microsoft.com>](mailto:opencode@microsoft.com) with any
-additional questions or comments.
+* * *
+Please see this project's [Code of Conduct](CODE_OF_CONDUCT.md) and
+[Contributing](CONTRIBUTING.md) guidelines.

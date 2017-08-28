@@ -34,7 +34,9 @@ from builtins import (  # noqa
 import requests
 # local imports
 import blobxfer.models
+import blobxfer.models.crypto
 import blobxfer.models.metadata
+import blobxfer.models.options
 import blobxfer.operations.azure.blob.append
 import blobxfer.operations.azure.blob.block
 import blobxfer.operations.azure.blob.page
@@ -65,7 +67,8 @@ class StorageCredentials(object):
                 '{} already exists in storage accounts'.format(name))
         self._storage_accounts[name] = StorageAccount(
             name, key, endpoint,
-            self._general_options.concurrency.transfer_threads
+            self._general_options.concurrency.transfer_threads,
+            self._general_options.timeout.timeout,
         )
 
     def get_storage_account(self, name):
@@ -81,14 +84,19 @@ class StorageCredentials(object):
 
 class StorageAccount(object):
     """Azure Storage Account"""
-    def __init__(self, name, key, endpoint, transfer_threads):
-        # type: (StorageAccount, str, str, str, int) -> None
+    def __init__(self, name, key, endpoint, transfer_threads, timeout):
+        # type: (StorageAccount, str, str, str, int, tuple) -> None
         """Ctor for StorageAccount
         :param str name: name of storage account
         :param str key: storage key or sas
         :param str endpoint: endpoint
         :param int transfer_threads: number of transfer threads
+        :param tuple timeout: timeout tuple
         """
+        if blobxfer.util.is_none_or_empty(key):
+            raise ValueError(
+                ('no authentication credential given for storage '
+                 'account: {}').format(name))
         self._append_blob_client = None
         self._block_blob_client = None
         self._file_client = None
@@ -110,7 +118,7 @@ class StorageAccount(object):
                 pool_maxsize=transfer_threads << 1,
             )
         )
-        self._create_clients()
+        self._create_clients(timeout)
 
     @staticmethod
     def _key_is_sas(key):
@@ -155,18 +163,20 @@ class StorageAccount(object):
             return True
         return False
 
-    def _create_clients(self):
-        # type: (StorageAccount) -> None
+    def _create_clients(self, timeout):
+        # type: (StorageAccount, tuple) -> None
         """Create Azure Storage clients
         :param StorageAccount self: this
+        :param tuple timeout: timeout tuple
         """
         self._append_blob_client = \
-            blobxfer.operations.azure.blob.append.create_client(self)
+            blobxfer.operations.azure.blob.append.create_client(self, timeout)
         self._block_blob_client = \
-            blobxfer.operations.azure.blob.block.create_client(self)
-        self._file_client = blobxfer.operations.azure.file.create_client(self)
+            blobxfer.operations.azure.blob.block.create_client(self, timeout)
+        self._file_client = blobxfer.operations.azure.file.create_client(
+            self, timeout)
         self._page_blob_client = \
-            blobxfer.operations.azure.blob.page.create_client(self)
+            blobxfer.operations.azure.blob.page.create_client(self, timeout)
 
     @property
     def append_blob_client(self):
@@ -243,25 +253,21 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         """
         return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
 
-    def files(self, creds, options, general_options):
+    def files(self, creds, options):
         # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download,
-        #        blobxfer.models.options.General) -> StorageEntity
+        #        blobxfer.models.options.Download) -> StorageEntity
         """Generator of Azure remote files or blobs
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param blobxfer.models.options.Download options: download options
-        :param blobxfer.models.options.General general_options: general options
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
         if options.mode == blobxfer.models.azure.StorageModes.File:
-            for file in self._populate_from_list_files(
-                    creds, options, general_options):
+            for file in self._populate_from_list_files(creds, options):
                 yield file
         else:
-            for blob in self._populate_from_list_blobs(
-                    creds, options, general_options):
+            for blob in self._populate_from_list_blobs(creds, options):
                 yield blob
 
     def _convert_to_storage_entity_with_encryption_metadata(
@@ -303,16 +309,14 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         return ase
 
     def _handle_vectored_io_stripe(
-            self, creds, options, general_options, store_raw_metadata,
-            sa, entity, is_file, container, dir=None):
-        # type: (SourcePath, StorageCredentials, any,
-        #        blobxfer.models.options.General, bool, StorageAccount, any,
-        #        bool, str, str) -> StorageEntity
+            self, creds, options, store_raw_metadata, sa, entity, is_file,
+            container, dir=None):
+        # type: (SourcePath, StorageCredentials, any, bool, StorageAccount,
+        #        any, bool, str, str) -> StorageEntity
         """Handle Vectored IO stripe entries
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param object options: download or synccopy options
-        :param blobxfer.models.options.General general_options: general options
         :param bool store_raw_metadata: store raw metadata
         :param StorageAccount sa: storage account
         :param object entity: Storage File or Blob object
@@ -351,13 +355,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             sa = creds.get_storage_account(vio.next.storage_account_name)
             if is_file:
                 entity = blobxfer.operations.azure.file.get_file_properties(
-                    sa.file_client, vio.next.container, vio.next.name,
-                    timeout=general_options.timeout_sec)
+                    sa.file_client, vio.next.container, vio.next.name)
                 _, dir = blobxfer.util.explode_azure_path(vio.next.name)
             else:
                 entity = blobxfer.operations.azure.blob.get_blob_properties(
                     sa.block_blob_client, vio.next.container, vio.next.name,
-                    ase.mode, timeout=general_options.timeout_sec)
+                    ase.mode)
             vio = blobxfer.models.metadata.vectored_io_from_metadata(
                 entity.metadata)
             # yield next
@@ -366,14 +369,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 container, dir)
             yield ase
 
-    def _populate_from_list_files(self, creds, options, general_options):
-        # type: (SourcePath, StorageCredentials, any,
-        #        blobxfer.models.options.General) -> StorageEntity
+    def _populate_from_list_files(self, creds, options):
+        # type: (SourcePath, StorageCredentials, any) -> StorageEntity
         """Internal generator for Azure remote files
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param object options: download or synccopy options
-        :param blobxfer.models.options.General general_options: general options
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
@@ -384,28 +385,25 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             cont, dir = blobxfer.util.explode_azure_path(rpath)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             for file in blobxfer.operations.azure.file.list_files(
-                    sa.file_client, cont, dir, options.recursive,
-                    general_options.timeout_sec):
+                    sa.file_client, cont, dir, options.recursive):
                 if not self._inclusion_check(file.name):
                     continue
                 if dir is not None:
                     dir, _ = blobxfer.operations.azure.file.parse_file_path(
                         dir)
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, general_options, store_raw_metadata,
-                        sa, file, True, cont, dir):
+                        creds, options, store_raw_metadata, sa, file, True,
+                        cont, dir):
                     if ase is None:
                         continue
                     yield ase
 
-    def _populate_from_list_blobs(self, creds, options, general_options):
-        # type: (SourcePath, StorageCredentials, any,
-        #        blobxfer.models.options.General) -> StorageEntity
+    def _populate_from_list_blobs(self, creds, options):
+        # type: (SourcePath, StorageCredentials, any) -> StorageEntity
         """Internal generator for Azure remote blobs
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param object options: download or synccopy options
-        :param blobxfer.models.options.General general_options: general options
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
@@ -417,12 +415,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             for blob in blobxfer.operations.azure.blob.list_blobs(
                     sa.block_blob_client, cont, dir, options.mode,
-                    options.recursive, general_options.timeout_sec):
+                    options.recursive):
                 if not self._inclusion_check(blob.name):
                     continue
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, general_options, store_raw_metadata,
-                        sa, blob, False, cont):
+                        creds, options, store_raw_metadata, sa, blob,
+                        False, cont):
                     if ase is None:
                         continue
                     yield ase

@@ -46,7 +46,9 @@ options:
     resume_file: /path/to/resumefile.db
     progress_bar: true
     verbose: true
-    timeout_sec: null
+    timeout:
+        connect: null
+        read: null
     concurrency:
         md5_processes: 2
         crypto_processes: 2
@@ -58,7 +60,9 @@ options:
 * `resume_file` is the location of the resume database to create
 * `progress_bar` controls display of a progress bar output to the console
 * `verbose` controls if verbose logging is enabled
-* `timeout_sec` is the timeout to apply to requests/responses
+* `timeout` is a dictionary of timeout values in seconds
+  * `connect` is the connect timeout to apply to the request
+  * `read` is the read timeout to apply to the request
 * `concurrency` is a dictionary of concurrency limits
   * `md5_processes` is the number of MD5 offload processes to create for
     MD5 comparison checking
@@ -232,6 +236,7 @@ synccopy:
         - "*.tmp"
       options:
           mode: auto
+          dest_mode: auto
           delete_extraneous_destination: true
           overwrite: true
           recursive: true
@@ -247,7 +252,8 @@ are copied to each destination specified.
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns
 * `options` are synccopy-specific options
-  * `mode` is the operating mode
+  * `mode` is the source mode
+  * `dest_mode` is the destination mode
   * `delete_extraneous_destination` will cleanup any files in remote
     destinations that are not found in the remote sources. Note that this
     interacts with include and exclude filters.

@@ -75,7 +75,7 @@ instead.
 ## MD5 Hashing
 MD5 hashing will impose some performance penalties to check if the file
 should be uploaded or downloaded. For instance, if uploading and the local
-file is determined to be different than it's remote counterpart, then the
+file is determined to be different than its remote counterpart, then the
 time spent performing the MD5 comparison is effectively "lost."
 
 ## Client-side Encryption

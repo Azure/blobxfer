@@ -156,8 +156,7 @@ class Download(object):
                 'next_integrity_chunk={} completed={} md5={}>').format(
                     self.final_path, self.length, self.chunk_size,
                     self.next_integrity_chunk, self.completed,
-                    self.md5hexdigest,
-                )
+                    self.md5hexdigest)
 
 
 class Upload(object):
@@ -295,8 +294,7 @@ class Upload(object):
                 'md5={}>').format(
                     self.local_path, self.length, self.chunk_size,
                     self.total_chunks, self.completed_chunks, self.completed,
-                    self.md5hexdigest,
-                )
+                    self.md5hexdigest)
 
 
 class SyncCopy(object):
@@ -428,5 +426,4 @@ class SyncCopy(object):
         return ('SyncCopy<length={} chunk_size={} total_chunks={} '
                 'completed_chunks={} completed={}>').format(
                     self.length, self.chunk_size, self.total_chunks,
-                    self.completed_chunks, self.completed,
-                )
+                    self.completed_chunks, self.completed)

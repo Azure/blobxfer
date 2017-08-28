@@ -39,11 +39,13 @@ import blobxfer.retry
 logger = logging.getLogger(__name__)
 
 
-def create_client(storage_account):
-    # type: (blobxfer.operations.azure.StorageAccount) -> PageBlobService
+def create_client(storage_account, timeout):
+    # type: (blobxfer.operations.azure.StorageAccount,
+    #        tuple) -> PageBlobService
     """Create block blob client
     :param blobxfer.operations.azure.StorageAccount storage_account:
         storage account
+    :param tuple timeout: timeout tuple
     :rtype: PageBlobService
     :return: block blob service client
     """
@@ -52,13 +54,15 @@ def create_client(storage_account):
             account_name=storage_account.name,
             sas_token=storage_account.key,
             endpoint_suffix=storage_account.endpoint,
-            request_session=storage_account.session)
+            request_session=storage_account.session,
+            socket_timeout=timeout)
     else:
         client = azure.storage.blob.PageBlobService(
             account_name=storage_account.name,
             account_key=storage_account.key,
             endpoint_suffix=storage_account.endpoint,
-            request_session=storage_account.session)
+            request_session=storage_account.session,
+            socket_timeout=timeout)
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client
@@ -77,7 +81,7 @@ def create_blob(ase, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name)
         ),
-        timeout=timeout)
+        timeout=timeout)  # noqa
 
 
 def put_page(ase, page_start, page_end, data, timeout=None):
@@ -97,4 +101,4 @@ def put_page(ase, page_start, page_end, data, timeout=None):
         start_range=page_start,
         end_range=page_end,
         validate_content=False,  # integrity is enforced with HTTPS
-        timeout=timeout)
+        timeout=timeout)  # noqa

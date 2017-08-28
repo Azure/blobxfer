@@ -86,6 +86,18 @@ def test_encryption_metadata_exists():
     assert models.EncryptionMetadata.encryption_metadata_exists(md)
 
 
+def test_create_new_metadata():
+    em = models.EncryptionMetadata()
+    em.create_new_metadata('key')
+
+    assert em._rsa_public_key == 'key'
+    assert em.symmetric_key is not None
+    assert em.signing_key is not None
+    assert em.content_encryption_iv is not None
+    assert em.encryption_agent is not None
+    assert em.encryption_mode is not None
+
+
 def test_convert_from_json(tmpdir):
     keyfile = tmpdir.join('keyfile')
     keyfile.write(_SAMPLE_RSA_KEY)
@@ -206,3 +218,21 @@ def test_convert_from_json(tmpdir):
     assert em._symkey is not None
     assert em._signkey is None
     assert hmac is None
+
+
+def test_convert_to_json_with_mac(tmpdir):
+    keyfile = tmpdir.join('keyfile')
+    keyfile.write(_SAMPLE_RSA_KEY)
+    rsaprivatekey = ops.load_rsa_private_key_file(str(keyfile), None)
+    rsapublickey = rsaprivatekey.public_key()
+
+    em = models.EncryptionMetadata()
+    em.create_new_metadata(rsapublickey)
+    symkey = em._symkey
+    signkey = em._signkey
+
+    encjson = em.convert_to_json_with_mac('md5digest', 'hmacdigest')
+    assert encjson is not None
+    em.convert_from_json(encjson, 'entityname', rsaprivatekey)
+    assert em._symkey == symkey
+    assert em._signkey == signkey

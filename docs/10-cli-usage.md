@@ -41,8 +41,9 @@ command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
-* `--sync-copy-dest-storage-account` for the destination remote Azure path
+* `--sync-copy-dest-mode` for the destination mode
 * `--sync-copy-dest-remote-path` for the destination remote Azure path
+* `--sync-copy-dest-storage-account` for the destination remote Azure path
 
 Additionally, an authentication option for both storage accounts is required.
 Please see the `Authentication` and `Connection` sub-section below under the
@@ -84,7 +85,9 @@ recursively uploaded or downloaded.
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
 * `--resume-file` specifies the resume database to write to or read from.
 Resume files should be specific for a session.
-* `--timeout` is the integral timeout value in seconds to use.
+* `--timeout` is the timeout value, in seconds, applied to both connect
+and read operations. To apply separate values for these operations
+individually, use YAML configuration instead.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
 * `-v` will output verbose messages including the configuration used
@@ -190,7 +193,7 @@ behavior.
 * `--rename` renames a single file upload or download to the target
 destination or source path, respectively.
 * `--strip-components N` will strip the leading `N` components from the
-local file path. The default is `1`.
+local file path on upload. The default is `0`.
 
 ## <a name="examples"></a>Example Invocations
 ### `download` Examples
