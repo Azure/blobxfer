@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.0.0b1] - 2017-08-28
 ### Added
 - Cross-mode synchronous copy support
 - Duplicate detection (different local source paths mapping to the same
@@ -11,6 +12,10 @@ destination) on upload
 - Python 3.3 is no longer supported (due to `cryptography` dropping support
 for 3.3).
 - `--strip-components` now defaults to `0`
+- `timeout_sec` YAML property is now named `timeout` and is a complex property
+comprised of `connect` and `read` values expressed in seconds
+- Test coverage improved
+- Dependencies updated to latest
 
 ### Fixed
 - Properly merge CLI options with YAML config options. You can now override
@@ -226,7 +231,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0a5...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0b1...HEAD
+[1.0.0b1]: https://github.com/Azure/blobxfer/compare/1.0.0a5...1.0.0b1
 [1.0.0a5]: https://github.com/Azure/blobxfer/compare/1.0.0a4...1.0.0a5
 [1.0.0a4]: https://github.com/Azure/blobxfer/compare/0.12.1...1.0.0a4
 [0.12.1]: https://github.com/Azure/blobxfer/compare/0.12.0...0.12.1
