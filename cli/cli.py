@@ -805,7 +805,7 @@ def download(ctx):
 @common_options
 @pass_cli_context
 def synccopy(ctx):
-    """Synchronously copy blobs between Azure Storage accounts"""
+    """Synchronously copy blobs or files between Azure Storage accounts"""
     settings.add_cli_options(ctx.cli_options, settings.TransferAction.Synccopy)
     ctx.initialize(settings.TransferAction.Synccopy)
     specs = settings.create_synccopy_specifications(

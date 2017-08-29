@@ -1,5 +1,4 @@
 from codecs import open
-import os
 import re
 try:
     from setuptools import setup
@@ -7,14 +6,7 @@ except ImportError:  # noqa
     from distutils.core import setup
 import sys
 
-if sys.argv[-1] == 'publish':
-    os.system('rm -rf blobxfer.egg-info/ build dist __pycache__/')
-    os.system('python setup.py sdist bdist_wheel')
-    sys.exit()
-elif sys.argv[-1] == 'upload':
-    os.system('twine upload dist/*')
-    sys.exit()
-elif sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
+if sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
     import pypandoc
     long_description = pypandoc.convert('README.md', 'rst')
 else:
@@ -53,13 +45,13 @@ install_requires = [
 setup(
     name='blobxfer',
     version=version,
-    author='Microsoft Corporation, Azure Batch and HPC Team',
+    author='Microsoft Corporation',
     author_email='',
     description='Azure storage transfer tool and library',
-    long_description=long_description,
     platforms='any',
     url='https://github.com/Azure/blobxfer',
     license='MIT',
+    long_description=long_description,
     packages=packages,
     package_data={'blobxfer': ['LICENSE']},
     package_dir={'blobxfer': 'blobxfer', 'blobxfer_cli': 'cli'},
@@ -84,5 +76,8 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Topic :: Utilities',
     ],
-    keywords='azcopy azure storage blob files transfer copy smb cifs',
+    keywords=[
+        'azure', 'storage', 'blob', 'files', 'transfer', 'copy', 'smb',
+        'cifs', 'azcopy'
+    ],
 )

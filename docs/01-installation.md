@@ -41,9 +41,12 @@ Python 2.7 should come pre-installed. However, if you want to install
 to ensure that you have the latest version of Python, a compiler and pip.
 
 ### Windows
-Please install at least Python 3.5 or higher to avoid requiring a
+Please install at least Python 3.5 or later to avoid requiring a
 compiler. If you must use Python 2.7, you can download the necessary
 development headers and compiler [from Microsoft](http://aka.ms/vcpython27).
+
+### Windows Subsystem for Linux
+Please follow the same instructions for the Linux distribution installed.
 
 ## Installation via `pip`
 [blobxfer](https://pypi.python.org/pypi/blobxfer) is on PyPI and can be
@@ -58,9 +61,9 @@ pip install blobxfer
 
 `blobxfer` is compatible with Python 2.7 and 3.3+. To install for Python 3
 (which is recommended), some distributions may use `pip3` instead of `pip`.
-Installing into your user area via `--user` or via a virtual environment
-is recommended to avoid installation issues with system-wide Python
-packages.
+Installing into a virtual environment or your user area via `--user`
+is recommended to avoid installation issues and conflicts with system-wide
+Python packages.
 
 ## Installation via Docker
 [blobxfer](https://hub.docker.com/r/alfpark/blobxfer/) is also on Docker
@@ -75,7 +78,9 @@ docker pull alfpark/blobxfer
 If you get an error such as `ImportError: No module named storage` or that
 `azure.storage` cannot be found or loaded, then most likely there was a
 conflict with this package with other `azure` packages that share the same
-base namespace. You can correct this by issuing:
+base namespace. It is highly recommended to use a virtual environment to
+avoid these kind of conflicts. Alternatively, you can correct this by issuing:
+
 ```shell
 # for Python3
 pip3 install --upgrade --force-reinstall azure-storage

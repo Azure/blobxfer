@@ -1,15 +1,72 @@
 language: python
+
 cache: pip
-python:
-  - 2.7
-  - 3.4
-  - 3.5
-  - 3.6
+
+matrix:
+  include:
+  - python: 2.7
+  - python: 3.4
+  - python: 3.5
+    addons:
+      apt:
+        packages:
+        - pandoc
+  - python: 3.6
+#  - language: generic
+#    os: osx
+#    before_install:
+#      - brew update
+#      - brew install python3
+#      - virtualenv -p python3 py3
+#      - source py3/bin/activate
+
+env:
+  global:
+  - BLOBXFER_ARTIFACT=blobxfer-$TRAVIS_TAG-$TRAVIS_OS_NAME-x86_64
+  - BLOBXFER_NOBUILD=$([[ "$TRAVIS_PYTHON_VERSION" = "3.5" ]] || [[ "$TRAVIS_OS_NAME" == "osx" ]] || echo 1)
+
 install:
-  - travis_retry pip install --upgrade pip
-  - travis_retry pip install --upgrade setuptools wheel
-  - travis_retry pip install --upgrade coveralls tox-travis
+- travis_retry pip install --upgrade pip
+- travis_retry pip install --upgrade setuptools wheel
+- travis_retry pip install --upgrade coveralls tox-travis
+
 script:
-  - tox
+- tox
+
 after_success:
-  - coveralls --rcfile=.coveragerc --verbose
+- coveralls --rcfile=.coveragerc --verbose
+- echo BLOBXFER_NOBUILD=$BLOBXFER_NOBUILD
+
+before_deploy:
+- echo BLOBXFER_ARTIFACT=$BLOBXFER_ARTIFACT
+- |
+    if [[ "$BLOBXFER_NOBUILD" != "1" ]]; then
+        if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+            brew install pandoc
+        fi
+        travis_retry pip install pypandoc pyinstaller
+        virtualenv -p python3 pyi
+        $SHELL -c "set -e; source pyi/bin/activate; \
+                   pip install --no-cache-dir -e .; \
+                   pyinstaller -F -n $BLOBXFER_ARTIFACT -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli/cli.py; \
+                   deactivate"
+    fi
+
+deploy:
+  - provider: pypi
+    distributions: "sdist bdist_wheel"
+    skip_cleanup: true
+    on:
+      tags: true
+      condition: "$TRAVIS_PYTHON_VERSION = 3.5"
+    user: alfpark
+    password:
+      secure: M7LLGjw2LMVDiOj2GoUyAEt60G7PC4Bg/APoTbCyGQ/XU6hdHaDV8t4hq9plnfzRtuXFmBtNAKC6qwxRtje61op75yp99ufhqZd8b/WZTUG1eiH05PE0j4F0SIzKo0G3dKs3jcqgVC/VKcS2prRjS+DwOEbWu5Lzrilk1McjDNSRNAhVl7JiN0aSew5h1HLHKoOkJPfGy+Q5vKCU+2Tg6XPNifn8j94xYLey7aOpDigvGwiaT4FNzcih6QzlUkMHtlsvXcoKQ+2QUKo84HEK2Ht2reu63/ybbA7kKVH089O38g5H+DnFWXlU9t/Af0J2V3uMZFxL08PsGGhuJIZGdos7yhyrLL21klwdD28nASVNjlLzSpY57rx+HwaM1jGwe+9WLYJRO+PiW/ab1wxHNmeZlKUZrotmrCixJ1mUjU5lXWkWJpQpCqfAGrfuR0PUfJoxa4jdzEyFm8/FyWExIZ0Cg/inM498dBNWw4uw+YagMt7rzRiRlKmGanGZQT29vPSG/bHkyHAXhfoFVSKGkq2Or+fyRNK9n6s9GwAG4cfqxzlN9/9hKynOhFnyLsOELhGdd/Um6NYRq/adGGDUep9k8H3zbFXoTY2AkV/wtKz1sePlfz6gUlwYFrW+L2ZTxKdfhOH4EM9IOThOgIoyvjSfR8/LyyCWfMsdMxseKG8=
+  - provider: releases
+    skip_cleanup: true
+    on:
+      tags: true
+      condition: "$BLOBXFER_NOBUILD != 1"
+    file: bin/$BLOBXFER_ARTIFACT
+    api_key:
+      secure: 08Rn0QFLSx0RgvNDswGwRfBMuyHL1uN9uHf5mOSCgFmMLLltq3hNwS4QDDiuM794eNtjdjYMQU6r2+6WyuuLWCuEGMOWqbScGKhnTWsP7bvIeqJNVTmkC6coF9rg9QCGxdwTYUn9Ojg0MK14MGNP8Mz1u0K96R+IipWKICt5KoZK5AanQQzuPFQwtCO0EZ/s0jRNqJt4xNGm/N3oDRIAazpPn+1BoqsOHNoZIoDzMPhj+CajLYo48v6L0Kjv4FMcyHeyZzqIXaYZVSW/qERhOtjOELLxkEbE4rwVg3wPlsm7nUKnWgpyXqC+4bn/hW2CUaHdqGWEjH3nKPZfXLVunrKpQb8IOodt6qddElset9pOlTL2hpuhTDTPXy8O06I8Wum2ki9s+wVq/oBVFwKxpSKsPUkdmu4OnZNod61O8ZjJkCPFXqxOnetJ0AfjWIEFTqvg4uPrHv+BDVLqIoTk8aFMbF04mMH80+j2BuWNP2RDZazh5w7OZYamRhxFG8QXAIKpIW1zp+H9+0nogmNlSMMIEX1yMxaOLkXoeNKy1xA3cvOSGG4Q7fI3WtvaAI01QudZgWcJFkY4Yf2D2vlkemZW34PxS5qJ76Bu/mz33d2kbNZbMyk/P9+NJcP1Ym2+1OvDJ3N5a0nXCyayNxRoi0ORWJx8dFFGrOFer1KpT+Q=
