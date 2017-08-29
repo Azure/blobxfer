@@ -23,9 +23,11 @@ matrix:
 env:
   global:
   - BLOBXFER_ARTIFACT=blobxfer-$TRAVIS_TAG-$TRAVIS_OS_NAME-x86_64
-  - BLOBXFER_NOBUILD=$([[ "$TRAVIS_PYTHON_VERSION" = "3.5" ]] || [[ "$TRAVIS_OS_NAME" == "osx" ]] || echo 1)
+  - secure: FAUy5R0867AyNyZqQ5CM/JeYqAuPBQGHC06gXrBB5zOXtYSlYOqK/QM6e9LmlPeNWvuCnQlNpjY9gdvnqOiCXqtfN8eDTzpiwUeJzRPhVtWjjRt5AqTQ7U3iRfGrjmkgEnjtzW7xNiBRv1G8OxuVowjaNKP+FHumTC4pMx0i5TV8qjVB+CN1xv1zjuK+cUUtOx34rjsFVfa77CAkv0noL5RA/rnGbORFTLvXh0eEVsRYbUvA6rVvab+gjWS/GamjjJwghDTwqOun7z6GGtSB3F0Dk/KGvEJPOo+s1QEu1X4jF1/KlBwBh19UNPiRWCb8bBoPfNAAXvh8W2exXZl01HYZGor0GlUg7sZ/8XdZ7EP09//6UrtMUT4ma4649VUA2mR2cUPG3EQFNkB0vy6SX1sukfIxfSBna9KqNTB+iVIPcUs7rigZYSaj258fXAA38C++OjKm40Qha6UCQcdRxfblrJaAkiX25kXMe6twvTS+57yOOhUR2Fqxk55hQsx2OGINtCWA6CQeoLY4ibcvCrLrzChd1wLpRpxv+PsaRgwecHEnMMZqH4H0zA2zhjYOLrK1VHMSC7JJXD5rfGecZUsrU7zzFZYSJEUdFHws0AE+O4v7Wr6UISUXfrWD2pciJKJQCc3bRrLYJBmHV9RKdzYqF5JQZZt7j4zqgZhI2Dk=
+  - secure: JFk8adFV6IiXtK/xjEoFNN12+jWxFPkhLuUC/eFOXgBcPp7f7PGUJrU4TAJU/LVHIQHiC3OHR/G0lGJLyxihM9ZPxlZigt2Kjcyhpv7v1Ms6UKUWVpfU9v0grFMX77allO9TphiOT5KejS+dz52UBmGRds5fPD838uajHiImQTulNdyXJmid61sW6kdeSlttWMaqwj9cTEmXjW5cx4PoSQM/bN1OeCvn97R7aSA//Z8noJQBHpBUIQL99GhV1ZVumq4ZLdxsuJkTdEtHlZaKUxSfhVa0fza5z/u4GY1Lp1zybCiU4Nv487xOGG/zsHLwPLPXAp9W+5TarLVXrswEe+sjyMtQ4A53L9FQGBc/l2Eg0KyaptwU+EVI1xjT9FYZ75NGrArH9cTa5SIMn9+S5pFDRS67sJTGyUgdRmDHj10MRnaa8GKCW1iE9QF4tryuI6Qw5JWrxe4n/C8OZq9OTlNqE53tQmd8Sy6/JlFvYgBzGUAuJaGPAd0eJo4+zc10ZDei9veC7crazuUDO5nnmjp5IyHtHEObwUOTPtYciQUiBPO81aLg9VppZ+CMDGKwcQE8ZlcDjejk9SkfAg7oPEUW36aVbSueZ+fGEOdEdSwSaBovd9lwkqejFudyIAMl1yNSB7dfYS9NrLOcUq7mTJJhWrTmbClI9INHjoxSsfE=
 
 install:
+- export BLOBXFER_NOBUILD=$([[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]] || [[ "$TRAVIS_OS_NAME" == "osx" ]] || echo 1)
 - travis_retry pip install --upgrade pip
 - travis_retry pip install --upgrade setuptools wheel
 - travis_retry pip install --upgrade coveralls tox-travis
@@ -40,16 +42,18 @@ after_success:
 before_deploy:
 - echo BLOBXFER_ARTIFACT=$BLOBXFER_ARTIFACT
 - |
+    travis_retry pip install pypandoc
     if [[ "$BLOBXFER_NOBUILD" != "1" ]]; then
         if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
             brew install pandoc
         fi
-        travis_retry pip install pypandoc pyinstaller
         virtualenv -p python3 pyi
         $SHELL -c "set -e; source pyi/bin/activate; \
+                   pip install pyinstaller; \
                    pip install --no-cache-dir -e .; \
                    pyinstaller -F -n $BLOBXFER_ARTIFACT -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli/cli.py; \
                    deactivate"
+        bin/$BLOBXFER_ARTIFACT upload --remote-path releases/$TRAVIS_TAG --local-path bin/$BLOBXFER_ARTIFACT --strip-components 1 --file-md5 --overwrite
     fi
 
 deploy:
@@ -58,7 +62,7 @@ deploy:
     skip_cleanup: true
     on:
       tags: true
-      condition: "$TRAVIS_PYTHON_VERSION = 3.5"
+      condition: "$TRAVIS_PYTHON_VERSION == 3.5"
     user: alfpark
     password:
       secure: M7LLGjw2LMVDiOj2GoUyAEt60G7PC4Bg/APoTbCyGQ/XU6hdHaDV8t4hq9plnfzRtuXFmBtNAKC6qwxRtje61op75yp99ufhqZd8b/WZTUG1eiH05PE0j4F0SIzKo0G3dKs3jcqgVC/VKcS2prRjS+DwOEbWu5Lzrilk1McjDNSRNAhVl7JiN0aSew5h1HLHKoOkJPfGy+Q5vKCU+2Tg6XPNifn8j94xYLey7aOpDigvGwiaT4FNzcih6QzlUkMHtlsvXcoKQ+2QUKo84HEK2Ht2reu63/ybbA7kKVH089O38g5H+DnFWXlU9t/Af0J2V3uMZFxL08PsGGhuJIZGdos7yhyrLL21klwdD28nASVNjlLzSpY57rx+HwaM1jGwe+9WLYJRO+PiW/ab1wxHNmeZlKUZrotmrCixJ1mUjU5lXWkWJpQpCqfAGrfuR0PUfJoxa4jdzEyFm8/FyWExIZ0Cg/inM498dBNWw4uw+YagMt7rzRiRlKmGanGZQT29vPSG/bHkyHAXhfoFVSKGkq2Or+fyRNK9n6s9GwAG4cfqxzlN9/9hKynOhFnyLsOELhGdd/Um6NYRq/adGGDUep9k8H3zbFXoTY2AkV/wtKz1sePlfz6gUlwYFrW+L2ZTxKdfhOH4EM9IOThOgIoyvjSfR8/LyyCWfMsdMxseKG8=
@@ -67,6 +71,9 @@ deploy:
     on:
       tags: true
       condition: "$BLOBXFER_NOBUILD != 1"
+    draft: true
+    overwrite: true
+    tag_name: $TRAVIS_TAG
     file: bin/$BLOBXFER_ARTIFACT
     api_key:
       secure: 08Rn0QFLSx0RgvNDswGwRfBMuyHL1uN9uHf5mOSCgFmMLLltq3hNwS4QDDiuM794eNtjdjYMQU6r2+6WyuuLWCuEGMOWqbScGKhnTWsP7bvIeqJNVTmkC6coF9rg9QCGxdwTYUn9Ojg0MK14MGNP8Mz1u0K96R+IipWKICt5KoZK5AanQQzuPFQwtCO0EZ/s0jRNqJt4xNGm/N3oDRIAazpPn+1BoqsOHNoZIoDzMPhj+CajLYo48v6L0Kjv4FMcyHeyZzqIXaYZVSW/qERhOtjOELLxkEbE4rwVg3wPlsm7nUKnWgpyXqC+4bn/hW2CUaHdqGWEjH3nKPZfXLVunrKpQb8IOodt6qddElset9pOlTL2hpuhTDTPXy8O06I8Wum2ki9s+wVq/oBVFwKxpSKsPUkdmu4OnZNod61O8ZjJkCPFXqxOnetJ0AfjWIEFTqvg4uPrHv+BDVLqIoTk8aFMbF04mMH80+j2BuWNP2RDZazh5w7OZYamRhxFG8QXAIKpIW1zp+H9+0nogmNlSMMIEX1yMxaOLkXoeNKy1xA3cvOSGG4Q7fI3WtvaAI01QudZgWcJFkY4Yf2D2vlkemZW34PxS5qJ76Bu/mz33d2kbNZbMyk/P9+NJcP1Ym2+1OvDJ3N5a0nXCyayNxRoi0ORWJx8dFFGrOFer1KpT+Q=

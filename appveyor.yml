@@ -1,0 +1,61 @@
+version: '{branch}-{build}'
+
+clone_depth: 5
+
+cache:
+- '%LOCALAPPDATA%\pip\Cache'
+
+environment:
+  matrix:
+  - PYTHON: "C:\\Python27-x64"
+    PYTHON_VERSION: "2.7"
+    PYTHON_ARCH: "64"
+    TOX_ENV: "py27"
+  - PYTHON: "C:\\Python35-x64"
+    PYTHON_VERSION: "3.5"
+    PYTHON_ARCH: "64"
+    TOX_ENV: "py35"
+  BLOBXFER_SAS:
+    secure: b/A4QFUftPz5dFIU1JTphCV+EfZYW5p7bdgUphoESiRK7t/wiWGhudaDWzI25CA/bfGpHOMW+roeqyKKaYNU6hooXQOLajTmwieKLxdvwXZ+M76PxG301qnQvPW6GlmX9zDYaCE/6jxvxQDfGCJvVw==
+  BLOBXFER_STORAGE_ACCOUNT:
+    secure: qbpOW+pGmGfG7DFFC7LozA==
+
+init:
+- echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
+
+install:
+- pip install --upgrade setuptools wheel
+- pip install --upgrade coveralls tox
+
+build: off
+
+test_script:
+- tox -e "%TOX_ENV%"
+
+after_test:
+- set BLOBXFER_ARTIFACT=blobxfer-%APPVEYOR_REPO_TAG_NAME%-win-amd64.exe
+- echo is commit tag %APPVEYOR_REPO_TAG% name %APPVEYOR_REPO_TAG_NAME% artifact %BLOBXFER_ARTIFACT%
+- IF "%APPVEYOR_REPO_TAG%"=="true" IF "%PYTHON_VERSION%"=="3.5" (
+  virtualenv -p "%PYTHON%\\python.exe" pyi &&
+  pyi\\Scripts\\activate.bat &&
+  pip install --upgrade pyinstaller &&
+  pip install -e . &&
+  pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli\\cli.py &&
+  pyi\\Scripts\\deactivate.bat &&
+  appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
+  bin\\%BLOBXFER_ARTIFACT% upload --remote-path releases/%APPVEYOR_REPO_TAG_NAME% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
+  )
+
+deploy:
+- provider: GitHub
+  tag: $(APPVEYOR_REPO_TAG_NAME)
+  description: 'blobxfer release'
+  auth_token:
+    secure: +f4N6Qsv3HvJyii0Bs+8qBx3YS7+7FJUWbFSiAdEIUDubFQnNkJgFnBw0Ew2SLkv
+  artifact: /.*\.exe/
+  draft: true
+  prerelease: true
+  force_update: true
+  on:
+    appveyor_repo_tag: true
+    PYTHON_VERSION: "3.5"

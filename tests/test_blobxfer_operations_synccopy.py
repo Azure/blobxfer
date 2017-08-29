@@ -750,6 +750,7 @@ def test_run(srm, gbr, gfr):
     assert s._put_data.call_count == 1
 
     # replica targets with mismatch
+    s._synccopy_start_time = None
     dst_ase.replica_targets = [dst_ase]
     with pytest.raises(RuntimeError):
         s._run()

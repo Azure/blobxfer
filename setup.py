@@ -7,8 +7,11 @@ except ImportError:  # noqa
 import sys
 
 if sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
-    import pypandoc
-    long_description = pypandoc.convert('README.md', 'rst')
+    try:
+        import pypandoc
+        long_description = pypandoc.convert('README.md', 'rst')
+    except ImportError:
+        long_description = ''
 else:
     long_description = ''
 
@@ -65,6 +68,8 @@ setup(
         'Development Status :: 4 - Beta',
         'Environment :: Console',
         'Intended Audience :: Developers',
+        'Intended Audience :: End Users/Desktop',
+        'Intended Audience :: Information Technology',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
@@ -74,10 +79,11 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Utilities',
     ],
     keywords=[
         'azure', 'storage', 'blob', 'files', 'transfer', 'copy', 'smb',
-        'cifs', 'azcopy'
+        'cifs', 'blobxfer', 'azcopy'
     ],
 )
