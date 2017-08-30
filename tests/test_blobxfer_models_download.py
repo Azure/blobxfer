@@ -223,7 +223,7 @@ def test_convert_vectored_io_slice_to_final_path_name():
 
     fp = models.Descriptor.convert_vectored_io_slice_to_final_path_name(
         lp, ase)
-    assert str(fp) == '/local/path/abc'
+    assert fp == pathlib.Path('/local/path/abc')
 
 
 def test_set_final_path_view():
@@ -845,6 +845,8 @@ def test_finalize_integrity_and_file(tmpdir):
     assert not d.final_path.exists()
 
 
+@unittest.skipIf(
+    util.on_windows(), 'store/restore attributes on windows not supported')
 def test_restore_file_attributes(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
     lp.touch(mode=0o666, exist_ok=False)

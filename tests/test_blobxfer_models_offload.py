@@ -9,15 +9,24 @@ except ImportError:  # noqa
 # non-stdlib imports
 import pytest
 # local imports
+import blobxfer.util as util
 # module under test
 import blobxfer.models.offload as offload
+
+
+class PicklableMagicMock(mock.MagicMock):
+    def __reduce__(self):
+        return (mock.MagicMock, ())
 
 
 def test_multiprocess_offload():
     with pytest.raises(ValueError):
         a = offload._MultiprocessOffload(None, None)
 
-    target = mock.MagicMock()
+    if util.on_windows():
+        target = PicklableMagicMock()
+    else:
+        target = mock.MagicMock()
     a = offload._MultiprocessOffload(target, 1, 'test')
     assert len(a._procs) == 1
     assert not a.terminated

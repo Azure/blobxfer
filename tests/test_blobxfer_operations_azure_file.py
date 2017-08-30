@@ -6,6 +6,10 @@ try:
     import unittest.mock as mock
 except ImportError:  # noqa
     import mock
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 # non-stdlib imports
 import azure.common
 import azure.storage
@@ -110,7 +114,7 @@ def test_list_all_files():
 
     i = 0
     for f in ops.list_all_files(client, 'fshare'):
-        assert f == 'dir/a'
+        assert pathlib.Path(f) == pathlib.Path('dir/a')
         i += 1
     assert i == 1
 

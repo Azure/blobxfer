@@ -12,6 +12,7 @@ except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
 # local imports
+import blobxfer.util as util
 # module under test
 import blobxfer.operations.resume as ops
 
@@ -30,15 +31,22 @@ def test_generate_record_key():
 
 def test_download_resume_manager(tmpdir):
     tmpdb = pathlib.Path(str(tmpdir.join('tmp.db')))
+    tmpdb_dat = pathlib.Path(str(tmpdir.join('tmp.db.dat')))
 
     drm = ops.DownloadResumeManager(tmpdb)
     assert drm._data is not None
     drm.close()
     assert drm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
     drm.delete()
     assert drm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()
 
     ase = mock.MagicMock()
     ase._name = 'name'
@@ -79,25 +87,48 @@ def test_download_resume_manager(tmpdir):
 
     drm.close()
     assert drm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
 
-    tmpdb.unlink()
     drm.delete()
     assert drm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()
+
+    # oserror path
+    with mock.patch('blobxfer.util.on_windows', return_value=False):
+        drm.delete()
+    assert drm._data is None
+
+    # oserror path
+    with mock.patch('blobxfer.util.on_windows', return_value=True):
+        with mock.patch('blobxfer.util.on_python2', return_value=False):
+            drm.delete()
+    assert drm._data is None
 
 
 def test_upload_resume_manager(tmpdir):
     tmpdb = pathlib.Path(str(tmpdir.join('tmp.db')))
+    tmpdb_dat = pathlib.Path(str(tmpdir.join('tmp.db.dat')))
 
     urm = ops.UploadResumeManager(tmpdb)
     assert urm._data is not None
     urm.close()
     assert urm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
     urm.delete()
     assert urm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()
 
     ase = mock.MagicMock()
     ase._name = 'name'
@@ -152,25 +183,37 @@ def test_upload_resume_manager(tmpdir):
 
     urm.close()
     assert urm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
 
-    tmpdb.unlink()
     urm.delete()
     assert urm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()
 
 
 def test_synccopy_resume_manager(tmpdir):
     tmpdb = pathlib.Path(str(tmpdir.join('tmp.db')))
+    tmpdb_dat = pathlib.Path(str(tmpdir.join('tmp.db.dat')))
 
     srm = ops.SyncCopyResumeManager(tmpdb)
     assert srm._data is not None
     srm.close()
     assert srm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
     srm.delete()
     assert srm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()
 
     ase = mock.MagicMock()
     ase._name = 'name'
@@ -227,9 +270,14 @@ def test_synccopy_resume_manager(tmpdir):
 
     srm.close()
     assert srm._data is None
-    assert tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert tmpdb_dat.exists()
+    else:
+        assert tmpdb.exists()
 
-    tmpdb.unlink()
     srm.delete()
     assert srm._data is None
-    assert not tmpdb.exists()
+    if not util.on_python2() and util.on_windows():
+        assert not tmpdb_dat.exists()
+    else:
+        assert not tmpdb.exists()

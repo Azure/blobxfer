@@ -32,6 +32,10 @@ from builtins import (  # noqa
 # stdlib imports
 import contextlib
 import logging
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 import pickle
 import shelve
 import threading
@@ -73,7 +77,12 @@ class _BaseResumeManager(object):
         """
         self.close()
         try:
-            self._resume_file.unlink()
+            if not blobxfer.util.on_python2() and blobxfer.util.on_windows():
+                for ext in ('.bak', '.dat', '.dir'):
+                    fp = pathlib.Path(str(self._resume_file) + ext)
+                    fp.unlink()
+            else:
+                self._resume_file.unlink()
         except OSError as e:
             logger.warning('could not unlink resume db: {}'.format(e))
 

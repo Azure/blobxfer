@@ -19,6 +19,7 @@ import blobxfer.models.azure as azmodels
 import blobxfer.models.metadata as metadata
 import blobxfer.models.options as options
 import blobxfer.operations.azure as azops
+import blobxfer.util as util
 # module under test
 import blobxfer.models.upload as upload
 
@@ -998,11 +999,13 @@ def test_descriptor_generate_metadata(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
-    meta = ud.generate_metadata()
-    assert metadata.JSON_KEY_BLOBXFER_METADATA in meta
-    assert metadata._JSON_KEY_FILE_ATTRIBUTES in meta[
-        metadata.JSON_KEY_BLOBXFER_METADATA]
+    # file attr store is not avail on windows
+    if not util.on_windows():
+        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        meta = ud.generate_metadata()
+        assert metadata.JSON_KEY_BLOBXFER_METADATA in meta
+        assert metadata._JSON_KEY_FILE_ATTRIBUTES in meta[
+            metadata.JSON_KEY_BLOBXFER_METADATA]
 
     # test enc meta
     opts.store_file_properties.attributes = False

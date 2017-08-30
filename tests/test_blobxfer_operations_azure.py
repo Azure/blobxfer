@@ -6,6 +6,10 @@ try:
     import unittest.mock as mock
 except ImportError:  # noqa
     import mock
+try:
+    import pathlib2 as pathlib
+except ImportError:  # noqa
+    import pathlib
 # non-stdlib imports
 import azure.storage
 import azure.storage.blob
@@ -243,7 +247,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     i = 0
     for file in asp.files(creds, options):
         i += 1
-        assert file.name == 'remote/name'
+        assert pathlib.Path(file.name) == pathlib.Path('remote/name')
         assert file.encryption_metadata is None
     assert i == 1
 
@@ -276,7 +280,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     i = 0
     for file in asp.files(creds, options):
         i += 1
-        assert file.name == 'remote/name'
+        assert pathlib.Path(file.name) == pathlib.Path('remote/name')
         assert file.encryption_metadata is not None
     assert i == 1
 

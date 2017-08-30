@@ -51,6 +51,7 @@ import cryptography.hazmat.primitives.hashes
 import cryptography.hazmat.primitives.padding
 import cryptography.hazmat.primitives.serialization
 # local imports
+import blobxfer.models.offload
 import blobxfer.util
 
 # create logger

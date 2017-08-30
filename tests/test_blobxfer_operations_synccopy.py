@@ -2,6 +2,7 @@
 """Tests for synccopy operations"""
 
 # stdlib imports
+import datetime
 try:
     import unittest.mock as mock
 except ImportError:  # noqa
@@ -14,6 +15,7 @@ except ImportError:  # noqa
 import pytest
 # local imports
 import blobxfer.models.azure as azmodels
+import blobxfer.util as util
 # module under test
 import blobxfer.operations.synccopy as ops
 
@@ -740,6 +742,9 @@ def test_run(srm, gbr, gfr):
     s._finalize_upload = mock.MagicMock()
 
     # normal execution
+    s._synccopy_start_time = (
+        util.datetime_now() - datetime.timedelta(seconds=1)
+    )
     s._run()
     assert s._prepare_upload.call_count == 1
     assert s._put_data.call_count == 1

@@ -2,6 +2,7 @@
 """Tests for upload operations"""
 
 # stdlib imports
+import datetime
 try:
     import unittest.mock as mock
 except ImportError:  # noqa
@@ -15,6 +16,7 @@ import pytest
 # local imports
 import blobxfer.models.azure as azmodels
 import blobxfer.models.upload as models
+import blobxfer.util as util
 # module under test
 import blobxfer.operations.upload as ops
 
@@ -1140,6 +1142,9 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.sources.files.return_value = [lp]
     u._put_data = mock.MagicMock()
     u._finalize_upload = mock.MagicMock()
+    u._upload_start_time = (
+        util.datetime_now() - datetime.timedelta(seconds=1)
+    )
     u._run()
 
     # exception raise
