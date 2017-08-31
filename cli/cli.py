@@ -101,9 +101,8 @@ class CliContext(object):
         if blobxfer.util.is_not_empty(self.cli_options['yaml_config']):
             yaml_config = pathlib.Path(self.cli_options['yaml_config'])
             self._read_yaml_file(yaml_config)
-        else:
-            # merge cli options with config
-            settings.merge_settings(self.config, self.cli_options)
+        # merge cli options with config
+        settings.merge_settings(self.config, self.cli_options)
         # set log file if specified
         blobxfer.util.setup_logger(
             logger, self.config['options'].get('log_file', None))
@@ -508,7 +507,7 @@ def _rename_option(f):
         expose_value=False,
         is_flag=True,
         default=None,
-        help='Rename a single file upload or download [False]',
+        help='Rename to specified destination for a single object [False]',
         callback=callback)(f)
 
 

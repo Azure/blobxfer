@@ -65,12 +65,12 @@ class SyncCopy(object):
     def __init__(self, general_options, creds, spec):
         # type: (SyncCopy, blobxfer.models.options.General,
         #        blobxfer.operations.azure.StorageCredentials,
-        #        blobxfer.models.download.Specification) -> None
+        #        blobxfer.models.synccopy.Specification) -> None
         """Ctor for SyncCopy
         :param SyncCopy self: this
         :param blobxfer.models.options.General general_options: general opts
         :param blobxfer.operations.azure.StorageCredentials creds: creds
-        :param blobxfer.models.download.Specification spec: download spec
+        :param blobxfer.models.synccopy.Specification spec: download spec
         """
         self._all_remote_files_processed = False
         self._transfer_lock = threading.Lock()
@@ -302,7 +302,7 @@ class SyncCopy(object):
                     ase, offsets.range_start, offsets.range_end, data)
 
     def _process_data(self, sd, ase, offsets, data):
-        # type: (SyncCopy, blobxfer.models.download.Descriptor,
+        # type: (SyncCopy, blobxfer.models.synccopy.Descriptor,
         #        blobxfer.models.azure.StorageEntity,
         #        blobxfer.models.synccopy.Offsets, bytes) -> None
         """Process downloaded data for upload
@@ -356,7 +356,7 @@ class SyncCopy(object):
             blobxfer.operations.azure.blob.page.create_blob(ase)
 
     def _process_synccopy_descriptor(self, sd):
-        # type: (SyncCopy, blobxfer.models.download.Descriptor) -> None
+        # type: (SyncCopy, blobxfer.models.synccopy.Descriptor) -> None
         """Process synccopy descriptor
         :param SyncCopy self: this
         :param blobxfer.models.synccopy.Descriptor sd: synccopy descriptor
@@ -635,7 +635,10 @@ class SyncCopy(object):
         """
         # create a storage entity for each destination
         for sa, cont, name, dpath in self._get_destination_paths():
-            name = str(pathlib.Path(name) / src_ase.name)
+            if self._spec.options.rename:
+                name = str(pathlib.Path(name))
+            else:
+                name = str(pathlib.Path(name) / src_ase.name)
             dst_ase = self._check_for_existing_remote(sa, cont, name)
             if dst_ase is None:
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
@@ -656,6 +659,7 @@ class SyncCopy(object):
         :rtype: tuple
         :return: (source storage entity, destination storage entity)
         """
+        seen = set()
         # iterate through source paths to download
         for src in self._spec.sources:
             for src_ase in src.files(self._creds, self._spec.options):
@@ -667,14 +671,18 @@ class SyncCopy(object):
                 if len(dest) == 0:
                     continue
                 primary_dst = dest[0]
+                uid = blobxfer.operations.synccopy.SyncCopy.create_deletion_id(
+                    primary_dst._client, primary_dst.container,
+                    primary_dst.name)
+                if uid in seen:
+                    raise RuntimeError(
+                        'duplicate destination entity detected: {}/{}'.format(
+                            primary_dst._client.primary_endpoint,
+                            primary_dst.path))
+                seen.add(uid)
                 # add to exclusion set
                 if self._spec.options.delete_extraneous_destination:
-                    self._delete_exclude.add(
-                        blobxfer.operations.synccopy.SyncCopy.
-                        create_deletion_id(
-                            primary_dst._client, primary_dst.container,
-                            primary_dst.name)
-                    )
+                    self._delete_exclude.add(uid)
                 if len(dest[1:]) > 0:
                     if primary_dst.replica_targets is None:
                         primary_dst.replica_targets = []
@@ -682,11 +690,18 @@ class SyncCopy(object):
                     # add replica targets to deletion exclusion set
                     if self._spec.options.delete_extraneous_destination:
                         for rt in primary_dst.replica_targets:
-                            self._delete_exclude.add(
+                            ruid = (
                                 blobxfer.operations.synccopy.SyncCopy.
                                 create_deletion_id(
                                     rt._client, rt.container, rt.name)
                             )
+                            if ruid in seen:
+                                raise RuntimeError(
+                                    ('duplicate destination entity detected: '
+                                     '{}/{}').format(
+                                         rt._client.primary_endpoint, rt.path))
+                            seen.add(ruid)
+                            self._delete_exclude.add(ruid)
                 yield src_ase, primary_dst
 
     def _run(self):

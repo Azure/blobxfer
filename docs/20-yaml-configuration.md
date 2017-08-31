@@ -240,6 +240,7 @@ synccopy:
           delete_extraneous_destination: true
           overwrite: true
           recursive: true
+          rename: false
           skip_on:
               filesize_match: false
               lmt_ge: false
@@ -260,6 +261,8 @@ are copied to each destination specified.
   * `overwrite` specifies clobber behavior
   * `recursive` specifies if source remote paths should be recursively
     searched for files to copy
+  * `rename` will rename a single remote source entity to the remote
+    destination path
   * `skip_on` are skip on options to use
     * `filesize_match` skip if file size match
     * `lmt_ge` skip if source file has a last modified time greater than or

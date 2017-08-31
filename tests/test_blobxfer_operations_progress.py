@@ -78,6 +78,7 @@ def test_output_parameters():
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
+            rename=False,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,

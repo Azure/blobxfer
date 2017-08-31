@@ -157,7 +157,7 @@ def add_cli_options(cli_options, action):
         else:
             sync_copy_dest = None
         arg = {
-            'source': sa_rp if sa_rp[storage_account] is not None else None,
+            'source': [sa_rp] if sa_rp[storage_account] is not None else None,
             'destination': sync_copy_dest,
             'include': cli_options.get('include'),
             'exclude': cli_options.get('exclude'),
@@ -166,6 +166,7 @@ def add_cli_options(cli_options, action):
                 'dest_mode': cli_options.get('sync_copy_dest_mode'),
                 'mode': cli_options.get('mode'),
                 'overwrite': cli_options.get('overwrite'),
+                'rename': cli_options.get('rename'),
                 'skip_on': {
                     'filesize_match': cli_options.get(
                         'skip_on_filesize_match'),
@@ -485,6 +486,8 @@ def create_synccopy_specifications(cli_options, config):
                     cli_options, conf['options'], 'overwrite', default=True),
                 recursive=_merge_setting(
                     cli_options, conf['options'], 'recursive', default=True),
+                rename=_merge_setting(
+                    cli_options, conf['options'], 'rename', default=False),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(

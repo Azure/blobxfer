@@ -173,10 +173,10 @@ def output_parameters(general_options, spec):
         spec.options.overwrite))
     log.append('                recursive: {}'.format(
         spec.options.recursive))
+    log.append('            rename single: {}'.format(
+        spec.options.rename))
     # specific epilog
     if isinstance(spec, blobxfer.models.download.Specification):
-        log.append('            rename single: {}'.format(
-            spec.options.rename))
         log.append('         chunk size bytes: {}'.format(
             spec.options.chunk_size_bytes))
         log.append('         compute file md5: {}'.format(
@@ -188,8 +188,6 @@ def output_parameters(general_options, spec):
         log.append('        local destination: {}'.format(
             spec.destination.path))
     elif isinstance(spec, blobxfer.models.upload.Specification):
-        log.append('            rename single: {}'.format(
-            spec.options.rename))
         log.append('         chunk size bytes: {}'.format(
             spec.options.chunk_size_bytes))
         log.append('           one shot bytes: {}'.format(

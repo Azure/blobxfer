@@ -101,6 +101,7 @@ SyncCopy = collections.namedtuple(
         'mode',
         'overwrite',
         'recursive',
+        'rename',
     ]
 )
 

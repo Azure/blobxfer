@@ -631,6 +631,7 @@ def test_get_destination_paths():
 def test_generate_destination_for_source():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._spec.options.dest_mode = azmodels.StorageModes.Block
+    s._spec.options.rename = False
     s._check_for_existing_remote = mock.MagicMock()
     s._check_for_existing_remote.return_value = None
 
@@ -647,7 +648,7 @@ def test_generate_destination_for_source():
 
     s._get_destination_paths = mock.MagicMock()
     s._get_destination_paths.return_value = [
-        (sa, 'cont', 'name', 'dpath'),
+        (sa, 'cont', 'dstname', 'dpath'),
     ]
 
     s._check_copy_conditions = mock.MagicMock()
@@ -657,6 +658,14 @@ def test_generate_destination_for_source():
     assert ase is not None
     assert ase.size == src_ase.size
     assert ase.mode == s._spec.options.dest_mode
+    assert pathlib.Path(ase.name) == pathlib.Path('dstname', src_ase.name)
+
+    s._get_destination_paths.return_value = [
+        (sa, 'cont', 'name', 'dpath'),
+    ]
+    s._spec.options.rename = True
+    ase = next(s._generate_destination_for_source(src_ase))
+    assert ase.name == 'name'
 
 
 def test_bind_sources_to_destination():
@@ -703,6 +712,19 @@ def test_bind_sources_to_destination():
     assert b == dst_ase
     assert len(b.replica_targets) == 1
     assert b.replica_targets[0] == dst2_ase
+
+    dst_ase.replica_targets = [dst2_ase]
+    s._generate_destination_for_source.return_value = [dst_ase, dst2_ase]
+    with pytest.raises(RuntimeError):
+        a, b = next(s._bind_sources_to_destination())
+
+    dst_ase.replica_targets = None
+    s._spec.options.delete_extraneous_destination = False
+    src.files.return_value = [src_ase, src_ase]
+    s._generate_destination_for_source.return_value = [dst_ase]
+    with pytest.raises(RuntimeError):
+        for a, b in s._bind_sources_to_destination():
+            pass
 
 
 @mock.patch('blobxfer.operations.azure.file.get_file_range')

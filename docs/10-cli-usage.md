@@ -190,8 +190,9 @@ filters such as `--include` and `--exclude`.
 Blob upload. The maximum value that can be specified is 256MiB. This may
 be useful when using account-level SAS keys and enforcing non-overwrite
 behavior.
-* `--rename` renames a single file upload or download to the target
-destination or source path, respectively.
+* `--rename` renames a single file to the target destination or source path.
+This can only be used when transferring a single source file to a destination
+and can be used with any command.
 * `--strip-components N` will strip the leading `N` components from the
 local file path on upload. The default is `0`.
 
