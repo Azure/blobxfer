@@ -1,3 +1,5 @@
+image: Visual Studio 2017
+
 version: '{branch}-{build}'
 
 clone_depth: 5
@@ -19,6 +21,11 @@ environment:
     secure: b/A4QFUftPz5dFIU1JTphCV+EfZYW5p7bdgUphoESiRK7t/wiWGhudaDWzI25CA/bfGpHOMW+roeqyKKaYNU6hooXQOLajTmwieKLxdvwXZ+M76PxG301qnQvPW6GlmX9zDYaCE/6jxvxQDfGCJvVw==
   BLOBXFER_STORAGE_ACCOUNT:
     secure: qbpOW+pGmGfG7DFFC7LozA==
+  DOCKER_USERNAME:
+    secure: S8n3Geq7JUkN7ZQKXo8CLg==
+  DOCKER_PASSWORD:
+    secure: BcI2Fs6IJeTfPq8cAD4KEQ==
+  DOCKER_IMAGE_TAG_PREFIX: "alfpark/blobxfer:"
 
 init:
 - echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
@@ -45,6 +52,33 @@ after_test:
   appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
   bin\\%BLOBXFER_ARTIFACT% upload --remote-path releases/%APPVEYOR_REPO_TAG_NAME% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
   )
+- ps: >-
+    if ($Env:PYTHON_VERSION -eq "3.5") {
+      $DOCKER_IMAGE_TAG_SUFFIX = $null
+      if ($Env:APPVEYOR_REPO_TAG -eq "true") {
+        $DOCKER_IMAGE_TAG_SUFFIX = $Env:APPVEYOR_REPO_TAG_NAME + '-windows'
+      }
+      elseif ($Env:APPVEYOR_REPO_BRANCH -eq "master") {
+        $DOCKER_IMAGE_TAG_SUFFIX = 'latest-windows'
+      }
+      elseif ($Env:APPVEYOR_REPO_BRANCH -eq "develop") {
+        $DOCKER_IMAGE_TAG_SUFFIX = 'develop-windows'
+      }
+      if ($DOCKER_IMAGE_TAG_SUFFIX -eq $null) {
+          Write-Host "Image tag suffix is null, not creating a Docker image"
+          return
+      }
+      $DOCKER_IMAGE_TAG = $Env:DOCKER_IMAGE_TAG_PREFIX + $DOCKER_IMAGE_TAG_SUFFIX
+      Write-Host "Creating image with tag: $DOCKER_IMAGE_TAG"
+      Install-Package -Name docker -ProviderName DockerMsftProvider -Verbose -Update -Force
+      Start-Service docker
+      docker version
+      pushd docker\\win
+      docker build --build-arg GIT_BRANCH=$Env:APPVEYOR_REPO_BRANCH --build-arg GIT_COMMIT=$Env:APPVEYOR_REPO_COMMIT -t $DOCKER_IMAGE_TAG .
+      docker login -u="$Env:DOCKER_USERNAME" -p="$Env:DOCKER_PASSWORD"
+      docker push $DOCKER_IMAGE_TAG
+      popd
+    }
 
 deploy:
 - provider: GitHub
