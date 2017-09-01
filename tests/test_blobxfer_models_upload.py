@@ -154,6 +154,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=True,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -182,6 +183,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=True,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -210,6 +212,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=False,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -236,6 +239,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=False,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -262,6 +266,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=False,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -288,6 +293,7 @@ def test_specification(tmpdir):
                 recursive=True,
                 rename=False,
                 rsa_public_key=None,
+                stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
                     md5=True,
@@ -313,6 +319,7 @@ def test_specification(tmpdir):
             recursive=True,
             rename=False,
             rsa_public_key=None,
+            stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
                 md5=True,
@@ -374,6 +381,7 @@ def test_descriptor(tmpdir):
     assert ud.requires_put_block_list
     assert not ud.requires_non_encrypted_md5_put
     assert not ud.requires_set_file_properties_md5
+    assert ud.requires_resize() == (False, ud._offset)
 
     # test sym key
     ase = azmodels.StorageEntity('cont')
@@ -495,7 +503,7 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase.replica_targets = [ase2]
 
     ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
-    ud._compute_remote_size()
+    ud._compute_remote_size(opts)
     assert ud.entity.size == 48
     for rt in ase.replica_targets:
         assert rt.size == ud.entity.size
@@ -513,7 +521,7 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase._encryption = None
 
     ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
-    ud._compute_remote_size()
+    ud._compute_remote_size(opts)
     assert ud.entity.size == 32
 
     # remote size of zero
@@ -526,8 +534,26 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase._encryption = None
 
     ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
-    ud._compute_remote_size()
+    ud._compute_remote_size(opts)
     assert ud.entity.size == 0
+
+    # stdin as page, resize
+    lp = upload.LocalPath(pathlib.Path('-'), pathlib.Path('-'), use_stdin=True)
+    opts.stdin_as_page_blob_size = 0
+    ase._mode = azmodels.StorageModes.Page
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud._compute_remote_size(opts)
+    assert ud.entity.size == upload._MAX_PAGE_BLOB_SIZE
+    assert ud._needs_resize
+
+    # stdin as page, no resize
+    lp = upload.LocalPath(pathlib.Path('-'), pathlib.Path('-'), use_stdin=True)
+    opts.stdin_as_page_blob_size = 32
+    ase._mode = azmodels.StorageModes.Page
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud._compute_remote_size(opts)
+    assert ud.entity.size == 32
+    assert not ud._needs_resize
 
 
 def test_descriptor_adjust_chunk_size(tmpdir):
@@ -944,13 +970,13 @@ def test_descriptor_read_data(tmpdir):
         assert data == b'z'
         assert newoffset.chunk_num == 0
         assert newoffset.num_bytes == 1
-        assert newoffset.range_start == 1
-        assert newoffset.range_end == 1
+        assert newoffset.range_start == 0
+        assert newoffset.range_end == 0
         assert not newoffset.pad
         assert ud._total_chunks == 3
         assert ud._outstanding_ops == 3
-        assert ud._offset == 2
-        assert ud.entity.size == 3
+        assert ud._offset == 1
+        assert ud.entity.size == 2
 
     with mock.patch(
             'blobxfer.STDIN', new_callable=mock.PropertyMock) as patched_stdin:

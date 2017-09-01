@@ -609,6 +609,20 @@ def _skip_on_md5_match_option(f):
         callback=callback)(f)
 
 
+def _stdin_as_page_blob_size_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['stdin_as_page_blob_size'] = value
+        return value
+    return click.option(
+        '--stdin-as-page-blob-size',
+        expose_value=False,
+        type=int,
+        default=None,
+        help='Size of page blob with input from stdin [0]',
+        callback=callback)(f)
+
+
 def _strip_components_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -708,6 +722,7 @@ def _sync_copy_dest_storage_account_option(f):
 def upload_options(f):
     f = _stripe_chunk_size_bytes_option(f)
     f = _strip_components_option(f)
+    f = _stdin_as_page_blob_size_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)

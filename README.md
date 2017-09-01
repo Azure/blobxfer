@@ -30,7 +30,7 @@ copies for Block blobs)
 * Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
-* Support reading/pipe from `stdin`
+* Support reading/pipe from `stdin` including page blob destinations
 * Support reading from blob snapshots for downloading and synchronous copy
 * Configurable one-shot block upload support
 * Configurable chunk size for both upload and download

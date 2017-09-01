@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+### Added
+- `upload` from `stdin` to page blob support. Optional
+`--stdin-as-page-blob-size` parameter added. Please see current limitations
+doc for more information.
+- `upload` from `stdin` `--rename` support
+- `synccopy` single object `--rename` support
+
+### Changed
+- AppVeyor integration
+- PyPI releases automatically generated for tags
+- PyInstaller-based releases uploaded to GitHub for Windows and Linux
+
+### Fixed
+- YAML config merge with CLI options when YAML options not present
+- `synccopy` invocation without YAML config
+- Test failures on Windows
+
 ## [1.0.0b1] - 2017-08-28
 ### Added
 - Cross-mode synchronous copy support

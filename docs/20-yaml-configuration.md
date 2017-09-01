@@ -165,6 +165,7 @@ upload:
               filesize_match: false
               lmt_ge: false
               md5_match: true
+          stdin_as_page_blob_size: 0
           store_file_properties:
               attributes: true
               md5: true
@@ -201,6 +202,9 @@ upload:
     * `lmt_ge` skip if remote file has a last modified time greater than or
       equal to the local file
     * `md5_match` skip if MD5 match
+  * `stdin_as_page_blob_size` is the page blob size to preallocate if the
+    amount of data to be streamed from stdin is known beforehand and the
+    `mode` is `page`
   * `store_file_properties` stores the following file properties if enabled
     * `attributes` will store POSIX file mode and ownership
     * `md5` will store the MD5 of the file

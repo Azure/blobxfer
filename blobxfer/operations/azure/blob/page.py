@@ -102,3 +102,17 @@ def put_page(ase, page_start, page_end, data, timeout=None):
         end_range=page_end,
         validate_content=False,  # integrity is enforced with HTTPS
         timeout=timeout)  # noqa
+
+
+def resize_blob(ase, size, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int, int) -> None
+    """Resizes a page blob
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int size: content length
+    :param int timeout: timeout
+    """
+    ase.client.resize_blob(
+        container_name=ase.container,
+        blob_name=ase.name,
+        content_length=blobxfer.util.page_align_content_length(size),
+        timeout=timeout)  # noqa

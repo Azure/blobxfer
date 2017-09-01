@@ -54,6 +54,7 @@ def test_output_parameters():
             recursive=True,
             rename=False,
             rsa_public_key=None,
+            stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
                 md5=True,

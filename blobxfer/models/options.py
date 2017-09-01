@@ -76,6 +76,7 @@ Upload = collections.namedtuple(
         'recursive',
         'rename',
         'rsa_public_key',
+        'stdin_as_page_blob_size',
         'store_file_properties',
         'strip_components',
         'vectored_io',

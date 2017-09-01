@@ -556,6 +556,32 @@ def test_set_blob_metadata(sbm):
     assert sbm.call_count == 2
 
 
+@mock.patch('blobxfer.operations.azure.blob.page.resize_blob')
+def test_resize_blob(rb):
+    u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+
+    ase = mock.MagicMock()
+    ase._client.primary_endpoint = 'ep'
+    ase.path = 'asepath'
+    ase.size = 10
+    ase.mode = azmodels.StorageModes.Block
+    ase.is_encrypted = False
+    ase.replica_targets = [ase]
+
+    lp = mock.MagicMock()
+    lp.absolute_path = 'lpabspath'
+    lp.view.fd_start = 0
+    lp.use_stdin = True
+
+    ud = mock.MagicMock()
+    ud.entity = ase
+    ud.local_path = lp
+    ud.unique_id = 'uid'
+
+    u._resize_blob(ud, 512)
+    assert rb.call_count == 2
+
+
 def test_finalize_nonblock_blob():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
 
@@ -574,17 +600,24 @@ def test_finalize_nonblock_blob():
 
     ud = mock.MagicMock()
     ud.entity = ase
-    ud.complete_offset_upload = mock.MagicMock()
     ud.local_path = lp
     ud.unique_id = 'uid'
     ud.requires_non_encrypted_md5_put = True
+    ud.requires_resize.return_value = (False, None)
 
     u._set_blob_md5 = mock.MagicMock()
     u._set_blob_metadata = mock.MagicMock()
+    u._resize_blob = mock.MagicMock()
 
     u._finalize_nonblock_blob(ud, {'a': 0})
     assert u._set_blob_md5.call_count == 1
     assert u._set_blob_metadata.call_count == 1
+    assert u._resize_blob.call_count == 0
+
+    # resize required
+    ud.requires_resize.return_value = (True, 512)
+    u._finalize_nonblock_blob(ud, {'a': 0})
+    assert u._resize_blob.call_count == 1
 
 
 @mock.patch('blobxfer.operations.azure.file.set_file_md5')

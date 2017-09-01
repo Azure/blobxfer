@@ -214,7 +214,11 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
         :rtype: bool
         :return: if rename possible
         """
-        return len(self._paths) == 1 and self._paths[0].is_file()
+        return len(self._paths) == 1 and (
+            self._paths[0].is_file() or
+            blobxfer.models.upload.LocalSourcePath.is_stdin(
+                str(self._paths[0]))
+        )
 
     @staticmethod
     def is_stdin(path):
@@ -349,15 +353,20 @@ class Descriptor(object):
         self._chunk_num = 0
         self._next_integrity_chunk = 0
         self._finalized = False
+        self._needs_resize = False
         self._meta_lock = threading.Lock()
         self._hasher_lock = threading.Lock()
-        self._resume_mgr = resume_mgr
+        if resume_mgr and self.local_path.use_stdin:
+            logger.warning('ignoring resume option for stdin source')
+            self._resume_mgr = None
+        else:
+            self._resume_mgr = resume_mgr
         self._ase = ase
         self._store_file_attr = options.store_file_properties.attributes
         self.current_iv = None
         self._initialize_encryption(options)
         # calculate the total number of ops required for transfer
-        self._compute_remote_size()
+        self._compute_remote_size(options)
         self._adjust_chunk_size(options)
         self._total_chunks = self._compute_total_chunks(self._chunk_size)
         self._outstanding_ops = self._total_chunks
@@ -501,6 +510,16 @@ class Descriptor(object):
         return (not self.entity.is_encrypted and self.must_compute_md5 and
                 self.remote_is_file)
 
+    def requires_resize(self):
+        # type: (Descriptor) -> tuple
+        """Remote destination requires a resize operation
+        :param Descriptor self: this
+        :rtype: tuple
+        :return: blob requires a resize, length
+        """
+        with self._meta_lock:
+            return (self._needs_resize, self._offset)
+
     def complete_offset_upload(self, chunk_num):
         # type: (Descriptor, int) -> None
         """Complete the upload for the offset
@@ -573,15 +592,23 @@ class Descriptor(object):
             self.current_iv = em.content_encryption_iv
             self._ase.encryption_metadata = em
 
-    def _compute_remote_size(self):
-        # type: (Descriptor, int) -> None
+    def _compute_remote_size(self, options):
+        # type: (Descriptor, blobxfer.models.options.Upload) -> None
         """Compute total remote file size
         :param Descriptor self: this
+        :param blobxfer.models.options.Upload options: upload options
         :rtype: int
         :return: remote file size
         """
         size = self.local_path.size
-        if size > 0:
+        if (self._ase.mode == blobxfer.models.azure.StorageModes.Page and
+                self.local_path.use_stdin):
+            if options.stdin_as_page_blob_size == 0:
+                allocatesize = _MAX_PAGE_BLOB_SIZE
+                self._needs_resize = True
+            else:
+                allocatesize = options.stdin_as_page_blob_size
+        elif size > 0:
             if self._ase.is_encrypted:
                 # cipher_len_without_iv = (clear_len / aes_bs + 1) * aes_bs
                 allocatesize = (size // self._AES_BLOCKSIZE + 1) * \
@@ -678,7 +705,9 @@ class Descriptor(object):
             chunks = int(math.ceil(self._ase.size / chunk_size))
         except ZeroDivisionError:
             chunks = 1
-        if self.local_path.use_stdin and chunks == 0:
+        # for stdin, override and use 1 chunk to start, this will change
+        # dynamically as data as read
+        if self.local_path.use_stdin:
             chunks = 1
         if (self._ase.mode != blobxfer.models.azure.StorageModes.Page and
                 chunks > 50000):
@@ -877,12 +906,16 @@ class Descriptor(object):
             data = blobxfer.STDIN.read(self._chunk_size)
             if not data:
                 with self._meta_lock:
+                    self._offset -= offsets.num_bytes
+                    self._ase.size -= offsets.num_bytes
                     self._total_chunks -= 1
                     self._chunk_num -= 1
                     self._outstanding_ops -= 1
             else:
                 num_bytes = len(data)
                 with self._meta_lock:
+                    self._offset -= offsets.num_bytes
+                    self._ase.size -= offsets.num_bytes
                     newoffset = Offsets(
                         chunk_num=self._chunk_num - 1,
                         num_bytes=num_bytes,

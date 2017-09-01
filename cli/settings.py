@@ -97,6 +97,8 @@ def add_cli_options(cli_options, action):
                     'lmt_ge': cli_options.get('skip_on_lmt_ge'),
                     'md5_match': cli_options.get('skip_on_md5_match'),
                 },
+                'stdin_as_page_blob_size': cli_options.get(
+                    'stdin_as_page_blob_size'),
                 'store_file_properties': {
                     'attributes': cli_options.get('file_attributes'),
                     'md5': cli_options.get('file_md5'),
@@ -609,6 +611,9 @@ def create_upload_specifications(cli_options, config):
                         cli_options, sfp, 'md5', name_cli='file_md5',
                         default=False),
                 ),
+                stdin_as_page_blob_size=_merge_setting(
+                    cli_options, conf['options'], 'stdin_as_page_blob_size',
+                    default=0),
                 strip_components=_merge_setting(
                     cli_options, conf['options'], 'strip_components',
                     default=0),

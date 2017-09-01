@@ -628,6 +628,18 @@ class Uploader(object):
             for ase in ud.entity.replica_targets:
                 blobxfer.operations.azure.blob.set_blob_metadata(ase, metadata)
 
+    def _resize_blob(self, ud, size):
+        # type: (Uploader, blobxfer.models.upload.Descriptor, int) -> None
+        """Resize page blob
+        :param Uploader self: this
+        :param blobxfer.models.upload.Descriptor ud: upload descriptor
+        :param int size: content length
+        """
+        blobxfer.operations.azure.blob.page.resize_blob(ud.entity, size)
+        if blobxfer.util.is_not_empty(ud.entity.replica_targets):
+            for ase in ud.entity.replica_targets:
+                blobxfer.operations.azure.blob.page.resize_blob(ase, size)
+
     def _finalize_nonblock_blob(self, ud, metadata):
         # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
         """Finalize Non-Block blob
@@ -635,6 +647,10 @@ class Uploader(object):
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
         :param dict metadata: metadata dict
         """
+        # resize page blobs to final size if required
+        needs_resize, final_size = ud.requires_resize()
+        if needs_resize:
+            self._resize_blob(ud, final_size)
         # set md5 page blob property if required
         if ud.requires_non_encrypted_md5_put:
             self._set_blob_md5(ud)
@@ -1030,7 +1046,7 @@ class Uploader(object):
         skipped_size = 0
         approx_total_bytes = 0
         # iterate through source paths to upload
-        dupes = set()
+        seen = set()
         for src in self._spec.sources.files():
             # create a destination array for the source
             dest = [
@@ -1040,11 +1056,11 @@ class Uploader(object):
             for action, lp, ase in self._vectorize_and_bind(src, dest):
                 dest_id = blobxfer.operations.upload.Uploader.\
                     create_destination_id(ase._client, ase.container, ase.name)
-                if dest_id in dupes:
+                if dest_id in seen:
                     raise RuntimeError(
                         'duplicate destination entity detected: {}/{}'.format(
                             ase._client.primary_endpoint, ase.path))
-                dupes.add(dest_id)
+                seen.add(dest_id)
                 if self._spec.options.delete_extraneous_destination:
                     self._delete_exclude.add(dest_id)
                 if action == UploadAction.Skip:
@@ -1064,7 +1080,7 @@ class Uploader(object):
                     self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
                     self._add_to_upload_queue(lp, ase, uid)
-        del dupes
+        del seen
         # set remote files processed
         with self._md5_meta_lock:
             self._all_files_processed = True

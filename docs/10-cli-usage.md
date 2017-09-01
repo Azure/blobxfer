@@ -193,6 +193,8 @@ behavior.
 * `--rename` renames a single file to the target destination or source path.
 This can only be used when transferring a single source file to a destination
 and can be used with any command.
+* `--stdin-as-page-blob-size` allows a page blob size to be set if known
+beforehand when using `stdin` as a source and the destination is a page blob
 * `--strip-components N` will strip the leading `N` components from the
 local file path on upload. The default is `0`.
 
