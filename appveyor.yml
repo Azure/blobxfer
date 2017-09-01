@@ -1,5 +1,3 @@
-image: Visual Studio 2017
-
 version: '{branch}-{build}'
 
 clone_depth: 5
@@ -9,14 +7,21 @@ cache:
 
 environment:
   matrix:
-  - PYTHON: "C:\\Python27-x64"
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    PYTHON: "C:\\Python27-x64"
     PYTHON_VERSION: "2.7"
     PYTHON_ARCH: "64"
     TOX_ENV: "py27"
-  - PYTHON: "C:\\Python35-x64"
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    PYTHON: "C:\\Python35-x64"
     PYTHON_VERSION: "3.5"
     PYTHON_ARCH: "64"
     TOX_ENV: "py35"
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+    PYTHON: "C:\\Python36-x64"
+    PYTHON_VERSION: "3.6"
+    PYTHON_ARCH: "64"
+    TOX_ENV: "py36"
   BLOBXFER_SAS:
     secure: b/A4QFUftPz5dFIU1JTphCV+EfZYW5p7bdgUphoESiRK7t/wiWGhudaDWzI25CA/bfGpHOMW+roeqyKKaYNU6hooXQOLajTmwieKLxdvwXZ+M76PxG301qnQvPW6GlmX9zDYaCE/6jxvxQDfGCJvVw==
   BLOBXFER_STORAGE_ACCOUNT:
@@ -53,7 +58,7 @@ after_test:
   bin\\%BLOBXFER_ARTIFACT% upload --remote-path releases/%APPVEYOR_REPO_TAG_NAME% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
   )
 - ps: >-
-    if ($Env:PYTHON_VERSION -eq "3.5") {
+    if ($Env:PYTHON_VERSION -eq "3.6") {
       $DOCKER_IMAGE_TAG_SUFFIX = $null
       if ($Env:APPVEYOR_REPO_TAG -eq "true") {
         $DOCKER_IMAGE_TAG_SUFFIX = $Env:APPVEYOR_REPO_TAG_NAME + '-windows'

@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/Azure/blobxfer.svg?branch=master)](https://travis-ci.org/Azure/blobxfer)
+[![Build status](https://ci.appveyor.com/api/projects/status/qgth9p7jlessgp5i/branch/master?svg=true)](https://ci.appveyor.com/project/alfpark/blobxfer)
 [![Coverage Status](https://coveralls.io/repos/github/Azure/blobxfer/badge.svg?branch=master)](https://coveralls.io/github/Azure/blobxfer?branch=master)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
 [![PyPI](https://img.shields.io/pypi/pyversions/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
@@ -43,10 +44,15 @@ copies for Block blobs)
 * File logging support
 
 ## Installation
-`blobxfer` is on [PyPI](https://pypi.python.org/pypi/blobxfer) and on
-[Docker Hub](https://hub.docker.com/r/alfpark/blobxfer/). Please refer to
-the [installation guide](https://github.com/Azure/blobxfer/blob/master/docs/01-installation.md)
-on how to install `blobxfer`.
+There are three ways to install `blobxfer`:
+* `blobxfer` Python package from [PyPI](https://pypi.python.org/pypi/blobxfer)
+* Pre-built binaries available under [Releases](https://github.com/Azure/blobxfer/releases)
+* Docker images are available for both Linux and Windows platforms on
+[Docker Hub](https://hub.docker.com/r/alfpark/blobxfer/)
+
+Please refer to the
+[installation guide](https://github.com/Azure/blobxfer/blob/master/docs/01-installation.md)
+for more information on how to install `blobxfer`.
 
 ## Documentation
 Please refer to the [`blobxfer` documentation](https://github.com/Azure/blobxfer/blob/master/docs)

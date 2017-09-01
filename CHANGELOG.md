@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.0.0b2] - 2017-09-01
 ### Added
 - `upload` from `stdin` to page blob support. Optional
 `--stdin-as-page-blob-size` parameter added. Please see current limitations
@@ -11,8 +12,9 @@ doc for more information.
 
 ### Changed
 - AppVeyor integration
-- PyPI releases automatically generated for tags
-- PyInstaller-based releases uploaded to GitHub for Windows and Linux
+- Automated PyPI releases generated for tags
+- Automated PyInstaller-based releases uploaded to GitHub for Windows and Linux
+- Automated Windows Docker image build
 
 ### Fixed
 - YAML config merge with CLI options when YAML options not present
@@ -248,7 +250,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0b1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0b2...HEAD
+[1.0.0b2]: https://github.com/Azure/blobxfer/compare/1.0.0b1...1.0.0b2
 [1.0.0b1]: https://github.com/Azure/blobxfer/compare/1.0.0a5...1.0.0b1
 [1.0.0a5]: https://github.com/Azure/blobxfer/compare/1.0.0a4...1.0.0a5
 [1.0.0a4]: https://github.com/Azure/blobxfer/compare/0.12.1...1.0.0a4

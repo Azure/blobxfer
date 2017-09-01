@@ -227,7 +227,8 @@ def merge_settings(config, cli_options):
             config['azure_storage'] = {}
         config['azure_storage'] = blobxfer.util.merge_dict(
             config['azure_storage'], cli_options['azure_storage'])
-    if blobxfer.util.is_none_or_empty(config['azure_storage']):
+    if ('azure_storage' not in config or
+            blobxfer.util.is_none_or_empty(config['azure_storage'])):
         raise ValueError('azure storage settings not specified')
     # create action options
     if action not in config:

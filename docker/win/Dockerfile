@@ -16,7 +16,7 @@ RUN git clone -b $Env:GIT_BRANCH --single-branch --depth 5 https://github.com/Az
     pip install --no-cache-dir -e . ; \
     python setup.py install
 
-RUN	python -m compileall C:\Python\Lib ; \
+RUN python -m compileall C:\Python\Lib ; \
     exit 0
 
 FROM microsoft/nanoserver
