@@ -15,6 +15,7 @@ RUN apk update \
     && git checkout $GIT_COMMIT \
     && pip3 install --no-cache-dir -e . \
     && python3 setup.py install \
+    && cp THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.txt \
     && cd / \
     && rm -rf blobxfer \
     && apk del --purge build-base python3-dev libressl-dev libffi-dev git \

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- Data movement library usage guide
+
+### Changed
+- `version` property for YAML configuration is now required
+
 ## [1.0.0b2] - 2017-09-01
 ### Added
 - `upload` from `stdin` to page blob support. Optional

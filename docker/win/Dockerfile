@@ -2,6 +2,7 @@
 # Adapted from: https://github.com/StefanScherer/dockerfiles-windows/blob/master/python/Dockerfile
 
 FROM python:3.6.2-windowsservercore
+MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ENV chocolateyUseWindowsCompression false
 RUN iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1')); \
@@ -22,6 +23,7 @@ RUN python -m compileall C:\Python\Lib ; \
 FROM microsoft/nanoserver
 
 COPY --from=0 /Python /Python
+COPY --from=0 /blobxfer/THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.txt
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 

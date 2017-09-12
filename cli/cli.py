@@ -60,7 +60,7 @@ class CliContext(object):
     """CliContext class: holds context for CLI commands"""
     def __init__(self):
         """Ctor for CliContext"""
-        self.config = {}
+        self.config = None
         self.cli_options = {}
         self.credentials = None
         self.general_options = None

@@ -43,6 +43,10 @@ import blobxfer.operations.crypto
 import blobxfer.util
 
 
+# global defines
+_SUPPORTED_YAML_CONFIG_VERSIONS = frozenset((1,))
+
+
 # enums
 class TransferAction(enum.Enum):
     Download = 1,
@@ -216,6 +220,13 @@ def merge_settings(config, cli_options):
     :param dict config: config dict
     :param dict cli_options: cli options
     """
+    # check for valid version from YAML
+    if (config is not None and 'version' not in config or
+            config['version'] not in _SUPPORTED_YAML_CONFIG_VERSIONS):
+        raise ValueError('"version" not specified in YAML config or invalid')
+    if config is None:
+        config = {}
+    # get action
     action = cli_options['_action']
     if (action != TransferAction.Upload.name.lower() and
             action != TransferAction.Download.name.lower() and

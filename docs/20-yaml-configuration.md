@@ -10,11 +10,23 @@ same YAML file if desired as `blobxfer` will only read the required sections
 to execute the specified command.
 
 #### Configuration Sections
-1. [`azure_storage`](#azure-storage)
-2. [`options`](#options)
-3. [`download`](#download)
-4. [`upload`](#upload)
-5. [`synccopy`](#synccopy)
+1. [`version`](#version)
+2. [`azure_storage`](#azure-storage)
+3. [`options`](#options)
+4. [`download`](#download)
+5. [`upload`](#upload)
+6. [`synccopy`](#synccopy)
+
+### <a name="version"></a>`version`
+The `version` property specifies the version of the `blobxfer` YAML
+configuration schema to use. This property is required.
+
+```yaml
+version: 1
+```
+
+* `version` specifies the `blobxfer` YAML configuration schema to use.
+Currently the only valid value is `1`.
 
 ### <a name="azure-storage"></a>`azure_storage`
 The `azure_storage` section specifies Azure Storage credentials that will
