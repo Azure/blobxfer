@@ -67,7 +67,10 @@ class _BaseSourcePaths(object):
         :param list includes: list of includes
         """
         if not isinstance(includes, list):
-            includes = [includes]
+            if isinstance(includes, tuple):
+                includes = list(includes)
+            else:
+                includes = [includes]
         if self._include is None:
             self._include = includes
         else:
@@ -80,7 +83,10 @@ class _BaseSourcePaths(object):
         :param list excludes: list of excludes
         """
         if not isinstance(excludes, list):
-            excludes = [excludes]
+            if isinstance(excludes, tuple):
+                excludes = list(excludes)
+            else:
+                excludes = [excludes]
         if self._exclude is None:
             self._exclude = excludes
         else:

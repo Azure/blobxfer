@@ -221,11 +221,10 @@ def merge_settings(config, cli_options):
     :param dict cli_options: cli options
     """
     # check for valid version from YAML
-    if (config is not None and 'version' not in config or
-            config['version'] not in _SUPPORTED_YAML_CONFIG_VERSIONS):
+    if (not blobxfer.util.is_none_or_empty(config) and
+            ('version' not in config or
+             config['version'] not in _SUPPORTED_YAML_CONFIG_VERSIONS)):
         raise ValueError('"version" not specified in YAML config or invalid')
-    if config is None:
-        config = {}
     # get action
     action = cli_options['_action']
     if (action != TransferAction.Upload.name.lower() and
@@ -385,7 +384,7 @@ def create_download_specifications(cli_options, config):
             download_options=blobxfer.models.options.Download(
                 check_file_md5=_merge_setting(
                     cli_options, conf['options'], 'check_file_md5',
-                    default=False),
+                    name_cli='file_md5', default=False),
                 chunk_size_bytes=_merge_setting(
                     cli_options, conf['options'], 'chunk_size_bytes',
                     default=0),

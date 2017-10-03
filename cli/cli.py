@@ -101,6 +101,8 @@ class CliContext(object):
         if blobxfer.util.is_not_empty(self.cli_options['yaml_config']):
             yaml_config = pathlib.Path(self.cli_options['yaml_config'])
             self._read_yaml_file(yaml_config)
+        if self.config is None:
+            self.config = {}
         # merge cli options with config
         settings.merge_settings(self.config, self.cli_options)
         # set log file if specified
@@ -507,7 +509,8 @@ def _rename_option(f):
         expose_value=False,
         is_flag=True,
         default=None,
-        help='Rename to specified destination for a single object [False]',
+        help='Rename to specified destination for a single object. '
+        'Automatically enabled with stdin source. [False]',
         callback=callback)(f)
 
 

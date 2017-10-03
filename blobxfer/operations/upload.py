@@ -647,7 +647,7 @@ class Uploader(object):
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
         :param dict metadata: metadata dict
         """
-        # resize page blobs to final size if required
+        # resize blobs to final size if required
         needs_resize, final_size = ud.requires_resize()
         if needs_resize:
             self._resize_blob(ud, final_size)
@@ -872,7 +872,7 @@ class Uploader(object):
         # create a storage entity for each destination
         for sa, cont, name, dpath in self._get_destination_paths():
             # if not renaming, form name from with spath
-            if not self._spec.options.rename:
+            if not self._spec.options.rename and not local_path.use_stdin:
                 name = str(name / spath)
             if blobxfer.util.is_none_or_empty(name):
                 raise ValueError(

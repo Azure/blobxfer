@@ -3,10 +3,18 @@
 ## [Unreleased]
 
 ### Added
+- Expanded `blobxfer.api` to eliminate other imports
 - Data movement library usage guide
 
 ### Changed
 - `version` property for YAML configuration is now required
+- `--rename` is automatically enabled for when `stdin` is the source
+- Update dependencies to latest
+
+### Fixed
+- Multiple `--include` and/or `--exclude` from the commandline
+- `--file-md5` option being ignored on download
+- Incorrect MD5 computation for unaligned page blobs on upload
 
 ## [1.0.0b2] - 2017-09-01
 ### Added

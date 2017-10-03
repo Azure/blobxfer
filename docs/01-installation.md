@@ -60,7 +60,7 @@ curl -fSsL https://bootstrap.pypa.io/get-pip.py | python
 #### Mac OS X
 Python 2.7 should come pre-installed. However, if you want to install
 `blobxfer` for Python 3.5+ (recommended), please follow the steps outlined on
-[this guide](http://docs.python-guide.org/en/latest/starting/install/osx/)
+[this guide](http://docs.python-guide.org/en/latest/starting/install3/osx/#install3-osx)
 to ensure that you have the latest version of Python, a compiler and pip.
 
 #### Windows

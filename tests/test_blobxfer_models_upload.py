@@ -88,7 +88,7 @@ def test_localsourcepaths_files(tmpdir):
 
     a = upload.LocalSourcePath()
     a.add_includes('*.txt')
-    a.add_includes(['moo.cow', '*blah*'])
+    a.add_includes(('moo.cow', '*blah*'))
     a.add_excludes('**/blah.x')
     a.add_excludes(['world.txt'])
     a.add_path(str(tmpdir))
@@ -106,7 +106,7 @@ def test_localsourcepaths_files(tmpdir):
     b = upload.LocalSourcePath()
     b.add_includes(['moo.cow', '*blah*'])
     b.add_includes('*.txt')
-    b.add_excludes(['world.txt'])
+    b.add_excludes(('world.txt',))
     b.add_excludes('**/blah.x')
     b.add_paths([pathlib.Path(str(tmpdir))])
     for file in a.files():
@@ -1011,6 +1011,30 @@ def test_descriptor_generate_metadata(tmpdir):
     ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
     meta = ud.generate_metadata()
     assert meta is None
+
+    # test page md5 align
+    opts = mock.MagicMock()
+    opts.chunk_size_bytes = 1
+    opts.one_shot_bytes = 0
+    opts.store_file_properties.attributes = False
+    opts.store_file_properties.md5 = True
+    opts.rsa_public_key = None
+
+    ase = azmodels.StorageEntity('cont')
+    ase._mode = azmodels.StorageModes.Page
+    ase._name = 'name'
+    ase._encryption = None
+    ase._size = 1
+
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud._offset = 1
+    ud.md5 = hashlib.md5()
+    ud.md5.update(b'z')
+    meta = ud.generate_metadata()
+    assert meta is None
+    md5 = hashlib.md5()
+    md5.update(b'z' + b'\0' * 511)
+    assert ud.md5.digest() == md5.digest()
 
     # test fileattr meta
     opts = mock.MagicMock()

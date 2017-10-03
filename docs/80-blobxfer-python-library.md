@@ -36,32 +36,34 @@ similar to the following:
 # Downloader Example
 
 import blobxfer.api
-import blobxfer.models.download
-import blobxfer.models.options
-import blobxfer.operations.azure
 
 
 # construct general options
-general_options = blobxfer.models.options.General(...)
+general_options = blobxfer.api.GeneralOptions(...)
 
 # construct download options
-download_options = blobxfer.models.options.Download(...)
+download_options = blobxfer.api.DownloadOptions(...)
 
 # construct skip on options
-skip_on_options = blobxfer.models.options.SkipOn(...)
+skip_on_options = blobxfer.api.SkipOnOptions(...)
 
 # construct local destination path
-local_destination_path = blobxfer.models.download.LocalDestinationPath(...)
+local_destination_path = blobxfer.api.LocalDestinationPath(...)
 
 # construct specification
-specification = blobxfer.models.download.Specification(
+specification = blobxfer.api.DownloadSpecification(
     download_options,
     skip_on_options,
     local_destination_path)
 
 # construct credentials
-credentials = blobxfer.operations.azure.StorageCredentials(general_options)
+credentials = blobxfer.api.AzureStorageCredentials(general_options)
 credentials.add_storage_account(...)
+
+# construct Azure source paths and add it to specification
+asp = blobxfer.api.AzureSourcePath()
+asp.add_path_with_storeage_account(...)
+specification.add_azure_source_path(asp)
 
 # execute downloader
 downloader = blobxfer.api.Downloader(

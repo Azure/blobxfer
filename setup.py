@@ -9,9 +9,10 @@ import sys
 if sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
     try:
         import pypandoc
-        long_description = pypandoc.convert('README.md', 'rst')
-    except ImportError:
-        long_description = ''
+        long_description = pypandoc.convert(
+            'README.md', 'rst').replace('\r', '')
+    except (ImportError, IOError):
+        long_description = open('README.md', 'r', 'utf-8').read()
 else:
     long_description = ''
 
@@ -41,8 +42,8 @@ install_requires = [
     'pathlib2==2.3.0;python_version<"3.5"',
     'python-dateutil==2.6.1',
     'requests==2.18.4',
-    'ruamel.yaml==0.15.32',
-    'scandir==1.5;python_version<"3.5"',
+    'ruamel.yaml==0.15.34',
+    'scandir==1.6;python_version<"3.5"',
 ]
 
 setup(

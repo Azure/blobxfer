@@ -32,6 +32,7 @@ from builtins import (  # noqa
 # non-stdlib imports
 # local imports
 
+# clients
 from .operations.azure.blob.append import (  # noqa
     create_client as create_append_blob_client
 )
@@ -45,6 +46,36 @@ from .operations.azure.file import (  # noqa
     create_client as create_file_client
 )
 
+# models
+from .models.options import (  # noqa
+    Timeout as TimeoutOptions,
+    Concurrency as ConcurrencyOptions,
+    General as GeneralOptions,
+    VectoredIo as VectoredIoOptions,
+    SkipOn as SkipOnOptions,
+    FileProperties as FilePropertiesOptions,
+    Download as DownloadOptions,
+    SyncCopy as SyncCopyOptions,
+    Upload as UploadOptions
+)
+from .models.download import (  # noqa
+    LocalDestinationPath,
+    Specification as DownloadSpecification
+)
+from .models.synccopy import (  # noqa
+    Specification as SynccopySpecification
+)
+from .models.upload import (  # noqa
+    LocalSourcePath,
+    Specification as UploadSpecification
+)
+
+# operations
+from .operations.azure import (  # noqa
+    StorageCredentials as AzureStorageCredentials,
+    DestinationPath as AzureDestinationPath,
+    SourcePath as AzureSourcePath
+)
 from .operations.download import (  # noqa
     Downloader
 )

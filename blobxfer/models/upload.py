@@ -943,6 +943,14 @@ class Descriptor(object):
         """
         genmeta = {}
         encmeta = {}
+        # page align md5
+        if (self.must_compute_md5 and
+                self._ase.mode == blobxfer.models.azure.StorageModes.Page):
+            aligned = blobxfer.util.page_align_content_length(self._offset)
+            diff = aligned - self._offset
+            if diff > 0:
+                with self._hasher_lock:
+                    self.md5.update(b'\0' * diff)
         # generate encryption metadata
         if self._ase.is_encrypted:
             if self.must_compute_md5:

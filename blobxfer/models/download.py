@@ -757,7 +757,8 @@ class Descriptor(object):
         if not check:
             self._integrity_failed = True
             logger.error(msg)
-        logger.info(msg)
+        else:
+            logger.info(msg)
 
     def _restore_file_attributes(self):
         # type: (Descriptor) -> None
