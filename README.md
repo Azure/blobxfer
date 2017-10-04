@@ -20,11 +20,11 @@ from Azure Blob and File Storage
 * YAML configuration driven execution support
 * Resume support
 * Vectored IO support
-  * `stripe` mode allows striping a single file across multiple blobs (even
-    to multiple storage accounts) to break through single blob or fileshare
-    throughput limits
-  * `replica` mode allows replication of a file across multiple destinations
-    including to multiple storage accounts
+    * `stripe` mode allows striping a single file across multiple blobs (even
+      to multiple storage accounts) to break through single blob or fileshare
+      throughput limits
+    * `replica` mode allows replication of a file across multiple destinations
+      including to multiple storage accounts
 * Synchronous copy with cross-mode replication support (including block-level
 copies for Block blobs)
 * Client-side encryption support
@@ -45,17 +45,18 @@ copies for Block blobs)
 
 ## Installation
 There are three ways to install `blobxfer`:
+
 * `blobxfer` Python package from [PyPI](https://pypi.python.org/pypi/blobxfer)
 * Pre-built binaries available under [Releases](https://github.com/Azure/blobxfer/releases)
 * Docker images are available for both Linux and Windows platforms on
 [Docker Hub](https://hub.docker.com/r/alfpark/blobxfer/)
 
 Please refer to the
-[installation guide](https://github.com/Azure/blobxfer/blob/master/docs/01-installation.md)
+[installation guide](http://blobxfer.readthedocs.io/en/latest/01-installation/)
 for more information on how to install `blobxfer`.
 
 ## Documentation
-Please refer to the [`blobxfer` documentation](https://github.com/Azure/blobxfer/blob/master/docs)
+Please refer to the [`blobxfer` documentation](http://blobxfer.readthedocs.io/)
 for more details and usage information.
 
 ## Change Log

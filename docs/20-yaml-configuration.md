@@ -73,14 +73,15 @@ options:
 * `progress_bar` controls display of a progress bar output to the console
 * `verbose` controls if verbose logging is enabled
 * `timeout` is a dictionary of timeout values in seconds
-  * `connect` is the connect timeout to apply to the request
-  * `read` is the read timeout to apply to the request
+    * `connect` is the connect timeout to apply to the request
+    * `read` is the read timeout to apply to the request
 * `concurrency` is a dictionary of concurrency limits
-  * `md5_processes` is the number of MD5 offload processes to create for
-    MD5 comparison checking
-  * `crypto_processes` is the number of decryption offload processes to create
-  * `disk_threads` is the number of threads for disk I/O
-  * `transfer_threads` is the number of threads for network transfers
+    * `md5_processes` is the number of MD5 offload processes to create for
+      MD5 comparison checking
+    * `crypto_processes` is the number of decryption offload processes to
+      create
+    * `disk_threads` is the number of threads for disk I/O
+    * `transfer_threads` is the number of threads for network transfers
 
 ### <a name="download"></a>`download`
 The `download` section specifies download sources and destination. Note
@@ -92,14 +93,14 @@ is iterated and all specified sources are downloaded.
 ```yaml
 download:
     - source:
-        - mystorageaccount0: mycontainer
-        - mystorageaccount1: someothercontainer/vpath
+      - mystorageaccount0: mycontainer
+      - mystorageaccount1: someothercontainer/vpath
       destination: /path/to/store/downloads
       include:
-        - "*.txt"
-        - "*.bxslice-*"
+      - "*.txt"
+      - "*.bxslice-*"
       exclude:
-        - "*.bak"
+      - "*.bak"
       options:
           check_file_md5: true
           chunk_size_bytes: 16777216
@@ -116,7 +117,7 @@ download:
               lmt_ge: false
               md5_match: true
     - source:
-        # next if needed...
+      # next if needed...
 ```
 
 * `source` is a list of storage account to remote path mappings
@@ -124,26 +125,28 @@ download:
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns
 * `options` are download-specific options
-  * `check_file_md5` will integrity check downloaded files using the stored MD5
-  * `chunk_size_bytes` is the maximum amount of data to download per request
-  * `delete_extraneous_destination` will cleanup any files locally that are
-    not found on the remote. Note that this interacts with include and
-    exclude filters.
-  * `mode` is the operating mode
-  * `overwrite` specifies clobber behavior
-  * `recursive` specifies if remote paths should be recursively searched for
-    entities to download
-  * `rename` will rename a single entity source path to the `destination`
-  * `restore_file_attributes` will restore POSIX file mode and ownership if
-    stored on the entity metadata
-  * `rsa_private_key` is the RSA private key PEM file to use to decrypt
-    encrypted blobs or files
-  * `rsa_private_key_passphrase` is the RSA private key passphrase, if required
-  * `skip_on` are skip on options to use
-    * `filesize_match` skip if file size match
-    * `lmt_ge` skip if local file has a last modified time greater than or
-      equal to the remote file
-    * `md5_match` skip if MD5 match
+    * `check_file_md5` will integrity check downloaded files using the stored
+      MD5
+    * `chunk_size_bytes` is the maximum amount of data to download per request
+    * `delete_extraneous_destination` will cleanup any files locally that are
+      not found on the remote. Note that this interacts with include and
+      exclude filters.
+    * `mode` is the operating mode
+    * `overwrite` specifies clobber behavior
+    * `recursive` specifies if remote paths should be recursively searched for
+      entities to download
+    * `rename` will rename a single entity source path to the `destination`
+    * `restore_file_attributes` will restore POSIX file mode and ownership if
+      stored on the entity metadata
+    * `rsa_private_key` is the RSA private key PEM file to use to decrypt
+      encrypted blobs or files
+    * `rsa_private_key_passphrase` is the RSA private key passphrase, if
+      required
+    * `skip_on` are skip on options to use
+        * `filesize_match` skip if file size match
+        * `lmt_ge` skip if local file has a last modified time greater than or
+          equal to the remote file
+        * `md5_match` skip if MD5 match
 
 ### <a name="upload"></a>`upload`
 The `upload` section specifies upload sources and destinations. Note
@@ -155,15 +158,15 @@ is iterated and all specified sources are uploaded.
 ```yaml
 upload:
     - source:
-        - /path/to/hugefile1
-        - /path/to/hugefile2
+      - /path/to/hugefile1
+      - /path/to/hugefile2
       destination:
-        - mystorageaccount0: mycontainer/vdir
-        - mystorageaccount1: someothercontainer/vdir2
+      - mystorageaccount0: mycontainer/vdir
+      - mystorageaccount1: someothercontainer/vdir2
       include:
-        - "*.bin"
+      - "*.bin"
       exclude:
-        - "*.tmp"
+      - "*.tmp"
       options:
           mode: auto
           chunk_size_bytes: 0
@@ -186,7 +189,7 @@ upload:
               stripe_chunk_size_bytes: 1000000
               distribution_mode: stripe
     - source:
-        # next if needed...
+      # next if needed...
 ```
 
 * `source` is a list of local resource paths
@@ -194,43 +197,46 @@ upload:
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns
 * `options` are upload-specific options
-  * `mode` is the operating mode
-  * `chunk_size_bytes` is the maximum amount of data to upload per request.
-    This corresponds to the block size for block and append blobs, page size
-    for page blobs, and the file chunk for files. Only block blobs can have
-    a block size of up to 100MiB, all others have a maximum of 4MiB.
-  * `delete_extraneous_destination` will cleanup any files remotely that are
-    not found on locally. Note that this interacts with include and
-    exclude filters.
-  * `one_shot_bytes` is the size limit to upload block blobs in a single
-    request.
-  * `overwrite` specifies clobber behavior
-  * `recursive` specifies if local paths should be recursively searched for
-    files to upload
-  * `rename` will rename a single entity destination path to a single `source`
-  * `rsa_public_key` is the RSA public key PEM file to use to encrypt files
-  * `skip_on` are skip on options to use
-    * `filesize_match` skip if file size match
-    * `lmt_ge` skip if remote file has a last modified time greater than or
-      equal to the local file
-    * `md5_match` skip if MD5 match
-  * `stdin_as_page_blob_size` is the page blob size to preallocate if the
-    amount of data to be streamed from stdin is known beforehand and the
-    `mode` is `page`
-  * `store_file_properties` stores the following file properties if enabled
-    * `attributes` will store POSIX file mode and ownership
-    * `md5` will store the MD5 of the file
-  * `strip_components` is the number of leading path components to strip
-  * `vectored_io` are the Vectored IO options to apply to the upload
-    * `stripe_chunk_size_bytes` is the stripe width for each chunk if `stripe`
-      `distribution_mode` is selected
-    * `distribution_mode` is the Vectored IO mode to use which can be one of
-      * `disabled` will disable Vectored IO
-      * `replica` which will replicate source files to target destinations on
-        upload. Note that more than one destination should be specified.
-      * `stripe` which will stripe source files to target destinations on
-        upload. If more than one destination is specified, striping occurs in
-        round-robin order amongst the destinations listed.
+    * `mode` is the operating mode
+    * `chunk_size_bytes` is the maximum amount of data to upload per request.
+      This corresponds to the block size for block and append blobs, page size
+      for page blobs, and the file chunk for files. Only block blobs can have
+      a block size of up to 100MiB, all others have a maximum of 4MiB.
+    * `delete_extraneous_destination` will cleanup any files remotely that are
+      not found on locally. Note that this interacts with include and
+      exclude filters.
+    * `one_shot_bytes` is the size limit to upload block blobs in a single
+      request.
+    * `overwrite` specifies clobber behavior
+    * `recursive` specifies if local paths should be recursively searched for
+      files to upload
+    * `rename` will rename a single entity destination path to a single
+      `source`
+    * `rsa_public_key` is the RSA public key PEM file to use to encrypt files
+    * `skip_on` are skip on options to use
+        * `filesize_match` skip if file size match
+        * `lmt_ge` skip if remote file has a last modified time greater than
+          or equal to the local file
+        * `md5_match` skip if MD5 match
+    * `stdin_as_page_blob_size` is the page blob size to preallocate if the
+      amount of data to be streamed from stdin is known beforehand and the
+      `mode` is `page`
+    * `store_file_properties` stores the following file properties if enabled
+        * `attributes` will store POSIX file mode and ownership
+        * `md5` will store the MD5 of the file
+    * `strip_components` is the number of leading path components to strip
+    * `vectored_io` are the Vectored IO options to apply to the upload
+        * `stripe_chunk_size_bytes` is the stripe width for each chunk if
+          `stripe` `distribution_mode` is selected
+        * `distribution_mode` is the Vectored IO mode to use which can be
+          one of:
+            * `disabled` will disable Vectored IO
+            * `replica` which will replicate source files to target
+              destinations on upload. Note that more than one destination
+              should be specified.
+            * `stripe` which will stripe source files to target destinations
+              on upload. If more than one destination is specified, striping
+              occurs in round-robin order amongst the destinations listed.
 
 ### <a name="synccopy"></a>`synccopy`
 The `synccopy` section specifies synchronous copy sources and destinations.
@@ -269,18 +275,18 @@ are copied to each destination specified.
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns
 * `options` are synccopy-specific options
-  * `mode` is the source mode
-  * `dest_mode` is the destination mode
-  * `delete_extraneous_destination` will cleanup any files in remote
-    destinations that are not found in the remote sources. Note that this
-    interacts with include and exclude filters.
-  * `overwrite` specifies clobber behavior
-  * `recursive` specifies if source remote paths should be recursively
-    searched for files to copy
-  * `rename` will rename a single remote source entity to the remote
-    destination path
-  * `skip_on` are skip on options to use
-    * `filesize_match` skip if file size match
-    * `lmt_ge` skip if source file has a last modified time greater than or
-      equal to the destination file
-    * `md5_match` skip if MD5 match
+    * `mode` is the source mode
+    * `dest_mode` is the destination mode
+    * `delete_extraneous_destination` will cleanup any files in remote
+      destinations that are not found in the remote sources. Note that this
+      interacts with include and exclude filters.
+    * `overwrite` specifies clobber behavior
+    * `recursive` specifies if source remote paths should be recursively
+      searched for files to copy
+    * `rename` will rename a single remote source entity to the remote
+      destination path
+    * `skip_on` are skip on options to use
+        * `filesize_match` skip if file size match
+        * `lmt_ge` skip if source file has a last modified time greater
+          than or equal to the destination file
+        * `md5_match` skip if MD5 match

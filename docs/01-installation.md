@@ -2,6 +2,7 @@
 There are multiple available options for installing `blobxfer`. If you
 only require the CLI functionality, then you can install via one of
 three methods:
+
 * [Python package from PyPI](#pypi) (i.e., `pip install`)
 * [Pre-built binary](#binary)
 * [Docker image](#docker)

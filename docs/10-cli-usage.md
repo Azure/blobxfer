@@ -13,6 +13,7 @@ command will be detailed along with all options available.
 Downloads remote Azure paths, which may contain many resources, to the
 local machine. This command requires at the minimum, the following options
 if invoked without a YAML configuration file:
+
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
 * `--local-path`
@@ -25,6 +26,7 @@ Uploads local paths to a remote Azure path or set of remote Azure paths.
 The local path may contain many resources on the local machine. This command
 requires at the minimum, the following options if invoked without a YAML
 configuration file:
+
 * `--local-path`
 * `--storage-account` for the destination remote Azure path
 * `--remote-path` for the destination remote Azure path
@@ -39,6 +41,7 @@ convention.
 Synchronously copies remote Azure paths to other remote Azure paths. This
 command requires at the minimum, the following options if invoked without
 a YAML configuration file:
+
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
 * `--sync-copy-dest-mode` for the destination mode
@@ -96,6 +99,7 @@ sensitive help.
 `blobxfer` supports both Storage Account access keys and Shared Access
 Signature (SAS) tokens. One type must be supplied with all commands in
 order to successfully authenticate against Azure Storage. These options are:
+
 * `--sas` is a shared access signature (SAS) token. This can can be
 optionally provided through an environment variable `BLOBXFER_SAS` instead.
 * `--storage-account-key` is the storage account access key. This can be
@@ -113,6 +117,7 @@ provided through an environment variable
 ### Concurrency
 Please see the [performance considerations](98-performance-considerations.md)
 document for more information regarding concurrency options.
+
 * `--crypto-processes` is the number of decryption offload processes to spawn.
 `0` will in-line the decryption routine with the main thread.
 * `--disk-threads` is the number of threads to create for disk I/O.
@@ -158,10 +163,10 @@ times
 match between source and destination. This should not be specified for
 encrypted files.
 * `--skip-on-lmt-ge` will skip the transfer action:
-  * On upload if the last modified time of the remote file is greater than
-    or equal to the local file.
-  * On download if the last modified time of the local file is greater than
-    or equal to the remote file.
+    * On upload if the last modified time of the remote file is greater than
+      or equal to the local file.
+    * On download if the last modified time of the local file is greater than
+      or equal to the remote file.
 * `--skip-on-md5-match` will skip the transfer action if the MD5 hash match
 between source and destination. This can be transparently used through
 encrypted files that have been uploaded with `blobxfer`.
@@ -170,13 +175,13 @@ encrypted files that have been uploaded with `blobxfer`.
 Please see the [Vectored IO](30-vectored-io.md) document for more information
 regarding Vectored IO operations in `blobxfer`.
 * `--distribution-mode` is the Vectored IO distribution mode
-  * `disabled` which is default (no Vectored IO)
-  * `replica` which will replicate source files to target destinations on
-    upload. Note that replicating across multiple destinations will require
-    a YAML configuration file.
-  * `stripe` which will stripe source files to target destinations on upload.
-    Note that striping across multiple destinations will require a YAML
-    configuration file.
+    * `disabled` which is default (no Vectored IO)
+    * `replica` which will replicate source files to target destinations on
+      upload. Note that replicating across multiple destinations will require
+      a YAML configuration file.
+    * `stripe` which will stripe source files to target destinations on
+      upload. Note that striping across multiple destinations will require
+      a YAML configuration file.
 * `--stripe-chunk-size-bytes` is the stripe chunk width for stripe-based
 Vectored IO operations
 

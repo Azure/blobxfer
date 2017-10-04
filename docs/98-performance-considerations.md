@@ -9,17 +9,17 @@ File shares and Storage Account types (GRS, LRS, ZRS, etc).
 ## Concurrency
 * `blobxfer` offers four concurrency knobs. Each one should be tuned for
 maximum performance according to your system and network characteristics.
-  * Disk threads: concurrency in reading (uploads) and writing (downloads) to
-    disk is controlled by the number of disk threads.
-  * Transfer threads: concurrency in the number of threads transferring
-    from/to Azure Storage is controlled by the number of transfer threads.
-  * MD5 processes: computing MD5 for potential omission from transfer due
-    to `skip_on` `md5_match` being specified are offloaded to the specified
-    number of processors.
-  * Crypto processes: decrypting encrypted blobs and files can be offloaded
-    to the specified number of processors. Due to the inherent
-    non-parallelizable encryption algorithm used, this is ignored for
-    encryption (uploads).
+    * Disk threads: concurrency in reading (uploads) and writing (downloads)
+      to disk is controlled by the number of disk threads.
+    * Transfer threads: concurrency in the number of threads transferring
+      from/to Azure Storage is controlled by the number of transfer threads.
+    * MD5 processes: computing MD5 for potential omission from transfer due
+      to `skip_on` `md5_match` being specified are offloaded to the specified
+      number of processors.
+    * Crypto processes: decrypting encrypted blobs and files can be offloaded
+      to the specified number of processors. Due to the inherent
+      non-parallelizable encryption algorithm used, this is ignored for
+      encryption (uploads).
 * The thread concurrency options (disk and transfer) can be set to a
 non-positive number to be automatically set as a multiple of the number of
 cores available on the machine.

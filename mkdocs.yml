@@ -1,0 +1,25 @@
+site_name: blobxfer
+site_description: Azure blobxfer
+site_url: https://github.com/Azure/blobxfer
+repo_url: https://github.com/Azure/blobxfer
+theme: readthedocs
+
+pages:
+- Home: index.md
+- Installation: 01-installation.md
+- Commands and Configuration:
+  - CLI Commands and Usage: 10-cli-usage.md
+  - YAML Configuration: 20-yaml-configuration.md
+- In-Depth Feature Guides:
+  - Vectored I/O: 30-vectored-io.md
+  - Client-side Encryption: 40-client-side-encryption.md
+  - blobxfer Data Movement Library: 80-blobxfer-python-library.md
+  - Performance Considerations: 98-performance-considerations.md
+- Current Limitations: 99-current-limitations.md
+- Change Log: CHANGELOG.md
+
+markdown_extensions:
+- admonition
+- codehilite
+- fenced_code
+- sane_lists
