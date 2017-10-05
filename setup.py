@@ -52,7 +52,7 @@ setup(
     version=version,
     author='Microsoft Corporation',
     author_email='',
-    description='Azure storage transfer tool and library',
+    description='Azure storage transfer tool and data movement library',
     platforms='any',
     url='https://github.com/Azure/blobxfer',
     license='MIT',

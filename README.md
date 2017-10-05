@@ -60,9 +60,9 @@ Please refer to the [`blobxfer` documentation](http://blobxfer.readthedocs.io/)
 for more details and usage information.
 
 ## Change Log
-For recent changes, please refer to the
-[CHANGELOG.md](https://github.com/Azure/blobxfer/blob/master/CHANGELOG.md)
-file.
+Please see the
+[Change Log](http://blobxfer.readthedocs.io/en/latest/CHANGELOG/)
+for project history.
 
 * * *
 Please see this project's [Code of Conduct](CODE_OF_CONDUCT.md) and

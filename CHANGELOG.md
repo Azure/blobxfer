@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.0.0rc1] - 2017-10-05
 ### Added
 - Expanded `blobxfer.api` to eliminate other imports
 - Data movement library usage guide
@@ -11,6 +12,7 @@ the `-v` verbose option
 ### Changed
 - `version` property for YAML configuration is now required
 - `--rename` is automatically enabled for when `stdin` is the source
+- `--include` and `--exclude` filters are now checked for invalid rglob specs
 - Update dependencies to latest
 
 ### Fixed
@@ -266,7 +268,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0b2...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0rc1...HEAD
+[1.0.0rc1]: https://github.com/Azure/blobxfer/compare/1.0.0b2...1.0.0rc1
 [1.0.0b2]: https://github.com/Azure/blobxfer/compare/1.0.0b1...1.0.0b2
 [1.0.0b1]: https://github.com/Azure/blobxfer/compare/1.0.0a5...1.0.0b1
 [1.0.0a5]: https://github.com/Azure/blobxfer/compare/1.0.0a4...1.0.0a5
