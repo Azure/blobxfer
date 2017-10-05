@@ -87,9 +87,15 @@ def test_localsourcepaths_files(tmpdir):
     defpath.join('moo.cow').write('y')
 
     a = upload.LocalSourcePath()
+    a.add_includes('**')
     a.add_includes('*.txt')
     a.add_includes(('moo.cow', '*blah*'))
+    with pytest.raises(ValueError):
+        a.add_includes('**/**/*')
+    a.add_excludes('**')
     a.add_excludes('**/blah.x')
+    with pytest.raises(ValueError):
+        a.add_excludes('**/**/blah.x')
     a.add_excludes(['world.txt'])
     a.add_path(str(tmpdir))
     a_set = set()
@@ -97,9 +103,12 @@ def test_localsourcepaths_files(tmpdir):
         sfile = str(file.parent_path / file.relative_path)
         a_set.add(sfile)
 
+    assert len(a._include) == 3
+    assert len(a._exclude) == 2
+
     assert not a.can_rename()
     assert len(a.paths) == 1
-    assert str(abcpath.join('blah.x')) not in a_set
+    assert str(abcpath.join('blah.x')) in a_set
     assert str(defpath.join('world.txt')) in a_set
     assert str(defpath.join('moo.cow')) not in a_set
 
