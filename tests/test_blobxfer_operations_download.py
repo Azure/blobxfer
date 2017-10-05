@@ -541,7 +541,7 @@ def test_process_download_descriptor_vio(tmpdir):
         ase._vio.total_slices = 2
 
         lp = pathlib.Path(str(tmpdir.join('b')))
-        dd = models.Descriptor(lp, ase, opts, None)
+        dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
         dd.next_offsets = mock.MagicMock()
         dd.next_offsets.return_value = (None, None)
         patched_aoc.return_value = True
@@ -607,7 +607,7 @@ def test_worker_thread_transfer(
         opts = mock.MagicMock()
         opts.check_file_md5 = False
         opts.chunk_size_bytes = 16
-        dd = models.Descriptor(lp, ase, opts, None)
+        dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [queue.Empty, dd]
         d._process_download_descriptor = mock.MagicMock()
@@ -640,7 +640,7 @@ def test_worker_thread_transfer(
             ase._encryption = mock.MagicMock()
             ase._encryption.symmetric_key = b'abc'
             lp = pathlib.Path(str(tmpdir.join('a')))
-            dd = models.Descriptor(lp, ase, opts, None)
+            dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
             dd.next_offsets = mock.MagicMock(
                 side_effect=[(None, 1), (None, 2)])
             dd.finalize_integrity = mock.MagicMock()
@@ -679,7 +679,7 @@ def test_worker_thread_transfer(
         key = ops.Downloader.create_unique_transfer_operation_id(ase)
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('b')))
-        dd = models.Descriptor(lp, ase, opts, None)
+        dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
         dd.finalize_file = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
         d._dd_map[str(lp)] = mock.MagicMock()
@@ -716,7 +716,7 @@ def test_worker_thread_transfer(
         key = ops.Downloader.create_unique_transfer_operation_id(ase)
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('c')))
-        dd = models.Descriptor(lp, ase, opts, None)
+        dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
         dd.finalize_file = mock.MagicMock()
         dd.write_unchecked_hmac_data = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
@@ -758,7 +758,7 @@ def test_worker_thread_transfer(
         key = ops.Downloader.create_unique_transfer_operation_id(ase)
         patched_gfr.return_value = b'0' * ase._size
         lp = pathlib.Path(str(tmpdir.join('d')))
-        dd = models.Descriptor(lp, ase, opts, None)
+        dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
         dd.next_offsets()
         dd.write_unchecked_hmac_data = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
@@ -822,7 +822,7 @@ def test_cleanup_temporary_files(tmpdir):
     opts.chunk_size_bytes = 16
     ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = models.Descriptor(lp, ase, opts, None)
+    dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     dd._allocate_disk_space()
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception
@@ -838,7 +838,7 @@ def test_cleanup_temporary_files(tmpdir):
     opts.chunk_size_bytes = 16
     ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = models.Descriptor(lp, ase, opts, None)
+    dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     dd._allocate_disk_space()
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._general_options.resume_file = None
@@ -852,7 +852,7 @@ def test_cleanup_temporary_files(tmpdir):
     opts.chunk_size_bytes = 16
     ase = azmodels.StorageEntity('cont')
     ase._size = 16
-    dd = models.Descriptor(lp, ase, opts, None)
+    dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     dd._allocate_disk_space()
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception

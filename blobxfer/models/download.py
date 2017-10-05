@@ -190,19 +190,22 @@ class Descriptor(object):
 
     _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
-    def __init__(self, lpath, ase, options, resume_mgr):
+    def __init__(self, lpath, ase, options, general_options, resume_mgr):
         # type: (Descriptor, pathlib.Path,
         #        blobxfer.models.azure.StorageEntity,
         #        blobxfer.models.options.Download,
+        #        blobxfer.models.options.General,
         #        blobxfer.operations.resume.DownloadResumeManager) -> None
         """Ctor for Descriptor
         :param Descriptor self: this
         :param pathlib.Path lpath: local path
         :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
         :param blobxfer.models.options.Download options: download options
+        :param blobxfer.models.options.General general_options: general options
         :param blobxfer.operations.resume.DownloadResumeManager resume_mgr:
             download resume manager
         """
+        self._verbose = general_options.verbose
         self._offset = 0
         self._chunk_num = 0
         self._next_integrity_chunk = 0

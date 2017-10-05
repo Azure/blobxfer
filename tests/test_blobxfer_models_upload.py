@@ -361,7 +361,8 @@ def test_descriptor(tmpdir):
     ase2._encryption = None
     ase.replica_targets = [ase2]
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
 
     assert ud.hmac is None
     assert ud.md5 is None
@@ -391,7 +392,8 @@ def test_descriptor(tmpdir):
     ase._encryption = mock.MagicMock()
     opts.rsa_public_key = None
     with pytest.raises(RuntimeError):
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
 
 
 def test_descriptor_complete_offset_upload(tmpdir):
@@ -411,7 +413,8 @@ def test_descriptor_complete_offset_upload(tmpdir):
     ase._encryption = None
     ase.replica_targets = [ase]
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
 
     ud._md5_cache[0] = 'md50'
     ud._md5_cache[1] = 'md51'
@@ -456,7 +459,8 @@ def test_descriptor_hmac_data(tmpdir):
     ase._encryption.symmetric_key = 'abc'
     ase.replica_targets = [ase]
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud.hmac is not None
     ud.hmac_data(b'\0')
 
@@ -476,7 +480,8 @@ def test_descriptor_initialize_encryption(tmpdir):
     ase._name = 'name'
     ase._size = 32
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud.hmac is not None
     assert ud.entity.is_encrypted
 
@@ -502,7 +507,8 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase2._name = 'name2'
     ase.replica_targets = [ase2]
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._compute_remote_size(opts)
     assert ud.entity.size == 48
     for rt in ase.replica_targets:
@@ -520,7 +526,8 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._compute_remote_size(opts)
     assert ud.entity.size == 32
 
@@ -533,7 +540,8 @@ def test_descriptor_compute_remote_size(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._compute_remote_size(opts)
     assert ud.entity.size == 0
 
@@ -541,7 +549,8 @@ def test_descriptor_compute_remote_size(tmpdir):
     lp = upload.LocalPath(pathlib.Path('-'), pathlib.Path('-'), use_stdin=True)
     opts.stdin_as_page_blob_size = 0
     ase._mode = azmodels.StorageModes.Page
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._compute_remote_size(opts)
     assert ud.entity.size == upload._MAX_PAGE_BLOB_SIZE
     assert ud._needs_resize
@@ -550,7 +559,8 @@ def test_descriptor_compute_remote_size(tmpdir):
     lp = upload.LocalPath(pathlib.Path('-'), pathlib.Path('-'), use_stdin=True)
     opts.stdin_as_page_blob_size = 32
     ase._mode = azmodels.StorageModes.Page
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._compute_remote_size(opts)
     assert ud.entity.size == 32
     assert not ud._needs_resize
@@ -571,7 +581,8 @@ def test_descriptor_adjust_chunk_size(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud._chunk_size == 0
 
     with mock.patch('blobxfer.models.upload._DEFAULT_AUTO_CHUNKSIZE_BYTES', 1):
@@ -581,12 +592,14 @@ def test_descriptor_adjust_chunk_size(tmpdir):
                 tmpdir.join('a').write('z' * 4)
                 lp = upload.LocalPath(
                     pathlib.Path(str(tmpdir)), pathlib.Path('a'))
-                ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+                ud = upload.Descriptor(
+                    lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
                 assert ud._chunk_size == 2
 
     lp = upload.LocalPath(
         pathlib.Path(str(tmpdir)), pathlib.Path('-'), use_stdin=True)
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud._chunk_size == upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
 
     tmpdir.join('a').write('z' * 32)
@@ -597,7 +610,8 @@ def test_descriptor_adjust_chunk_size(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud._chunk_size == 32
 
     ase = azmodels.StorageEntity('cont')
@@ -608,7 +622,8 @@ def test_descriptor_adjust_chunk_size(tmpdir):
     opts.chunk_size_bytes = upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES + 1
     with mock.patch(
             'blobxfer.models.upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES', 4):
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
         assert ud._chunk_size == 4
 
     ase = azmodels.StorageEntity('cont')
@@ -618,13 +633,15 @@ def test_descriptor_adjust_chunk_size(tmpdir):
 
     opts.chunk_size_bytes = 32
     opts.one_shot_bytes = 32
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     assert ud._chunk_size == 32
 
     opts.one_shot_bytes = 31
     with mock.patch(
             'blobxfer.models.upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES', 4):
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
         assert ud._chunk_size == 4
 
     ase = azmodels.StorageEntity('cont')
@@ -635,7 +652,8 @@ def test_descriptor_adjust_chunk_size(tmpdir):
     opts.chunk_size_bytes = upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES + 1
     with mock.patch(
             'blobxfer.models.upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES', 4):
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
         assert ud._chunk_size == 4
 
     ase = azmodels.StorageEntity('cont')
@@ -646,12 +664,14 @@ def test_descriptor_adjust_chunk_size(tmpdir):
     opts.chunk_size_bytes = upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES + 1
     with mock.patch(
             'blobxfer.models.upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES', 4):
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
         assert ud._chunk_size == 4
 
     with mock.patch('blobxfer.models.upload._MAX_PAGE_BLOB_SIZE', 4):
         with pytest.raises(RuntimeError):
-            upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+            upload.Descriptor(
+                lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
 
 
 def test_compute_total_chunks(tmpdir):
@@ -669,19 +689,22 @@ def test_compute_total_chunks(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud.entity.size = upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
     with pytest.raises(RuntimeError):
         ud._compute_total_chunks(1)
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud.entity.size = upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
     ud._chunk_size = upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
     with pytest.raises(RuntimeError):
         ud._compute_total_chunks(1)
 
     ase._mode = azmodels.StorageModes.Append
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud.entity.size = upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
     ud._chunk_size = upload._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
     with pytest.raises(RuntimeError):
@@ -704,13 +727,13 @@ def test_resume(tmpdir):
     ase._encryption = None
 
     # test no resume
-    ud = upload.Descriptor(lp, ase, 'uid', opts, None)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), None)
     assert ud._resume() is None
 
     # check if path exists in resume db
     resume = mock.MagicMock()
     resume.get_record.return_value = None
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() is None
 
     # check same lengths
@@ -732,7 +755,7 @@ def test_resume(tmpdir):
     assert ud._resume() == 2
 
     ase.replica_targets = [ase]
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     ud._completed_chunks = mock.MagicMock()
     ud._src_ase = ase
     assert ud._resume() == 4
@@ -751,7 +774,7 @@ def test_resume(tmpdir):
     nc.completed_chunks = 1
 
     resume.get_record.return_value = nc
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() is None
 
     # check rr path exists
@@ -764,7 +787,7 @@ def test_resume(tmpdir):
     opts.rsa_public_key = None
 
     resume.get_record.return_value = nc
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() is None
 
     # check resume no md5
@@ -785,7 +808,7 @@ def test_resume(tmpdir):
     nc.local_path = lp.absolute_path
 
     resume.get_record.return_value = nc
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() == 1
 
     # check resume with md5 mismatch
@@ -806,7 +829,7 @@ def test_resume(tmpdir):
     nc.local_path = lp.absolute_path
 
     resume.get_record.return_value = nc
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() is None
 
     # check resume with md5 match
@@ -828,7 +851,7 @@ def test_resume(tmpdir):
     nc.md5hexdigest = md5.hexdigest()
 
     resume.get_record.return_value = nc
-    ud = upload.Descriptor(lp, ase, 'uid', opts, resume)
+    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock(), resume)
     assert ud._resume() == 1
 
 
@@ -848,7 +871,8 @@ def test_descriptor_next_offsets(tmpdir):
     ase._encryption = None
 
     # test normal
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._resume = mock.MagicMock()
     ud._resume.return_value = None
 
@@ -880,7 +904,8 @@ def test_descriptor_next_offsets(tmpdir):
     lp = upload.LocalPath(pathlib.Path(str(tmpdir)), pathlib.Path('a'))
     opts.chunk_size_bytes = 3
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._chunk_size = 3
     ud._resume = mock.MagicMock()
     ud._resume.return_value = None
@@ -901,7 +926,8 @@ def test_descriptor_next_offsets(tmpdir):
     opts.chunk_size_bytes = 16
     opts.rsa_public_key = 'abc'
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._resume = mock.MagicMock()
     ud._resume.return_value = None
 
@@ -942,7 +968,8 @@ def test_descriptor_read_data(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._resume = mock.MagicMock()
     ud._resume.return_value = None
 
@@ -1008,7 +1035,8 @@ def test_descriptor_generate_metadata(tmpdir):
     ase._name = 'name'
     ase._encryption = None
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     meta = ud.generate_metadata()
     assert meta is None
 
@@ -1026,7 +1054,8 @@ def test_descriptor_generate_metadata(tmpdir):
     ase._encryption = None
     ase._size = 1
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud._offset = 1
     ud.md5 = hashlib.md5()
     ud.md5.update(b'z')
@@ -1051,7 +1080,8 @@ def test_descriptor_generate_metadata(tmpdir):
 
     # file attr store is not avail on windows
     if not util.on_windows():
-        ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+        ud = upload.Descriptor(
+            lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
         meta = ud.generate_metadata()
         assert metadata.JSON_KEY_BLOBXFER_METADATA in meta
         assert metadata._JSON_KEY_FILE_ATTRIBUTES in meta[
@@ -1061,7 +1091,8 @@ def test_descriptor_generate_metadata(tmpdir):
     opts.store_file_properties.attributes = False
     opts.store_file_properties.md5 = False
     opts.rsa_public_key = 'abc'
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ase.encryption_metadata = mock.MagicMock()
     ase.encryption_metadata.convert_to_json_with_mac.return_value = {
         'encmeta': 'encmeta'
@@ -1069,7 +1100,8 @@ def test_descriptor_generate_metadata(tmpdir):
     meta = ud.generate_metadata()
     assert 'encmeta' in meta
 
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ud.hmac = None
     ase.encryption_metadata = mock.MagicMock()
     ase.encryption_metadata.convert_to_json_with_mac.return_value = {
@@ -1079,7 +1111,8 @@ def test_descriptor_generate_metadata(tmpdir):
     assert 'encmeta' in meta
 
     opts.store_file_properties.md5 = True
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     ase.encryption_metadata = mock.MagicMock()
     ase.encryption_metadata.convert_to_json_with_mac.return_value = {
         'encmeta': 'encmeta'
@@ -1101,7 +1134,8 @@ def test_descriptor_generate_metadata(tmpdir):
 
     lp.view = mock.MagicMock()
     lp.view.mode = upload.VectoredIoDistributionMode.Stripe
-    ud = upload.Descriptor(lp, ase, 'uid', opts, mock.MagicMock())
+    ud = upload.Descriptor(
+        lp, ase, 'uid', opts, mock.MagicMock(), mock.MagicMock())
     with mock.patch(
             'blobxfer.models.metadata.generate_vectored_io_stripe_metadata',
             return_value={'viometa': 'viometa'}):

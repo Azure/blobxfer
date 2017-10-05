@@ -280,7 +280,8 @@ class Uploader(object):
         """
         # prepare local file for upload
         ud = blobxfer.models.upload.Descriptor(
-            src, rfile, uid, self._spec.options, self._resume)
+            src, rfile, uid, self._spec.options, self._general_options,
+            self._resume)
         if ud.entity.is_encrypted:
             with self._upload_lock:
                 self._ud_map[uid] = ud

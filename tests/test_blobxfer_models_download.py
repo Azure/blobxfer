@@ -144,10 +144,10 @@ def test_downloaddescriptor(tmpdir):
     ase._size = 1024
     ase._encryption = mock.MagicMock()
     with pytest.raises(RuntimeError):
-        d = models.Descriptor(lp, ase, opts, None)
+        d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     ase._encryption.symmetric_key = b'123'
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     assert not d._allocated
     d._allocate_disk_space()
 
@@ -166,7 +166,7 @@ def test_downloaddescriptor(tmpdir):
 
     d.final_path.unlink()
     ase._size = 32
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     assert d._total_chunks == 2
     assert d._allocated
@@ -175,7 +175,7 @@ def test_downloaddescriptor(tmpdir):
     d.final_path.unlink()
     ase._encryption = None
     ase._size = 1024
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     assert d._allocated
     assert d.final_path.stat().st_size == ase._size
@@ -183,7 +183,7 @@ def test_downloaddescriptor(tmpdir):
     # pre-existing file check
     opts.chunk_size_bytes = 0
     ase._size = 0
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     assert d._total_chunks == 0
     assert d._allocated
@@ -237,7 +237,7 @@ def test_set_final_path_view():
     ase._vio = mock.MagicMock()
     ase._vio.slice_id = 0
     ase._vio.total_size = 1024
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     total_size = d._set_final_path_view()
     assert total_size == ase._size
@@ -253,7 +253,7 @@ def test_downloaddescriptor_allocate_disk_space_via_seek(tmpdir):
     ase = azmodels.StorageEntity('cont')
     ase._size = 128
     ase._name = 'blob'
-    d = models.Descriptor(fp, ase, opts, None)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), None)
 
     with mock.patch('os.posix_fallocate') as patched_fallocate:
         patched_fallocate.side_effect = [AttributeError()]
@@ -277,7 +277,7 @@ def test_downloaddescriptor_resume(tmpdir):
 
     # test no record
     rmgr = rops.DownloadResumeManager(resumefile)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb is None
 
@@ -293,7 +293,7 @@ def test_downloaddescriptor_resume(tmpdir):
     rmgr = rops.DownloadResumeManager(resumefile)
 
     rmgr.add_or_update_record(str(fp), ase, 0, 0, False, None)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb is None
 
@@ -302,7 +302,7 @@ def test_downloaddescriptor_resume(tmpdir):
     rmgr = rops.DownloadResumeManager(resumefile)
 
     rmgr.add_or_update_record(str(fp), ase, 32, 1, True, None)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     fp.touch()
     rb = d._resume()
     assert rb == ase._size
@@ -315,7 +315,7 @@ def test_downloaddescriptor_resume(tmpdir):
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'123'
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, None)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb is None
 
@@ -328,7 +328,7 @@ def test_downloaddescriptor_resume(tmpdir):
     ase._client = mock.MagicMock()
 
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, None)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb == 32
 
@@ -342,7 +342,7 @@ def test_downloaddescriptor_resume(tmpdir):
     fp.touch()
 
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, None)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     d.hmac = True
     with pytest.raises(RuntimeError):
         d._resume()
@@ -358,7 +358,7 @@ def test_downloaddescriptor_resume(tmpdir):
     md5.update(data)
 
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, md5.hexdigest())
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb == 32
 
@@ -367,7 +367,7 @@ def test_downloaddescriptor_resume(tmpdir):
     rmgr = rops.DownloadResumeManager(resumefile)
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, 'abc')
     ase._md5 = 'abc'
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb is None
 
@@ -381,7 +381,7 @@ def test_downloaddescriptor_resume(tmpdir):
     ase._mode = azmodels.StorageModes.Page
 
     rmgr.add_or_update_record(str(fp), ase, 32, 1, False, md5.hexdigest())
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     rb = d._resume()
     assert rb == 32
 
@@ -394,7 +394,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     opts.chunk_size_bytes = 256
     ase = azmodels.StorageEntity('cont')
     ase._size = 128
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
@@ -408,12 +408,12 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
     ase._size = 0
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     assert d._total_chunks == 0
     assert d.next_offsets() == (None, None)
 
     ase._size = 1
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 1
@@ -426,7 +426,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
     ase._size = 256
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 1
@@ -439,7 +439,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
     ase._size = 256 + 16
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 2
@@ -462,7 +462,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'123'
     ase._size = 128
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 1
@@ -475,7 +475,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
     ase._size = 256
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 1
@@ -488,7 +488,7 @@ def test_downloaddescriptor_next_offsets(tmpdir):
     assert d.next_offsets() == (None, None)
 
     ase._size = 256 + 32  # 16 bytes over + padding
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     offsets, resume_bytes = d.next_offsets()
     assert resume_bytes is None
     assert d._total_chunks == 2
@@ -520,7 +520,7 @@ def test_hmac_iv(tmpdir):
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'123'
     ase._size = 128
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     iv = b'abc'
     d.hmac_iv(iv)
@@ -535,7 +535,7 @@ def test_write_unchecked_data(tmpdir):
     opts.chunk_size_bytes = 32
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     d.write_unchecked_data(offsets, b'0' * ase._size)
@@ -557,7 +557,7 @@ def test_write_unchecked_hmac_data(tmpdir):
     opts.chunk_size_bytes = 32
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     d.write_unchecked_hmac_data(offsets, b'0' * ase._size)
@@ -577,7 +577,7 @@ def test_mark_unchecked_chunk_decrypted():
     opts.chunk_size_bytes = 32
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
-    d = models.Descriptor(mock.MagicMock(), ase, opts, None)
+    d = models.Descriptor(mock.MagicMock(), ase, opts, mock.MagicMock(), None)
 
     d._unchecked_chunks[0] = {
         'decrypted': False
@@ -595,7 +595,7 @@ def test_perform_chunked_integrity_check(tmpdir):
     opts.chunk_size_bytes = 16
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     data = b'0' * opts.chunk_size_bytes
@@ -613,7 +613,7 @@ def test_perform_chunked_integrity_check(tmpdir):
     ase._size = 32
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'123'
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     data = b'0' * opts.chunk_size_bytes
     offsets, _ = d.next_offsets()
@@ -652,7 +652,7 @@ def test_perform_chunked_integrity_check(tmpdir):
     ase._md5 = md5.hexdigest()
 
     rmgr = rops.DownloadResumeManager(resumefile)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
 
     offsets, _ = d.next_offsets()
     d.write_unchecked_data(offsets, data)
@@ -675,7 +675,7 @@ def test_update_resume_for_completed(tmpdir):
     ase._name = 'blob'
     ase._client = mock.MagicMock()
     rmgr = rops.DownloadResumeManager(resumefile)
-    d = models.Descriptor(fp, ase, opts, rmgr)
+    d = models.Descriptor(fp, ase, opts, mock.MagicMock(), rmgr)
     offsets, _ = d.next_offsets()
     d._update_resume_for_completed()
     dr = rmgr.get_record(ase)
@@ -689,7 +689,7 @@ def test_cleanup_all_temporary_files(tmpdir):
     ase = azmodels.StorageEntity('cont')
     ase._size = 16
     lp = pathlib.Path(str(tmpdir.join('a')))
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     data = b'0' * opts.chunk_size_bytes
@@ -700,7 +700,7 @@ def test_cleanup_all_temporary_files(tmpdir):
     assert not d._unchecked_chunks[0]['ucc'].file_path.exists()
 
     lp = pathlib.Path(str(tmpdir.join('b')))
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     data = b'0' * opts.chunk_size_bytes
@@ -724,7 +724,7 @@ def test_write_data(tmpdir):
     opts.chunk_size_bytes = 16
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
 
     offsets, _ = d.next_offsets()
     data = b'0' * ase._size
@@ -745,7 +745,7 @@ def test_finalize_integrity_and_file(tmpdir):
 
     data = b'0' * ase._size
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     d._finalized = True
     d.finalize_integrity()
@@ -776,7 +776,7 @@ def test_finalize_integrity_and_file(tmpdir):
         message_authentication_code = util.base64_encode_as_string(
             _hmac.digest())
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     d.hmac.update(data)
     d.finalize_integrity()
@@ -798,7 +798,7 @@ def test_finalize_integrity_and_file(tmpdir):
     md5.update(data)
     ase._md5 = util.base64_encode_as_string(md5.digest())
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     d.md5.update(data)
     d.finalize_integrity()
@@ -817,7 +817,7 @@ def test_finalize_integrity_and_file(tmpdir):
 
     data = b'0' * ase._size
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     d.finalize_integrity()
     d.finalize_file()
@@ -836,7 +836,7 @@ def test_finalize_integrity_and_file(tmpdir):
     data = b'0' * ase._size
     ase._md5 = 'oops'
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._allocate_disk_space()
     d.md5.update(data)
     d.finalize_integrity()
@@ -862,7 +862,7 @@ def test_restore_file_attributes(tmpdir):
     ase._fileattr.uid = 1000
     ase._fileattr.gid = 1000
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._restore_file_attributes()
     stat = lp.stat()
     assert str(oct(stat.st_mode)).replace('o', '') == \
@@ -877,7 +877,7 @@ def test_operations(tmpdir):
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
 
-    d = models.Descriptor(lp, ase, opts, None)
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     d._outstanding_ops = 1
     d._unchecked_chunks = {0: None}
     assert not d.all_operations_completed

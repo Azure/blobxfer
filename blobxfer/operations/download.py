@@ -386,7 +386,8 @@ class Downloader(object):
         """
         # prepare remote file for download
         dd = blobxfer.models.download.Descriptor(
-            lpath, rfile, self._spec.options, self._resume)
+            lpath, rfile, self._spec.options, self._general_options,
+            self._resume)
         if dd.entity.is_encrypted:
             with self._transfer_lock:
                 self._dd_map[str(dd.final_path)] = dd

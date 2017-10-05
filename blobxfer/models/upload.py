@@ -333,10 +333,11 @@ class Descriptor(object):
 
     _AES_BLOCKSIZE = blobxfer.models.crypto.AES256_BLOCKSIZE_BYTES
 
-    def __init__(self, lpath, ase, uid, options, resume_mgr):
+    def __init__(self, lpath, ase, uid, options, general_options, resume_mgr):
         # type: (Descriptior, LocalPath,
         #        blobxfer.models.azure.StorageEntity, str,
         #        blobxfer.models.options.Upload,
+        #        blobxfer.models.options.General,
         #        blobxfer.operations.resume.UploadResumeManager) -> None
         """Ctor for Descriptor
         :param Descriptor self: this
@@ -344,11 +345,13 @@ class Descriptor(object):
         :param blobxfer.models.azure.StorageEntity ase: Azure Storage Entity
         :param str uid: unique id
         :param blobxfer.models.options.Upload options: download options
+        :param blobxfer.models.options.General general_options: general options
         :param blobxfer.operations.resume.UploadResumeManager resume_mgr:
             upload resume manager
         """
         self.local_path = lpath
         self.unique_id = uid
+        self._verbose = general_options.verbose
         self._offset = 0
         self._chunk_num = 0
         self._next_integrity_chunk = 0
@@ -621,8 +624,9 @@ class Descriptor(object):
         if blobxfer.util.is_not_empty(self._ase.replica_targets):
             for rt in self._ase.replica_targets:
                 rt.size = allocatesize
-        logger.debug('remote size for {} is {} bytes'.format(
-            self._ase.path, self._ase.size))
+        if self._verbose:
+            logger.debug('remote size for {} is {} bytes'.format(
+                self._ase.path, self._ase.size))
 
     def _adjust_chunk_size(self, options):
         # type: (Descriptor, blobxfer.models.options.Upload) -> None
@@ -645,9 +649,10 @@ class Descriptor(object):
                         if chunks <= _MAX_NUM_CHUNKS:
                             break
                         chunk_size = chunk_size << 1
-            logger.debug(
-                'auto-selected chunk size of {} for {}'.format(
-                    chunk_size, self.local_path.absolute_path))
+            if self._verbose:
+                logger.debug(
+                    'auto-selected chunk size of {} for {}'.format(
+                        chunk_size, self.local_path.absolute_path))
         if self.local_path.use_stdin:
             self._chunk_size = max(
                 (chunk_size, _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES)
@@ -658,10 +663,11 @@ class Descriptor(object):
         if self._ase.mode == blobxfer.models.azure.StorageModes.Append:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
-                logger.debug(
-                    ('adjusting chunk size to {} for append blob '
-                     'from {}').format(
-                         self._chunk_size, self.local_path.absolute_path))
+                if self._verbose:
+                    logger.debug(
+                        ('adjusting chunk size to {} for append blob '
+                         'from {}').format(
+                             self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Block:
             if (not self.local_path.use_stdin and
                     self._ase.size <= options.one_shot_bytes):
@@ -671,16 +677,19 @@ class Descriptor(object):
             else:
                 if self._chunk_size > _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES:
                     self._chunk_size = _MAX_BLOCK_BLOB_CHUNKSIZE_BYTES
-                    logger.debug(
-                        ('adjusting chunk size to {} for block blob '
-                         'from {}').format(
-                            self._chunk_size, self.local_path.absolute_path))
+                    if self._verbose:
+                        logger.debug(
+                            ('adjusting chunk size to {} for block blob '
+                             'from {}').format(
+                                self._chunk_size,
+                                 self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.File:
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
-                logger.debug(
-                    'adjusting chunk size to {} for file from {}'.format(
-                        self._chunk_size, self.local_path.absolute_path))
+                if self._verbose:
+                    logger.debug(
+                        'adjusting chunk size to {} for file from {}'.format(
+                            self._chunk_size, self.local_path.absolute_path))
         elif self._ase.mode == blobxfer.models.azure.StorageModes.Page:
             if self._ase.size > _MAX_PAGE_BLOB_SIZE:
                 raise RuntimeError(
@@ -689,9 +698,11 @@ class Descriptor(object):
                         _MAX_PAGE_BLOB_SIZE))
             if self._chunk_size > _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES:
                 self._chunk_size = _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
-                logger.debug(
-                    'adjusting chunk size to {} for page blob from {}'.format(
-                        self._chunk_size, self.local_path.absolute_path))
+                if self._verbose:
+                    logger.debug(
+                        ('adjusting chunk size to {} for page blob '
+                         'from {}').format(
+                             self._chunk_size, self.local_path.absolute_path))
 
     def _compute_total_chunks(self, chunk_size):
         # type: (Descriptor, int) -> int
