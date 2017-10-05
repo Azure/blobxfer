@@ -214,19 +214,17 @@ def create_container(ase, containers_created, timeout=None):
     if not ase.create_containers:
         return
     key = ase.client.account_name + ':blob=' + ase.container
-    if key not in containers_created:
-        try:
-            ase.client.create_container(
-                container_name=ase.container,
-                fail_on_exist=True,
-                timeout=timeout)
-        except azure.common.AzureConflictHttpError:
-            pass
-        else:
-            containers_created.add(key)
-            logger.info(
-                'created blob container {} on storage account {}'.format(
-                    ase.container, ase.client.account_name))
+    if key in containers_created:
+        return
+    if ase.client.create_container(
+            container_name=ase.container,
+            fail_on_exist=False,
+            timeout=timeout):
+        logger.info(
+            'created blob container {} on storage account {}'.format(
+                ase.container, ase.client.account_name))
+    # always add to set (as it could be pre-existing)
+    containers_created.add(key)
 
 
 def set_blob_md5(ase, md5, timeout=None):

@@ -7,7 +7,6 @@ try:
 except ImportError:  # noqa
     import mock
 # non-stdlib imports
-import azure.storage
 import azure.storage.blob
 import azure.storage.file
 # local imports

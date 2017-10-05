@@ -35,7 +35,8 @@ import os
 import platform
 import sys
 # non-stdlib imports
-import azure.storage
+import azure.storage.blob
+import azure.storage.file
 import cryptography
 import requests
 # local imports
@@ -116,10 +117,12 @@ def output_parameters(general_options, spec):
         blobxfer.version.__version__))
     log.append('                 platform: {}'.format(platform.platform()))
     log.append(
-        '               components: {}={} az.stor={} crypt={} req={}'.format(
+        ('               components: {}={} azstor.blob={} azstor.file={} '
+         'crypt={} req={}').format(
             platform.python_implementation(),
             platform.python_version(),
-            azure.storage._constants.__version__,
+            azure.storage.blob._constants.__version__,
+            azure.storage.file._constants.__version__,
             cryptography.__version__,
             requests.__version__,))
     # specific preamble

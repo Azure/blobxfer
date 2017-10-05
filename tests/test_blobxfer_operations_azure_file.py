@@ -12,9 +12,10 @@ except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
 import azure.common
-import azure.storage
+import azure.storage.common
 # local imports
 import blobxfer.util as util
+import blobxfer.version
 # module under test
 import blobxfer.operations.azure as azops
 import blobxfer.operations.azure.file as ops
@@ -27,7 +28,9 @@ def test_create_client():
     assert isinstance(client, azure.storage.file.FileService)
     assert isinstance(
         client.authentication,
-        azure.storage._auth._StorageSharedKeyAuthentication)
+        azure.storage.common._auth._StorageSharedKeyAuthentication)
+    assert client._USER_AGENT_STRING.startswith(
+        'blobxfer/{}'.format(blobxfer.version.__version__))
 
     sa = azops.StorageAccount(
         'name', '?key&sig=key', 'endpoint', 10, mock.MagicMock())
@@ -36,7 +39,9 @@ def test_create_client():
     assert isinstance(client, azure.storage.file.FileService)
     assert isinstance(
         client.authentication,
-        azure.storage._auth._StorageSASAuthentication)
+        azure.storage.common._auth._StorageSASAuthentication)
+    assert client._USER_AGENT_STRING.startswith(
+        'blobxfer/{}'.format(blobxfer.version.__version__))
 
 
 def test_parse_file_path():
@@ -179,14 +184,20 @@ def test_create_share():
     ase.container = 'cont'
 
     cc = set()
+    ase.client.create_shuare.return_value = True
     ops.create_share(ase, cc)
     assert len(cc) == 1
 
-    ase.client.create_share.side_effect = \
-        azure.common.AzureConflictHttpError('msg', 'code')
-    ase.container = 'cont2'
+    ase.client.create_shuare.return_value = False
     ops.create_share(ase, cc)
     assert len(cc) == 1
+
+    ase.container = 'cont2'
+    ops.create_share(ase, cc)
+    assert len(cc) == 2
+
+    ops.create_share(ase, cc)
+    assert len(cc) == 2
 
 
 def test_create_all_parent_directories():

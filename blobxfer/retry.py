@@ -31,11 +31,11 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 # non-stdlib imports
-import azure.storage.retry
+import azure.storage.common.retry
 # local imports
 
 
-class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
+class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
     """Exponential Retry with Max Wait Reset"""
     def __init__(
             self, initial_backoff=0.1, max_backoff=1, max_retries=None,
@@ -68,10 +68,10 @@ class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
 
     def retry(self, context):
         # type: (ExponentialRetryWithMaxWait,
-        #        azure.storage.models.RetryContext) -> int
+        #        azure.storage.common.models.RetryContext) -> int
         """Retry handler
         :param ExponentialRetryWithMaxWait self: this
-        :param azure.storage.models.RetryContext context: retry context
+        :param azure.storage.common.models.RetryContext context: retry context
         :rtype: int or None
         :return: int
         """
@@ -79,10 +79,10 @@ class ExponentialRetryWithMaxWait(azure.storage.retry._Retry):
 
     def _backoff(self, context):
         # type: (ExponentialRetryWithMaxWait,
-        #        azure.storage.models.RetryContext) -> int
+        #        azure.storage.common.models.RetryContext) -> int
         """Backoff calculator
         :param ExponentialRetryWithMaxWait self: this
-        :param azure.storage.models.RetryContext context: retry context
+        :param azure.storage.common.models.RetryContext context: retry context
         :rtype: int
         :return: backoff amount
         """

@@ -112,6 +112,10 @@ class CliContext(object):
         if self.config['options'].get('verbose', False):
             blobxfer.util.set_verbose_logger_handlers()
             logger.debug('config: \n' + json.dumps(self.config, indent=4))
+        # disable azure storage logging: setting logger level to CRITICAL
+        # effectively disables logging from azure storage
+        azstorage_logger = logging.getLogger('azure.storage')
+        azstorage_logger.setLevel(logging.CRITICAL)
 
 
 # create a pass decorator for shared context between commands

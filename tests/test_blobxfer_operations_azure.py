@@ -11,7 +11,6 @@ try:
 except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
-import azure.storage
 import azure.storage.blob
 import azure.storage.file
 import pytest

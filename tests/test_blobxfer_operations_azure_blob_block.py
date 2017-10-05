@@ -7,8 +7,9 @@ try:
 except ImportError:  # noqa
     import mock
 # non-stdlib imports
-import azure.storage
+import azure.storage.common
 # local imports
+import blobxfer.version
 # module under test
 import blobxfer.operations.azure as azops
 import blobxfer.operations.azure.blob.block as ops
@@ -21,7 +22,9 @@ def test_create_client():
     assert isinstance(client, azure.storage.blob.BlockBlobService)
     assert isinstance(
         client.authentication,
-        azure.storage._auth._StorageSharedKeyAuthentication)
+        azure.storage.common._auth._StorageSharedKeyAuthentication)
+    assert client._USER_AGENT_STRING.startswith(
+        'blobxfer/{}'.format(blobxfer.version.__version__))
 
     sa = azops.StorageAccount(
         'name', '?key&sig=key', 'endpoint', 10, mock.MagicMock())
@@ -30,7 +33,9 @@ def test_create_client():
     assert isinstance(client, azure.storage.blob.BlockBlobService)
     assert isinstance(
         client.authentication,
-        azure.storage._auth._StorageSASAuthentication)
+        azure.storage.common._auth._StorageSASAuthentication)
+    assert client._USER_AGENT_STRING.startswith(
+        'blobxfer/{}'.format(blobxfer.version.__version__))
 
 
 def test_format_block_id():

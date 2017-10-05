@@ -172,11 +172,17 @@ def test_create_container():
     ase.container = 'cont'
 
     cc = set()
+    ase.client.create_container.return_value = True
     ops.create_container(ase, cc)
     assert len(cc) == 1
 
-    ase.client.create_container.side_effect = \
-        azure.common.AzureConflictHttpError('msg', 'code')
-    ase.container = 'cont2'
+    ase.client.create_container.return_value = False
     ops.create_container(ase, cc)
     assert len(cc) == 1
+
+    ase.container = 'cont2'
+    ops.create_container(ase, cc)
+    assert len(cc) == 2
+
+    ops.create_container(ase, cc)
+    assert len(cc) == 2
