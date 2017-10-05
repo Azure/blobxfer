@@ -88,12 +88,14 @@ recursively uploaded or downloaded.
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
 * `--resume-file` specifies the resume database to write to or read from.
 Resume files should be specific for a session.
+* `--show-config` will show the configuration for the execution. Use caution
+with this option as it will output secrets.
 * `--timeout` is the timeout value, in seconds, applied to both connect
 and read operations. To apply separate values for these operations
 individually, use YAML configuration instead.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
-* `-v` will output verbose messages including the configuration used
+* `-v` increases logging verbosity
 
 ### Authentication
 `blobxfer` supports both Storage Account access keys and Shared Access

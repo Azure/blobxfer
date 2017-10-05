@@ -5,6 +5,8 @@
 ### Added
 - Expanded `blobxfer.api` to eliminate other imports
 - Data movement library usage guide
+- `--show-config` option added which decouples configuration output from
+the `-v` verbose option
 
 ### Changed
 - `version` property for YAML configuration is now required

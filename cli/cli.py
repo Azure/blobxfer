@@ -64,6 +64,7 @@ class CliContext(object):
         self.cli_options = {}
         self.credentials = None
         self.general_options = None
+        self.show_config = False
 
     def initialize(self, action):
         # type: (CliContext, settings.TransferAction) -> None
@@ -108,14 +109,17 @@ class CliContext(object):
         # set log file if specified
         blobxfer.util.setup_logger(
             logger, self.config['options'].get('log_file', None))
-        # output config
+        # set verbose logging
         if self.config['options'].get('verbose', False):
             blobxfer.util.set_verbose_logger_handlers()
-            logger.debug('config: \n' + json.dumps(self.config, indent=4))
         # disable azure storage logging: setting logger level to CRITICAL
         # effectively disables logging from azure storage
         azstorage_logger = logging.getLogger('azure.storage')
         azstorage_logger.setLevel(logging.CRITICAL)
+        # output config
+        if self.show_config:
+            logger.debug('config: \n' + json.dumps(self.config, indent=4))
+        del self.show_config
 
 
 # create a pass decorator for shared context between commands
@@ -219,6 +223,19 @@ def _resume_file_option(f):
         callback=callback)(f)
 
 
+def _show_config_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.show_config = value
+        return value
+    return click.option(
+        '--show-config',
+        expose_value=False,
+        is_flag=True,
+        help='Show configuration',
+        callback=callback)(f)
+
+
 def _timeout_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -306,6 +323,7 @@ def common_options(f):
     f = _verbose_option(f)
     f = _transfer_threads_option(f)
     f = _timeout_option(f)
+    f = _show_config_option(f)
     f = _resume_file_option(f)
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
