@@ -25,14 +25,18 @@ def test_storage_credentials():
     creds = azops.StorageCredentials(mock.MagicMock())
 
     with pytest.raises(ValueError):
-        creds.add_storage_account('sa1', '', 'endpoint')
+        creds.add_storage_account('sa1', '', 'core.windows.net')
 
-    creds.add_storage_account('sa1', 'somekey1', 'endpoint')
+    with pytest.raises(ValueError):
+        creds.add_storage_account(
+            'sa1', 'somekey1', 'https://blob.core.windows.net')
+
+    creds.add_storage_account('sa1', 'somekey1', 'core.windows.net')
 
     a = creds.get_storage_account('sa1')
     assert a.name == 'sa1'
     assert a.key == 'somekey1'
-    assert a.endpoint == 'endpoint'
+    assert a.endpoint == 'core.windows.net'
     assert isinstance(
         a.append_blob_client, azure.storage.blob.AppendBlobService)
     assert isinstance(
@@ -46,60 +50,63 @@ def test_storage_credentials():
         a = creds.get_storage_account('sa2')
 
     with pytest.raises(ValueError):
-        creds.add_storage_account('sa1', 'somekeyxx', 'endpoint')
+        creds.add_storage_account('sa1', 'somekeyxx', 'core.windows.net')
 
-    creds.add_storage_account('sa2', 'somekey2', 'endpoint2')
+    creds.add_storage_account('sa2', 'somekey2', 'core.cloudapi.de')
     a = creds.get_storage_account('sa1')
     b = creds.get_storage_account('sa2')
     assert a.name == 'sa1'
     assert a.key == 'somekey1'
-    assert a.endpoint == 'endpoint'
+    assert a.endpoint == 'core.windows.net'
     assert b.name == 'sa2'
     assert b.key == 'somekey2'
-    assert b.endpoint == 'endpoint2'
+    assert b.endpoint == 'core.cloudapi.de'
 
 
 def test_key_is_sas():
     a = azops.StorageAccount(
-        'name', 'abcdef', 'endpoint', 10, mock.MagicMock())
+        'name', 'abcdef', 'core.windows.net', 10, mock.MagicMock())
     assert not a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'abcdef&blah', 'endpoint', 10, mock.MagicMock())
+        'name', 'abcdef&blah', 'core.windows.net', 10, mock.MagicMock())
     assert not a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?abcdef', 'endpoint', 10, mock.MagicMock())
+        'name', '?abcdef', 'core.windows.net', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
+        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
+        'name', 'sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock())
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sig=0&sv=0&sr=1&se=2', 'endpoint', 10, mock.MagicMock())
+        'name', 'sig=0&sv=0&sr=1&se=2', 'core.windows.net', 10,
+        mock.MagicMock())
     assert a.is_sas
 
 
 def test_container_creation_allowed():
     a = azops.StorageAccount(
-        'name', 'abcdef', 'endpoint', 10, mock.MagicMock())
+        'name', 'abcdef', 'core.windows.net', 10, mock.MagicMock())
     assert a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'endpoint', 10, mock.MagicMock())
+        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock())
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=a&sig=2', 'endpoint', 10, mock.MagicMock())
+        'name', '?sv=0&sr=1&srt=a&sig=2', 'core.windows.net', 10,
+        mock.MagicMock())
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=c&sig=2', 'endpoint', 10, mock.MagicMock())
+        'name', '?sv=0&sr=1&srt=c&sig=2', 'core.windows.net', 10,
+        mock.MagicMock())
     assert a._container_creation_allowed()
 
 

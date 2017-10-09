@@ -130,7 +130,13 @@ to/from Azure Storage.
 
 ### Connection
 * `--endpoint` is the Azure Storage endpoint to connect to; the default is
-Azure Public regions, or `core.windows.net`.
+Azure Public regions, or `core.windows.net`. Note that this is the base
+endpoint name and not a full URL (as blobxfer deals with both Azure Blob
+Storage and Files). You can use one of the following if you are not
+connecting to an Azure Public region:
+    * Azure China Cloud: `core.chinacloudapi.cn`
+    * Azure Germany Cloud:  `core.cloudapi.de`
+    * Azure US Government Cloud: `core.usgovcloudapi.net`
 * `--storage-account` specifies the storage account to use. This can be
 optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
 instead.

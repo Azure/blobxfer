@@ -16,7 +16,8 @@ import blobxfer.operations.azure.blob.page as ops
 
 
 def test_create_client():
-    sa = azops.StorageAccount('name', 'key', 'endpoint', 10, mock.MagicMock())
+    sa = azops.StorageAccount(
+        'name', 'key', 'core.windows.net', 10, mock.MagicMock())
     client = ops.create_client(sa, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.blob.PageBlobService)
@@ -27,7 +28,7 @@ def test_create_client():
         'blobxfer/{}'.format(blobxfer.version.__version__))
 
     sa = azops.StorageAccount(
-        'name', '?key&sig=key', 'endpoint', 10, mock.MagicMock())
+        'name', '?key&sig=key', 'core.windows.net', 10, mock.MagicMock())
     client = ops.create_client(sa, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.blob.PageBlobService)
