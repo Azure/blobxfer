@@ -97,6 +97,7 @@ class StorageAccount(object):
             raise ValueError(
                 ('no authentication credential given for storage '
                  'account: {}').format(name))
+        self._endpoint = None
         self._append_blob_client = None
         self._block_blob_client = None
         self._file_client = None
@@ -119,6 +120,28 @@ class StorageAccount(object):
             )
         )
         self._create_clients(timeout)
+
+    @property
+    def endpoint(self):
+        # type: (StorageAccount) -> str
+        """Get endpoint
+        :param StorageAccount self: this
+        :rtype: str
+        :return: endpoint
+        """
+        return self._endpoint
+
+    @endpoint.setter
+    def endpoint(self, value):
+        # type: (StorageAccount, str) -> None
+        """Set endpoint
+        :param StorageAccount self: this
+        :param str value: endpoint
+        """
+        tmp = value.split('.')
+        if (len(tmp) <= 1 or not tmp[0].isalnum()):
+            raise ValueError('endpoint is invalid: {}'.format(value))
+        self._endpoint = value
 
     @staticmethod
     def _key_is_sas(key):
