@@ -41,6 +41,7 @@ import blobxfer.operations.azure.blob.append
 import blobxfer.operations.azure.blob.block
 import blobxfer.operations.azure.blob.page
 import blobxfer.operations.azure.file
+import blobxfer.util
 
 
 class StorageCredentials(object):

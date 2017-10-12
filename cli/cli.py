@@ -104,8 +104,8 @@ class CliContext(object):
             self._read_yaml_file(yaml_config)
         if self.config is None:
             self.config = {}
-        # merge cli options with config
-        settings.merge_settings(self.config, self.cli_options)
+        # merge "global" cli options with config
+        settings.merge_global_settings(self.config, self.cli_options)
         # set log file if specified
         blobxfer.util.setup_logger(
             logger, self.config['options'].get('log_file', None))
@@ -116,9 +116,14 @@ class CliContext(object):
         # effectively disables logging from azure storage
         azstorage_logger = logging.getLogger('azure.storage')
         azstorage_logger.setLevel(logging.CRITICAL)
-        # output config
+        # output mixed config
         if self.show_config:
-            logger.debug('config: \n' + json.dumps(self.config, indent=4))
+            logger.debug('config: \n{}'.format(
+                json.dumps(self.config, indent=4)))
+            logger.debug('cli config: \n{}'.format(
+                json.dumps(
+                    self.cli_options[self.cli_options['_action']],
+                    indent=4, sort_keys=True)))
         del self.show_config
 
 
