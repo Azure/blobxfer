@@ -76,46 +76,7 @@ def add_cli_options(cli_options, action):
     }
     local_resource = cli_options.get('local_resource')
     # construct "argument" from cli options
-    if action == TransferAction.Upload:
-        arg = {
-            'source': [local_resource] if local_resource is not None else None,
-            'destination': [sa_rp] if sa_rp[storage_account] is not None else
-            None,
-            'include': cli_options.get('include'),
-            'exclude': cli_options.get('exclude'),
-            'options': {
-                'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
-                'delete_extraneous_destination': cli_options.get('delete'),
-                'mode': cli_options.get('mode'),
-                'one_shot_bytes': cli_options.get('one_shot_bytes'),
-                'overwrite': cli_options.get('overwrite'),
-                'recursive': cli_options.get('recursive'),
-                'rename': cli_options.get('rename'),
-                'rsa_private_key': cli_options.get('rsa_private_key'),
-                'rsa_private_key_passphrase': cli_options.get(
-                    'rsa_private_key_passphrase'),
-                'rsa_public_key': cli_options.get('rsa_public_key'),
-                'skip_on': {
-                    'filesize_match': cli_options.get(
-                        'skip_on_filesize_match'),
-                    'lmt_ge': cli_options.get('skip_on_lmt_ge'),
-                    'md5_match': cli_options.get('skip_on_md5_match'),
-                },
-                'stdin_as_page_blob_size': cli_options.get(
-                    'stdin_as_page_blob_size'),
-                'store_file_properties': {
-                    'attributes': cli_options.get('file_attributes'),
-                    'md5': cli_options.get('file_md5'),
-                },
-                'strip_components': cli_options.get('strip_components'),
-                'vectored_io': {
-                    'stripe_chunk_size_bytes': cli_options.get(
-                        'stripe_chunk_size_bytes'),
-                    'distribution_mode': cli_options.get('distribution_mode'),
-                },
-            },
-        }
-    elif action == TransferAction.Download:
+    if action == TransferAction.Download:
         arg = {
             'source': [sa_rp] if sa_rp[storage_account] is not None else None,
             'destination': local_resource if local_resource is not None else
@@ -181,6 +142,45 @@ def add_cli_options(cli_options, action):
                 },
             },
         }
+    elif action == TransferAction.Upload:
+        arg = {
+            'source': [local_resource] if local_resource is not None else None,
+            'destination': [sa_rp] if sa_rp[storage_account] is not None else
+            None,
+            'include': cli_options.get('include'),
+            'exclude': cli_options.get('exclude'),
+            'options': {
+                'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
+                'delete_extraneous_destination': cli_options.get('delete'),
+                'mode': cli_options.get('mode'),
+                'one_shot_bytes': cli_options.get('one_shot_bytes'),
+                'overwrite': cli_options.get('overwrite'),
+                'recursive': cli_options.get('recursive'),
+                'rename': cli_options.get('rename'),
+                'rsa_private_key': cli_options.get('rsa_private_key'),
+                'rsa_private_key_passphrase': cli_options.get(
+                    'rsa_private_key_passphrase'),
+                'rsa_public_key': cli_options.get('rsa_public_key'),
+                'skip_on': {
+                    'filesize_match': cli_options.get(
+                        'skip_on_filesize_match'),
+                    'lmt_ge': cli_options.get('skip_on_lmt_ge'),
+                    'md5_match': cli_options.get('skip_on_md5_match'),
+                },
+                'stdin_as_page_blob_size': cli_options.get(
+                    'stdin_as_page_blob_size'),
+                'store_file_properties': {
+                    'attributes': cli_options.get('file_attributes'),
+                    'md5': cli_options.get('file_md5'),
+                },
+                'strip_components': cli_options.get('strip_components'),
+                'vectored_io': {
+                    'stripe_chunk_size_bytes': cli_options.get(
+                        'stripe_chunk_size_bytes'),
+                    'distribution_mode': cli_options.get('distribution_mode'),
+                },
+            },
+        }
     count = 0
     if arg['source'] is None:
         arg.pop('source')
@@ -203,7 +203,7 @@ def _merge_setting(cli_options, conf, name, name_cli=None, default=None):
     :param dict cli_options: cli options
     :param dict conf: configuration sub-block
     :param str name: key name
-    :param str name_cli: override key name from cli_options
+    :param str name_cli: override key name for cli_options
     :param Any default: default value to set if missing
     :rtype: Any
     :return: merged setting value
@@ -214,9 +214,9 @@ def _merge_setting(cli_options, conf, name, name_cli=None, default=None):
     return val
 
 
-def merge_settings(config, cli_options):
+def merge_global_settings(config, cli_options):
     # type: (dict, dict) -> None
-    """Merge CLI options into main config
+    """Merge "global" CLI options into main config
     :param dict config: config dict
     :param dict cli_options: cli options
     """
@@ -305,7 +305,7 @@ def create_azure_storage_credentials(config, general_options):
     :return: credentials object
     """
     creds = blobxfer.operations.azure.StorageCredentials(general_options)
-    endpoint = config['azure_storage'].get('endpoint', 'core.windows.net')
+    endpoint = config['azure_storage'].get('endpoint') or 'core.windows.net'
     for name in config['azure_storage']['accounts']:
         key = config['azure_storage']['accounts'][name]
         creds.add_storage_account(name, key, endpoint)
@@ -340,21 +340,25 @@ def create_general_options(config, action):
     )
 
 
-def create_download_specifications(cli_options, config):
+def create_download_specifications(ctx_cli_options, config):
     # type: (dict, dict) -> List[blobxfer.models.download.Specification]
     """Create a list of Download Specification objects from configuration
-    :param dict cli_options: cli options
+    :param dict ctx_cli_options: cli options
     :param dict config: config dict
     :rtype: list
     :return: list of Download Specification objects
     """
+    cli_conf = ctx_cli_options[ctx_cli_options['_action']]
+    cli_options = cli_conf['options']
     specs = []
     for conf in config['download']:
-        if 'options' not in conf:
-            conf['options'] = {}
+        if 'options' in conf:
+            conf_options = conf['options']
+        else:
+            conf_options = {}
         # create download options
         mode = _merge_setting(
-            cli_options, conf['options'], 'mode', default='auto').lower()
+            cli_options, conf_options, 'mode', default='auto').lower()
         if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
         elif mode == 'append':
@@ -369,50 +373,48 @@ def create_download_specifications(cli_options, config):
             raise ValueError('unknown mode: {}'.format(mode))
         # load RSA private key PEM file if specified
         rpk = _merge_setting(
-            cli_options, conf['options'], 'rsa_private_key', default=None)
+            cli_options, conf_options, 'rsa_private_key', default=None)
         if blobxfer.util.is_not_empty(rpk):
             rpkp = _merge_setting(
-                cli_options, conf['options'], 'rsa_private_key_passphrase',
+                cli_options, conf_options, 'rsa_private_key_passphrase',
                 default=None)
             rpk = blobxfer.operations.crypto.load_rsa_private_key_file(
                 rpk, rpkp)
         else:
             rpk = None
         # create specification
-        sod = conf['options'].get('skip_on', {})
+        conf_sod = conf_options.get('skip_on', {})
+        cli_sod = cli_options['skip_on']
         ds = blobxfer.models.download.Specification(
             download_options=blobxfer.models.options.Download(
                 check_file_md5=_merge_setting(
-                    cli_options, conf['options'], 'check_file_md5',
-                    name_cli='file_md5', default=False),
+                    cli_options, conf_options, 'check_file_md5',
+                    default=False),
                 chunk_size_bytes=_merge_setting(
-                    cli_options, conf['options'], 'chunk_size_bytes',
+                    cli_options, conf_options, 'chunk_size_bytes',
                     default=0),
                 delete_extraneous_destination=_merge_setting(
-                    cli_options, conf['options'],
+                    cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
                 mode=mode,
                 overwrite=_merge_setting(
-                    cli_options, conf['options'], 'overwrite', default=True),
+                    cli_options, conf_options, 'overwrite', default=True),
                 recursive=_merge_setting(
-                    cli_options, conf['options'], 'recursive', default=True),
+                    cli_options, conf_options, 'recursive', default=True),
                 rename=_merge_setting(
-                    cli_options, conf['options'], 'rename', default=False),
+                    cli_options, conf_options, 'rename', default=False),
                 restore_file_attributes=_merge_setting(
-                    cli_options, conf['options'], 'restore_file_attributes',
+                    cli_options, conf_options, 'restore_file_attributes',
                     default=False),
                 rsa_private_key=rpk,
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(
-                    cli_options, sod, 'filesize_match',
-                    name_cli='skip_on_filesize_match', default=False),
+                    cli_sod, conf_sod, 'filesize_match', default=False),
                 lmt_ge=_merge_setting(
-                    cli_options, sod, 'lmt_ge', name_cli='skip_on_lmt_ge',
-                    default=False),
+                    cli_sod, conf_sod, 'lmt_ge', default=False),
                 md5_match=_merge_setting(
-                    cli_options, sod, 'md5_match',
-                    name_cli='skip_on_md5_match', default=False),
+                    cli_sod, conf_sod, 'md5_match', default=False),
             ),
             local_destination_path=blobxfer.models.download.
             LocalDestinationPath(
@@ -427,10 +429,10 @@ def create_download_specifications(cli_options, config):
             sa = next(iter(src))
             asp = blobxfer.operations.azure.SourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
-            incl = _merge_setting(cli_options, conf, 'include', default=None)
+            incl = _merge_setting(cli_conf, conf, 'include', default=None)
             if blobxfer.util.is_not_empty(incl):
                 asp.add_includes(incl)
-            excl = _merge_setting(cli_options, conf, 'exclude', default=None)
+            excl = _merge_setting(cli_conf, conf, 'exclude', default=None)
             if blobxfer.util.is_not_empty(excl):
                 asp.add_excludes(excl)
             ds.add_azure_source_path(asp)
@@ -439,21 +441,25 @@ def create_download_specifications(cli_options, config):
     return specs
 
 
-def create_synccopy_specifications(cli_options, config):
+def create_synccopy_specifications(ctx_cli_options, config):
     # type: (dict, dict) -> List[blobxfer.models.synccopy.Specification]
     """Create a list of SyncCopy Specification objects from configuration
-    :param dict cli_options: cli options
+    :param dict ctx_cli_options: cli options
     :param dict config: config dict
     :rtype: list
     :return: list of SyncCopy Specification objects
     """
+    cli_conf = ctx_cli_options[ctx_cli_options['_action']]
+    cli_options = cli_conf['options']
     specs = []
     for conf in config['synccopy']:
-        if 'options' not in conf:
-            conf['options'] = {}
+        if 'options' in conf:
+            conf_options = conf['options']
+        else:
+            conf_options = {}
         # get source mode
         mode = _merge_setting(
-            cli_options, conf['options'], 'mode', default='auto').lower()
+            cli_options, conf_options, 'mode', default='auto').lower()
         if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
         elif mode == 'append':
@@ -468,7 +474,7 @@ def create_synccopy_specifications(cli_options, config):
             raise ValueError('unknown source mode: {}'.format(mode))
         # get destination mode
         destmode = _merge_setting(
-            cli_options, conf['options'], 'dest_mode',
+            cli_options, conf_options, 'dest_mode',
             name_cli='sync_copy_dest_mode')
         if blobxfer.util.is_none_or_empty(destmode):
             destmode = mode
@@ -487,31 +493,29 @@ def create_synccopy_specifications(cli_options, config):
             else:
                 raise ValueError('unknown dest mode: {}'.format(destmode))
         # create specification
-        sod = conf['options'].get('skip_on', {})
+        conf_sod = conf_options.get('skip_on', {})
+        cli_sod = cli_options['skip_on']
         scs = blobxfer.models.synccopy.Specification(
             synccopy_options=blobxfer.models.options.SyncCopy(
                 delete_extraneous_destination=_merge_setting(
-                    cli_options, conf['options'],
+                    cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
                 dest_mode=destmode,
                 mode=mode,
                 overwrite=_merge_setting(
-                    cli_options, conf['options'], 'overwrite', default=True),
+                    cli_options, conf_options, 'overwrite', default=True),
                 recursive=_merge_setting(
-                    cli_options, conf['options'], 'recursive', default=True),
+                    cli_options, conf_options, 'recursive', default=True),
                 rename=_merge_setting(
-                    cli_options, conf['options'], 'rename', default=False),
+                    cli_options, conf_options, 'rename', default=False),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(
-                    cli_options, sod, 'filesize_match',
-                    name_cli='skip_on_filesize_match', default=False),
+                    cli_sod, conf_sod, 'filesize_match', default=False),
                 lmt_ge=_merge_setting(
-                    cli_options, sod, 'lmt_ge', name_cli='skip_on_lmt_ge',
-                    default=False),
+                    cli_sod, conf_sod, 'lmt_ge', default=False),
                 md5_match=_merge_setting(
-                    cli_options, sod, 'md5_match',
-                    name_cli='skip_on_md5_match', default=False),
+                    cli_sod, conf_sod, 'md5_match', default=False),
             ),
         )
         # create remote source paths
@@ -519,10 +523,10 @@ def create_synccopy_specifications(cli_options, config):
             sa = next(iter(src))
             asp = blobxfer.operations.azure.SourcePath()
             asp.add_path_with_storage_account(src[sa], sa)
-            incl = _merge_setting(cli_options, conf, 'include', default=None)
+            incl = _merge_setting(cli_conf, conf, 'include', default=None)
             if blobxfer.util.is_not_empty(incl):
                 asp.add_includes(incl)
-            excl = _merge_setting(cli_options, conf, 'exclude', default=None)
+            excl = _merge_setting(cli_conf, conf, 'exclude', default=None)
             if blobxfer.util.is_not_empty(excl):
                 asp.add_excludes(excl)
             scs.add_azure_source_path(asp)
@@ -540,21 +544,25 @@ def create_synccopy_specifications(cli_options, config):
     return specs
 
 
-def create_upload_specifications(cli_options, config):
+def create_upload_specifications(ctx_cli_options, config):
     # type: (dict, dict) -> List[blobxfer.models.upload.Specification]
     """Create a list of Upload Specification objects from configuration
-    :param dict cli_options: cli options
+    :param dict ctx_cli_options: cli options
     :param dict config: config dict
     :rtype: list
     :return: list of Upload Specification objects
     """
+    cli_conf = ctx_cli_options[ctx_cli_options['_action']]
+    cli_options = cli_conf['options']
     specs = []
     for conf in config['upload']:
-        if 'options' not in conf:
-            conf['options'] = {}
+        if 'options' in conf:
+            conf_options = conf['options']
+        else:
+            conf_options = {}
         # create upload options
         mode = _merge_setting(
-            cli_options, conf['options'], 'mode', default='auto').lower()
+            cli_options, conf_options, 'mode', default='auto').lower()
         if mode == 'auto':
             mode = blobxfer.models.azure.StorageModes.Auto
         elif mode == 'append':
@@ -568,16 +576,16 @@ def create_upload_specifications(cli_options, config):
         else:
             raise ValueError('unknown mode: {}'.format(mode))
         # load RSA public key PEM if specified
-        rpk = _merge_setting(cli_options, conf['options'], 'rsa_public_key')
+        rpk = _merge_setting(cli_options, conf_options, 'rsa_public_key')
         if blobxfer.util.is_not_empty(rpk):
             rpk = blobxfer.operations.crypto.load_rsa_public_key_file(rpk)
         if rpk is None:
             # load RSA private key PEM file if specified
             rpk = _merge_setting(
-                cli_options, conf['options'], 'rsa_private_key')
+                cli_options, conf_options, 'rsa_private_key')
             if blobxfer.util.is_not_empty(rpk):
                 rpkp = _merge_setting(
-                    cli_options, conf['options'], 'rsa_private_key_passphrase')
+                    cli_options, conf_options, 'rsa_private_key_passphrase')
                 rpk = blobxfer.operations.crypto.load_rsa_private_key_file(
                     rpk, rpkp)
                 rpk = rpk.public_key()
@@ -586,69 +594,67 @@ def create_upload_specifications(cli_options, config):
         # create local source paths
         lsp = blobxfer.models.upload.LocalSourcePath()
         lsp.add_paths(conf['source'])
-        incl = _merge_setting(cli_options, conf, 'include', default=None)
+        incl = _merge_setting(cli_conf, conf, 'include', default=None)
         if blobxfer.util.is_not_empty(incl):
             lsp.add_includes(incl)
-        excl = _merge_setting(cli_options, conf, 'exclude', default=None)
+        excl = _merge_setting(cli_conf, conf, 'exclude', default=None)
         if blobxfer.util.is_not_empty(excl):
             lsp.add_excludes(excl)
         # create specification
-        sfp = conf['options'].get('store_file_properties', {})
-        vio = conf['options'].get('vectored_io', {})
-        sod = conf['options'].get('skip_on', {})
+        conf_sfp = conf_options.get('store_file_properties', {})
+        cli_sfp = cli_options['store_file_properties']
+        conf_vio = conf_options.get('vectored_io', {})
+        cli_vio = cli_options['vectored_io']
+        conf_sod = conf_options.get('skip_on', {})
+        cli_sod = cli_options['skip_on']
         us = blobxfer.models.upload.Specification(
             upload_options=blobxfer.models.options.Upload(
                 chunk_size_bytes=_merge_setting(
-                    cli_options, conf['options'], 'chunk_size_bytes',
+                    cli_options, conf_options, 'chunk_size_bytes',
                     default=0),
                 delete_extraneous_destination=_merge_setting(
-                    cli_options, conf['options'],
+                    cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
                 mode=mode,
                 one_shot_bytes=_merge_setting(
-                    cli_options, conf['options'], 'one_shot_bytes', default=0),
+                    cli_options, conf_options, 'one_shot_bytes', default=0),
                 overwrite=_merge_setting(
-                    cli_options, conf['options'], 'overwrite', default=True),
+                    cli_options, conf_options, 'overwrite', default=True),
                 recursive=_merge_setting(
-                    cli_options, conf['options'], 'recursive', default=True),
+                    cli_options, conf_options, 'recursive', default=True),
                 rename=_merge_setting(
-                    cli_options, conf['options'], 'rename', default=False),
+                    cli_options, conf_options, 'rename', default=False),
                 rsa_public_key=rpk,
                 store_file_properties=blobxfer.models.options.FileProperties(
                     attributes=_merge_setting(
-                        cli_options, sfp, 'attributes',
-                        name_cli='file_attributes', default=False),
+                        cli_sfp, conf_sfp, 'attributes', default=False),
                     md5=_merge_setting(
-                        cli_options, sfp, 'md5', name_cli='file_md5',
-                        default=False),
+                        cli_sfp, conf_sfp, 'md5', default=False),
                 ),
                 stdin_as_page_blob_size=_merge_setting(
-                    cli_options, conf['options'], 'stdin_as_page_blob_size',
+                    cli_options, conf_options, 'stdin_as_page_blob_size',
                     default=0),
                 strip_components=_merge_setting(
-                    cli_options, conf['options'], 'strip_components',
+                    cli_options, conf_options, 'strip_components',
                     default=0),
                 vectored_io=blobxfer.models.options.VectoredIo(
                     stripe_chunk_size_bytes=_merge_setting(
-                        cli_options, vio, 'stripe_chunk_size_bytes',
+                        cli_vio, conf_vio, 'stripe_chunk_size_bytes',
                         default=1073741824),
                     distribution_mode=blobxfer.
                     models.upload.VectoredIoDistributionMode(
                         _merge_setting(
-                            cli_options, vio, 'distribution_mode',
+                            cli_vio, conf_vio, 'distribution_mode',
                             default='disabled').lower()),
                 ),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(
-                    cli_options, sod, 'filesize_match',
-                    name_cli='skip_on_filesize_match', default=False),
+                    cli_sod, conf_sod, 'filesize_match', default=False),
                 lmt_ge=_merge_setting(
-                    cli_options, sod, 'lmt_ge', name_cli='skip_on_lmt_ge',
-                    default=False),
+                    cli_sod, conf_sod, 'lmt_ge', default=False),
                 md5_match=_merge_setting(
-                    cli_options, sod, 'md5_match',
-                    name_cli='skip_on_md5_match', default=False),
+                    cli_sod, conf_sod, 'md5_match', default=False),
             ),
             local_source_path=lsp,
         )
