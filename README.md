@@ -1,8 +1,7 @@
 [![Build Status](https://travis-ci.org/Azure/blobxfer.svg?branch=master)](https://travis-ci.org/Azure/blobxfer)
 [![Build status](https://ci.appveyor.com/api/projects/status/qgth9p7jlessgp5i/branch/master?svg=true)](https://ci.appveyor.com/project/alfpark/blobxfer)
-[![Coverage Status](https://coveralls.io/repos/github/Azure/blobxfer/badge.svg?branch=master)](https://coveralls.io/github/Azure/blobxfer?branch=master)
+[![codecov](https://codecov.io/gh/Azure/blobxfer/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/blobxfer)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
-[![PyPI](https://img.shields.io/pypi/pyversions/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
 [![Docker Pulls](https://img.shields.io/docker/pulls/alfpark/blobxfer.svg)](https://hub.docker.com/r/alfpark/blobxfer)
 [![Image Layers](https://images.microbadger.com/badges/image/alfpark/blobxfer:latest.svg)](http://microbadger.com/images/alfpark/blobxfer)
 

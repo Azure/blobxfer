@@ -58,6 +58,10 @@ after_test:
   bin\\%BLOBXFER_ARTIFACT% upload --remote-path releases/%APPVEYOR_REPO_TAG_NAME% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
   )
 - ps: >-
+    if (!($Env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null)) {
+      Write-Host "Build is from a PR, not creating a Docker image"
+      return
+    }
     if ($Env:PYTHON_VERSION -eq "3.6") {
       $DOCKER_IMAGE_TAG_SUFFIX = $null
       if ($Env:APPVEYOR_REPO_TAG -eq "true") {
@@ -70,8 +74,8 @@ after_test:
         $DOCKER_IMAGE_TAG_SUFFIX = 'develop-windows'
       }
       if ($DOCKER_IMAGE_TAG_SUFFIX -eq $null) {
-          Write-Host "Image tag suffix is null, not creating a Docker image"
-          return
+        Write-Host "Image tag suffix is null, not creating a Docker image"
+        return
       }
       $DOCKER_IMAGE_TAG = $Env:DOCKER_IMAGE_TAG_PREFIX + $DOCKER_IMAGE_TAG_SUFFIX
       Write-Host "Creating image with tag: $DOCKER_IMAGE_TAG"
