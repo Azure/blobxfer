@@ -261,6 +261,8 @@ def merge_global_settings(config, cli_options):
     if 'timeout' not in config['options']:
         config['options']['timeout'] = {}
     options = {
+        'enable_azure_storage_logger': _merge_setting(
+            cli_options, config['options'], 'enable_azure_storage_logger'),
         'log_file': _merge_setting(cli_options, config['options'], 'log_file'),
         'progress_bar': _merge_setting(
             cli_options, config['options'], 'progress_bar', default=True),

@@ -107,15 +107,20 @@ class CliContext(object):
         # merge "global" cli options with config
         settings.merge_global_settings(self.config, self.cli_options)
         # set log file if specified
-        blobxfer.util.setup_logger(
-            logger, self.config['options'].get('log_file', None))
+        logfile = self.config['options'].get('log_file', None)
+        blobxfer.util.setup_logger(logger, logfile)
         # set verbose logging
         if self.config['options'].get('verbose', False):
             blobxfer.util.set_verbose_logger_handlers()
-        # disable azure storage logging: setting logger level to CRITICAL
-        # effectively disables logging from azure storage
+        # set azure storage logging level
         azstorage_logger = logging.getLogger('azure.storage')
-        azstorage_logger.setLevel(logging.CRITICAL)
+        if self.config['options'].get('enable_azure_storage_logger', False):
+            blobxfer.util.setup_logger(azstorage_logger, logfile)
+            azstorage_logger.setLevel(logging.INFO)
+        else:
+            # disable azure storage logging: setting logger level to CRITICAL
+            # effectively disables logging from azure storage
+            azstorage_logger.setLevel(logging.CRITICAL)
         # output mixed config
         if self.show_config:
             logger.debug('config: \n{}'.format(
@@ -170,6 +175,20 @@ def _disk_threads_option(f):
         type=int,
         default=None,
         help='Concurrent disk threads',
+        callback=callback)(f)
+
+
+def _enable_azure_storage_logger_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['enable_azure_storage_logger'] = value
+        return value
+    return click.option(
+        '--enable-azure-storage-logger',
+        expose_value=False,
+        is_flag=True,
+        default=False,
+        help='Enable Azure Storage logger output [False]',
         callback=callback)(f)
 
 
@@ -333,6 +352,7 @@ def common_options(f):
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
     f = _log_file_option(f)
+    f = _enable_azure_storage_logger_option(f)
     f = _disk_threads_option(f)
     f = _crypto_processes_option(f)
     f = _config_option(f)
