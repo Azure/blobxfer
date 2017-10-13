@@ -30,13 +30,13 @@ install:
 - export BLOBXFER_NOBUILD=$([[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]] || [[ "$TRAVIS_OS_NAME" == "osx" ]] || echo 1)
 - travis_retry pip install --upgrade pip
 - travis_retry pip install --upgrade setuptools wheel
-- travis_retry pip install --upgrade coveralls tox-travis
+- travis_retry pip install --upgrade codecov tox-travis
 
 script:
 - tox
 
 after_success:
-- coveralls --rcfile=.coveragerc --verbose
+- codecov
 - echo BLOBXFER_NOBUILD=$BLOBXFER_NOBUILD
 
 before_deploy:
