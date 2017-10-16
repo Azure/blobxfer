@@ -55,6 +55,7 @@ all other sections in the YAML configuration.
 ```yaml
 options:
     log_file: /path/to/blobxfer.log
+    enable_azure_storage_logger: false
     resume_file: /path/to/resumefile.db
     progress_bar: true
     verbose: true
@@ -69,6 +70,7 @@ options:
 ```
 
 * `log_file` is the location of the log file to write to
+* `enable_azure_storage_logger` controls the Azure Storage logger output
 * `resume_file` is the location of the resume database to create
 * `progress_bar` controls display of a progress bar output to the console
 * `verbose` controls if verbose logging is enabled
