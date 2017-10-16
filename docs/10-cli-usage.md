@@ -61,6 +61,7 @@ is the maximum length of data to transfer per request. For uploads, this
 corresponds to one of block size for append and block blobs, page size for
 page blobs, or file chunk for files. Only block blobs can have a block size
 of up to 100MiB, all others have a maximum of 4MiB.
+* `--enable-azure-storage-logger` enables the Azure Storage logger.
 * `--file-attributes` or `--no-file-attributes` controls if POSIX file
 attributes (mode and ownership) should be stored or restored. Note that to
 restore uid/gid, `blobxfer` must be run as root or under sudo.

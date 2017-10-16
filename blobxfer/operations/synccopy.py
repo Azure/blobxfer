@@ -637,6 +637,9 @@ class SyncCopy(object):
         for sa, cont, name, dpath in self._get_destination_paths():
             if self._spec.options.rename:
                 name = str(pathlib.Path(name))
+                if name == '.':
+                    raise RuntimeError(
+                        'attempting rename multiple files to a directory')
             else:
                 name = str(pathlib.Path(name) / src_ase.name)
             dst_ase = self._check_for_existing_remote(sa, cont, name)

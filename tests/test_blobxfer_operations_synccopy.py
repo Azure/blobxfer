@@ -667,6 +667,13 @@ def test_generate_destination_for_source():
     ase = next(s._generate_destination_for_source(src_ase))
     assert ase.name == 'name'
 
+    s._get_destination_paths.return_value = [
+        (sa, 'cont', '', 'dpath'),
+    ]
+    s._spec.options.rename = True
+    with pytest.raises(RuntimeError):
+        next(s._generate_destination_for_source(src_ase))
+
 
 def test_bind_sources_to_destination():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
