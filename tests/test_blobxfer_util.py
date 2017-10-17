@@ -10,6 +10,7 @@ except ImportError:  # noqa
 import sys
 import time
 # non-stdlib imports
+import dateutil.tz
 import pytest
 # module under test
 import blobxfer.util
@@ -104,6 +105,9 @@ def test_datetime_from_timestamp():
     ts = time.time()
     a = blobxfer.util.datetime_from_timestamp(ts)
     assert type(a) == datetime.datetime
+
+    b = a.astimezone(dateutil.tz.tzutc())
+    assert(b) == blobxfer.util.datetime_from_timestamp(ts, as_utc=True)
 
 
 def test_scantree(tmpdir):

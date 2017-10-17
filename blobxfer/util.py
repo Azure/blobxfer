@@ -168,17 +168,22 @@ def datetime_now():
     return datetime.datetime.now(tz=dateutil.tz.tzlocal())
 
 
-def datetime_from_timestamp(ts, tz=None):
-    # type: (float, dateutil.tz) -> datetime.datetime
+def datetime_from_timestamp(ts, tz=None, as_utc=False):
+    # type: (float, dateutil.tz, bool) -> datetime.datetime
     """Convert a timestamp into datetime with offset
     :param float ts: timestamp
     :param dateutil.tz tz: time zone or local tz if not specified
+    :param bool as_utc: convert datetime to UTC
     :rtype: datetime.datetime
     :return: converted timestamp to datetime
     """
     if tz is None:
         tz = dateutil.tz.tzlocal()
-    return datetime.datetime.fromtimestamp(ts, tz=tz)
+    dt = datetime.datetime.fromtimestamp(ts, tz=tz)
+    if as_utc:
+        return dt.astimezone(tz=dateutil.tz.tzutc())
+    else:
+        return dt
 
 
 def scantree(path):

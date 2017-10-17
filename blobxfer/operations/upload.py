@@ -799,14 +799,22 @@ class Uploader(object):
                 lsize = blobxfer.util.page_align_content_length(lsize)
             if rfile.size == lsize:
                 ul_fs = False
+                if self._general_options.verbose:
+                    logger.debug('filesize match: {} == {} size={}'.format(
+                        local_path.absolute_path, rfile.path, lsize))
             else:
                 ul_fs = True
         # check skip on lmt ge
         ul_lmt = None
         if self._spec.skip_on.lmt_ge:
-            mtime = blobxfer.util.datetime_from_timestamp(local_path.lmt)
+            mtime = blobxfer.util.datetime_from_timestamp(
+                local_path.lmt, as_utc=True)
             if rfile.lmt >= mtime:
                 ul_lmt = False
+                if self._general_options.verbose:
+                    logger.debug('lmt ge match: {} lmt={} >= {} lmt={}'.format(
+                        rfile.path, rfile.lmt, local_path.absolute_path,
+                        mtime))
             else:
                 ul_lmt = True
         # upload if either skip on mismatch is True
@@ -1086,9 +1094,11 @@ class Uploader(object):
         with self._md5_meta_lock:
             self._all_files_processed = True
         with self._upload_lock:
-            self._upload_total -= skipped_files
-            self._upload_bytes_total -= skipped_size
             upload_size_mib = approx_total_bytes / blobxfer.util.MEGABYTE
+            logger.debug(
+                ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                 'skipped').format(
+                    skipped_files, skipped_size / blobxfer.util.MEGABYTE))
             logger.debug(
                 ('{0} local/remote files processed, waiting for upload '
                  'completion of approx. {1:.4f} MiB').format(

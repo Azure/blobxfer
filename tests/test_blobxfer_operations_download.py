@@ -964,8 +964,8 @@ def test_start(
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Skip
-    d._download_sofar = -1
-    d._download_bytes_sofar = -1
+    d._download_sofar = 0
+    d._download_bytes_sofar = 0
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 0
 

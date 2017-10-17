@@ -2,16 +2,21 @@
 
 ## [Unreleased]
 
+### Fixed
+- Errant exceptions thrown for `--skip-on-filesize-match` and
+`--skip-on-lmt-ge` options (#51)
+
 ## [1.0.0rc2] - 2017-10-16
 ### Added
-- `--enable-azure-storage-logger` option to enable the Azure Storage logger
+- `--enable-azure-storage-logger` option to enable the Azure Storage
+logger (#47)
 
 ### Changed
 - Migrate to codecov.io for coverage reports
 
 ### Fixed
-- Basic `--endpoint` check
-- Fix CLI options not being correctly fed to config
+- Basic `--endpoint` check (#46)
+- Fix CLI options not being correctly fed to config (#48)
 
 ## [1.0.0rc1] - 2017-10-05
 ### Added

@@ -253,15 +253,21 @@ class Downloader(object):
                 lsize = blobxfer.util.page_align_content_length(lsize)
             if rfile.size == lsize:
                 dl_fs = False
+                if self._general_options.verbose:
+                    logger.debug('filesize match: {} == {} size={}'.format(
+                        lpath, rfile.path, lsize))
             else:
                 dl_fs = True
         # check skip on lmt ge
         dl_lmt = None
         if self._spec.skip_on.lmt_ge:
             mtime = blobxfer.util.datetime_from_timestamp(
-                lpath.stat().st_mtime)
+                lpath.stat().st_mtime, as_utc=True)
             if mtime >= rfile.lmt:
                 dl_lmt = False
+                if self._general_options.verbose:
+                    logger.debug('lmt ge match: {} lmt={} >= {} lmt={}'.format(
+                        lpath, mtime, rfile.path, rfile.lmt))
             else:
                 dl_lmt = True
         # download if either skip on mismatch is True
@@ -727,11 +733,13 @@ class Downloader(object):
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
         with self._transfer_lock:
-            self._download_total -= skipped_files
-            self._download_bytes_total -= skipped_size
             download_size_mib = (
                 self._download_bytes_total / blobxfer.util.MEGABYTE
             )
+            logger.debug(
+                ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                 'skipped').format(
+                    skipped_files, skipped_size / blobxfer.util.MEGABYTE))
             logger.debug(
                 ('{0} remote files processed, waiting for download '
                  'completion of approx. {1:.4f} MiB').format(
