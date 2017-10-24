@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- HTTP Proxy support
+
 ### Fixed
 - Errant exceptions thrown for `--skip-on-filesize-match` and
 `--skip-on-lmt-ge` options (#51)

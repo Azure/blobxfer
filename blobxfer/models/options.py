@@ -47,6 +47,14 @@ logger = logging.getLogger(__name__)
 _DEFAULT_REQUESTS_TIMEOUT = (3.1, 12.1)
 
 # named tuples
+HttpProxy = collections.namedtuple(
+    'HttpProxy', [
+        'host',
+        'port',
+        'username',
+        'password',
+    ]
+)
 VectoredIo = collections.namedtuple(
     'VectoredIoOptions', [
         'stripe_chunk_size_bytes',
@@ -204,7 +212,7 @@ class General(object):
     """General Options"""
     def __init__(
             self, concurrency, log_file=None, progress_bar=True,
-            resume_file=None, timeout=None, verbose=False):
+            resume_file=None, timeout=None, verbose=False, proxy=None):
         """Ctor for General Options
         :param General self: this
         :param Concurrency concurrency: concurrency options
@@ -213,6 +221,7 @@ class General(object):
         :param str resume_file: resume file
         :param Timeout timeout: timeout options
         :param bool verbose: verbose output
+        :param HttpProxy proxy: proxy
         """
         if concurrency is None:
             raise ValueError('concurrency option is unspecified')
@@ -225,3 +234,4 @@ class General(object):
             self.resume_file = None
         self.timeout = timeout
         self.verbose = verbose
+        self.proxy = proxy

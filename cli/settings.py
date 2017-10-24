@@ -260,6 +260,8 @@ def merge_global_settings(config, cli_options):
         config['options']['concurrency'] = {}
     if 'timeout' not in config['options']:
         config['options']['timeout'] = {}
+    if 'proxy' not in config['options']:
+        config['options']['proxy'] = {}
     options = {
         'enable_azure_storage_logger': _merge_setting(
             cli_options, config['options'], 'enable_azure_storage_logger'),
@@ -291,6 +293,17 @@ def merge_global_settings(config, cli_options):
             'transfer_threads': _merge_setting(
                 cli_options, config['options']['concurrency'],
                 'transfer_threads', default=0),
+        },
+        'proxy': {
+            'host': _merge_setting(
+                cli_options, config['options']['proxy'], 'host',
+                name_cli='proxy_host'),
+            'username': _merge_setting(
+                cli_options, config['options']['proxy'], 'username',
+                name_cli='proxy_username'),
+            'password': _merge_setting(
+                cli_options, config['options']['proxy'], 'password',
+                name_cli='proxy_password'),
         }
     }
     config['options'] = options
@@ -323,6 +336,24 @@ def create_general_options(config, action):
     :return: general options object
     """
     conc = config['options']['concurrency']
+    # split http proxy host into host:port
+    proxy = None
+    if blobxfer.util.is_not_empty(config['options']['proxy']['host']):
+        tmp = config['options']['proxy']['host'].split(':')
+        if len(tmp) != 2:
+            raise ValueError('Proxy host is malformed: host should be ip:port')
+        username = config['options']['proxy']['username']
+        if blobxfer.util.is_none_or_empty(username):
+            username = None
+        password = config['options']['proxy']['password']
+        if blobxfer.util.is_none_or_empty(password):
+            password = None
+        proxy = blobxfer.models.options.HttpProxy(
+            host=tmp[0],
+            port=int(tmp[1]),
+            username=username,
+            password=password,
+        )
     return blobxfer.models.options.General(
         concurrency=blobxfer.models.options.Concurrency(
             crypto_processes=conc['crypto_processes'],
@@ -339,6 +370,7 @@ def create_general_options(config, action):
             read=config['options']['timeout']['read'],
         ),
         verbose=config['options']['verbose'],
+        proxy=proxy,
     )
 
 

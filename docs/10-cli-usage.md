@@ -138,6 +138,15 @@ connecting to an Azure Public region:
     * Azure China Cloud: `core.chinacloudapi.cn`
     * Azure Germany Cloud:  `core.cloudapi.de`
     * Azure US Government Cloud: `core.usgovcloudapi.net`
+* `--proxy-host` specifies the IP:port for an HTTP Proxy if required. This
+can be optionally provided through an environment variable
+`BLOBXFER_PROXY_HOST` instead.
+* `--proxy-username` specifies a username for an HTTP Proxy if required. This
+can be optionally provided through an environment variable
+`BLOBXFER_PROXY_USERNAME` instead.
+* `--proxy-password` specifies the password for the username for an HTTP
+Proxy if required. This can be optionally provided through an environment
+variable `BLOBXFER_PROXY_PASSWORD` instead.
 * `--storage-account` specifies the storage account to use. This can be
 optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
 instead.

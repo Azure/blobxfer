@@ -39,13 +39,14 @@ import blobxfer.retry
 logger = logging.getLogger(__name__)
 
 
-def create_client(storage_account, timeout):
+def create_client(storage_account, timeout, proxy):
     # type: (blobxfer.operations.azure.StorageAccount,
-    #        tuple) -> BlockBlobService
+    #        tuple, blobxfer.models.options.HttpProxy) -> BlockBlobService
     """Create block blob client
     :param blobxfer.operations.azure.StorageAccount storage_account:
         storage account
     :param tuple timeout: timeout tuple
+    :param blobxfer.models.options.HttpProxy proxy: proxy
     :rtype: azure.storage.blob.BlockBlobService
     :return: block blob service client
     """
@@ -63,6 +64,10 @@ def create_client(storage_account, timeout):
             endpoint_suffix=storage_account.endpoint,
             request_session=storage_account.session,
             socket_timeout=timeout)
+    # set proxy
+    if proxy is not None:
+        client.set_proxy(
+            proxy.host, proxy.port, proxy.username, proxy.password)
     # set retry policy
     client.retry = blobxfer.retry.ExponentialRetryWithMaxWait().retry
     return client

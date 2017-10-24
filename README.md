@@ -41,6 +41,7 @@ copies for Block blobs)
 * No clobber support in either direction
 * Automatic content type tagging
 * File logging support
+* Support for HTTP Proxies
 
 ## Installation
 There are three ways to install `blobxfer`:

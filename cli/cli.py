@@ -234,6 +234,48 @@ def _progress_bar_option(f):
         callback=callback)(f)
 
 
+def _proxy_host_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['proxy_host'] = value
+        return value
+    return click.option(
+        '--proxy-host',
+        expose_value=False,
+        default=None,
+        help='Proxy host in the format of IP:Port',
+        envvar='BLOBXFER_PROXY_HOST',
+        callback=callback)(f)
+
+
+def _proxy_password_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['proxy_password'] = value
+        return value
+    return click.option(
+        '--proxy-password',
+        expose_value=False,
+        default=None,
+        help='Proxy password',
+        envvar='BLOBXFER_PROXY_PASSWORD',
+        callback=callback)(f)
+
+
+def _proxy_username_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['proxy_username'] = value
+        return value
+    return click.option(
+        '--proxy-username',
+        expose_value=False,
+        default=None,
+        help='Proxy username',
+        envvar='BLOBXFER_PROXY_USERNAME',
+        callback=callback)(f)
+
+
 def _resume_file_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -349,6 +391,9 @@ def common_options(f):
     f = _timeout_option(f)
     f = _show_config_option(f)
     f = _resume_file_option(f)
+    f = _proxy_username_option(f)
+    f = _proxy_password_option(f)
+    f = _proxy_host_option(f)
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
     f = _log_file_option(f)

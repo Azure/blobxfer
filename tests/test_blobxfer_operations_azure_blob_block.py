@@ -17,8 +17,9 @@ import blobxfer.operations.azure.blob.block as ops
 
 def test_create_client():
     sa = azops.StorageAccount(
-        'name', 'key', 'core.windows.net', 10, mock.MagicMock())
-    client = ops.create_client(sa, mock.MagicMock())
+        'name', 'key', 'core.windows.net', 10, mock.MagicMock(),
+        mock.MagicMock())
+    client = ops.create_client(sa, mock.MagicMock(), mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.blob.BlockBlobService)
     assert isinstance(
@@ -26,10 +27,11 @@ def test_create_client():
         azure.storage.common._auth._StorageSharedKeyAuthentication)
     assert client._USER_AGENT_STRING.startswith(
         'blobxfer/{}'.format(blobxfer.version.__version__))
+    assert client._httpclient.proxies is not None
 
     sa = azops.StorageAccount(
-        'name', '?key&sig=key', 'core.windows.net', 10, mock.MagicMock())
-    client = ops.create_client(sa, mock.MagicMock())
+        'name', '?key&sig=key', 'core.windows.net', 10, mock.MagicMock(), None)
+    client = ops.create_client(sa, mock.MagicMock(), None)
     assert client is not None
     assert isinstance(client, azure.storage.blob.BlockBlobService)
     assert isinstance(
@@ -37,6 +39,7 @@ def test_create_client():
         azure.storage.common._auth._StorageSASAuthentication)
     assert client._USER_AGENT_STRING.startswith(
         'blobxfer/{}'.format(blobxfer.version.__version__))
+    assert client._httpclient.proxies is None
 
 
 def test_format_block_id():

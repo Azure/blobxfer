@@ -35,10 +35,10 @@ is required.
 
 ```yaml
 azure_storage:
-    endpoint: core.windows.net
-    accounts:
-        mystorageaccount0: ABCDEF...
-        mystorageaccount1: ?se...
+  endpoint: core.windows.net
+  accounts:
+    mystorageaccount0: ABCDEF...
+    mystorageaccount1: ?se...
 ```
 
 * `endpoint` specifies for which endpoint to connect to with Azure Storage.
@@ -54,19 +54,23 @@ all other sections in the YAML configuration.
 
 ```yaml
 options:
-    log_file: /path/to/blobxfer.log
-    enable_azure_storage_logger: false
-    resume_file: /path/to/resumefile.db
-    progress_bar: true
-    verbose: true
-    timeout:
-        connect: null
-        read: null
-    concurrency:
-        md5_processes: 2
-        crypto_processes: 2
-        disk_threads: 16
-        transfer_threads: 32
+  log_file: /path/to/blobxfer.log
+  enable_azure_storage_logger: false
+  resume_file: /path/to/resumefile.db
+  progress_bar: true
+  verbose: true
+  timeout:
+    connect: null
+    read: null
+  concurrency:
+    md5_processes: 2
+    crypto_processes: 2
+    disk_threads: 16
+    transfer_threads: 32
+  proxy:
+    host: myproxyhost:6000
+    username: proxyuser
+    password: abcd...
 ```
 
 * `log_file` is the location of the log file to write to
@@ -84,6 +88,11 @@ options:
       create
     * `disk_threads` is the number of threads for disk I/O
     * `transfer_threads` is the number of threads for network transfers
+* `proxy` defines an HTTP proxy to use, if required to connect to the
+Azure Storage endpoint
+    * `host` is the IP:Port of the HTTP Proxy
+    * `username` is the username login for the proxy, if required
+    * `password` is the password for the username for the proxy, if required
 
 ### <a name="download"></a>`download`
 The `download` section specifies download sources and destination. Note

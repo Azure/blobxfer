@@ -38,7 +38,7 @@ install_requires = [
     'azure-storage-file==0.37.0',
     'bitstring==3.1.5',
     'click==6.7',
-    'cryptography>=2.0.3',
+    'cryptography>=2.1.2',
     'future==0.16.0',
     'pathlib2==2.3.0;python_version<"3.5"',
     'python-dateutil==2.6.1',
