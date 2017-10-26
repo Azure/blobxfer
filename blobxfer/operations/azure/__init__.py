@@ -305,7 +305,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
 
     def _convert_to_storage_entity_with_encryption_metadata(
             self, options, store_raw_metadata, sa, entity, vio, is_file,
-            container, dir):
+            container, dir, file_snapshot):
         # type: (SourcePath, StorageCredentials, any, bool, StorageAccount,
         #        any, blobxfer.models.metadata.VectoredStripe, bool, str,
         #        str) -> StorageEntity
@@ -335,7 +335,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         if is_file:
             ase.populate_from_file(
                 sa, entity, dir, vio=vio,
-                store_raw_metadata=store_raw_metadata)
+                store_raw_metadata=store_raw_metadata, snapshot=file_snapshot)
         else:
             ase.populate_from_blob(
                 sa, entity, vio=vio, store_raw_metadata=store_raw_metadata)
@@ -343,7 +343,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
 
     def _handle_vectored_io_stripe(
             self, creds, options, store_raw_metadata, sa, entity, is_file,
-            container, dir=None):
+            container, dir=None, file_snapshot=None):
         # type: (SourcePath, StorageCredentials, any, bool, StorageAccount,
         #        any, bool, str, str) -> StorageEntity
         """Handle Vectored IO stripe entries
@@ -364,7 +364,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         if not isinstance(vio, blobxfer.models.metadata.VectoredStripe):
             ase = self._convert_to_storage_entity_with_encryption_metadata(
                 options, store_raw_metadata, sa, entity, None, is_file,
-                container, dir)
+                container, dir, file_snapshot)
             yield ase
             return
         # if this slice is not the first, ignore. the reason for this is
@@ -380,7 +380,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         # yield this entity
         ase = self._convert_to_storage_entity_with_encryption_metadata(
             options, store_raw_metadata, sa, entity, vio, is_file, container,
-            dir)
+            dir, file_snapshot)
         yield ase
         # iterate all slices
         while vio.next is not None:
@@ -388,7 +388,8 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             sa = creds.get_storage_account(vio.next.storage_account_name)
             if is_file:
                 entity = blobxfer.operations.azure.file.get_file_properties(
-                    sa.file_client, vio.next.container, vio.next.name)
+                    sa.file_client, vio.next.container, vio.next.name,
+                    snapshot=file_snapshot)
                 _, dir = blobxfer.util.explode_azure_path(vio.next.name)
             else:
                 entity = blobxfer.operations.azure.blob.get_blob_properties(
@@ -399,7 +400,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             # yield next
             ase = self._convert_to_storage_entity_with_encryption_metadata(
                 options, store_raw_metadata, sa, entity, vio, is_file,
-                container, dir)
+                container, dir, file_snapshot)
             yield ase
 
     def _populate_from_list_files(self, creds, options):
@@ -415,18 +416,34 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
-            cont, dir = blobxfer.util.explode_azure_path(rpath)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            snapshot = None
+            if dir is not None:
+                # parse out snapshot if part of url
+                a, b, snapshot = \
+                    blobxfer.operations.azure.file.parse_file_path(dir)
+                # check if "dir" is a file or a vdir
+                chk = blobxfer.operations.azure.file.check_if_single_file(
+                    sa.file_client, cont, dir)
+                if chk[0]:
+                    dir = a
+                else:
+                    if blobxfer.util.is_not_empty(a):
+                        dir = '/'.join((a, b))
+                    else:
+                        dir = b
+            if snapshot is None:
+                _, cont, snapshot = \
+                    blobxfer.operations.azure.file.parse_file_path(cont)
             for file in blobxfer.operations.azure.file.list_files(
-                    sa.file_client, cont, dir, options.recursive):
+                    sa.file_client, cont, dir, options.recursive,
+                    snapshot=snapshot):
                 if not self._inclusion_check(file.name):
                     continue
-                if dir is not None:
-                    dir, _ = blobxfer.operations.azure.file.parse_file_path(
-                        dir)
                 for ase in self._handle_vectored_io_stripe(
                         creds, options, store_raw_metadata, sa, file, True,
-                        cont, dir):
+                        cont, dir=None, file_snapshot=snapshot):
                     if ase is None:
                         continue
                     yield ase

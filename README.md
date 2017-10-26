@@ -31,7 +31,8 @@ copies for Block blobs)
 * Advanced skip options for rsync-like operations
 * Store/restore POSIX filemode and uid/gid
 * Support reading/pipe from `stdin` including to page blob destinations
-* Support reading from blob snapshots for downloading and synchronous copy
+* Support reading from blob and file share snapshots for downloading and
+synchronous copy
 * Configurable one-shot block upload support
 * Configurable chunk size for both upload and download
 * Automatic block size selection for block blob uploading
@@ -41,7 +42,7 @@ copies for Block blobs)
 * No clobber support in either direction
 * Automatic content type tagging
 * File logging support
-* Support for HTTP Proxies
+* Support for HTTP proxies
 
 ## Installation
 There are three ways to install `blobxfer`:

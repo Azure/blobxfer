@@ -600,7 +600,8 @@ class SyncCopy(object):
             ase = blobxfer.models.azure.StorageEntity(cont, ed)
             if (self._spec.options.dest_mode ==
                     blobxfer.models.azure.StorageModes.File):
-                dir, _ = blobxfer.operations.azure.file.parse_file_path(name)
+                dir, _, _ = blobxfer.operations.azure.file.parse_file_path(
+                    name)
                 ase.populate_from_file(sa, fp, dir)
             else:
                 ase.populate_from_blob(sa, fp)

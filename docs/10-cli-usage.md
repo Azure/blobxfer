@@ -252,6 +252,11 @@ blobxfer download --storage-account mystorageaccount --storage-account-key "myac
 blobxfer download --storage-account mystorageaccount --sas "mysastoken" --remote-path "mycontainer/file.bin?snapshot=2017-04-20T02:12:49.0311708Z" --local-path .
 ```
 
+#### Download an Entire File Share Snapshot
+```shell
+blobxfer download --mode file --storage-account mystorageaccount --sas "mysastoken" --remote-path "myshare?snapshot=2017-04-20T02:12:49.0311708Z" --local-path .
+```
+
 #### Download using a YAML Configuration File
 ```shell
 blobxfer download --config myconfig.yaml

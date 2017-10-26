@@ -315,3 +315,30 @@ def parse_blob_snapshot_parameter(url):
         if len(tmp) == 2:
             return tmp[0], tmp[1]
     return None
+
+
+def parse_fileshare_or_file_snapshot_parameter(url):
+    # type: (str) -> Tuple[str, str]
+    """Checks if the fileshare or file is a snapshot
+    :param url str: file url
+    :rtype: tuple
+    :return: (url, snapshot)
+    """
+    if is_not_empty(url):
+        if '?sharesnapshot=' in url:
+            try:
+                tmp = url.split('?sharesnapshot=')
+                if len(tmp) == 2:
+                    dateutil.parser.parse(tmp[1])
+                    return tmp[0], tmp[1]
+            except (ValueError, OverflowError):
+                pass
+        elif '?snapshot=' in url:
+            try:
+                tmp = url.split('?snapshot=')
+                if len(tmp) == 2:
+                    dateutil.parser.parse(tmp[1])
+                    return tmp[0], tmp[1]
+            except (ValueError, OverflowError):
+                pass
+    return url, None

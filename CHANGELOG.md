@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 ### Added
+- Fileshare snapshot source support for download and synccopy (#53)
 - HTTP Proxy support
 - `max_retries` option
 

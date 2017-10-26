@@ -217,8 +217,32 @@ def test_blob_is_snapshot():
 def test_parse_blob_snapshot_parameter():
     base = '/cont/a'
     param = '2017-02-23T22:21:14.8121864Z'
+
     a = base + '?snapshot=' + param
     assert blobxfer.util.parse_blob_snapshot_parameter(a) == (base, param)
 
-    a = '/cont/a?snapshot='
+    a = base + '?snapshot='
     assert blobxfer.util.parse_blob_snapshot_parameter(a) is None
+
+
+def test_parse_fileshare_or_file_snapshot_parameter():
+    base = 'fs/a'
+    param = '2017-02-23T22:21:14.8121864Z'
+
+    a = base + '?sharesnapshot=' + param
+    assert blobxfer.util.parse_fileshare_or_file_snapshot_parameter(a) == (
+        base, param)
+
+    a = base + '?sharesnapshot=abc'
+    assert blobxfer.util.parse_fileshare_or_file_snapshot_parameter(a) == (
+        a, None)
+
+    base = 'fs'
+
+    a = base + '?snapshot=' + param
+    assert blobxfer.util.parse_fileshare_or_file_snapshot_parameter(a) == (
+        base, param)
+
+    a = base + '?snapshot=abc'
+    assert blobxfer.util.parse_fileshare_or_file_snapshot_parameter(a) == (
+        a, None)

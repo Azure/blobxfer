@@ -82,11 +82,11 @@ def create_client(storage_account, timeout, proxy):
 
 
 def parse_file_path(filepath):
-    # type: (pathlib.Path) -> Tuple[str, str]
+    # type: (pathlib.Path) -> Tuple[str, str, str]
     """Parse file path from file path
     :param str filepath: file path
     :rtype: tuple
-    :return: (dirname, rest of path)
+    :return: (dirname, rest of path, snapshot)
     """
     if not isinstance(filepath, pathlib.Path):
         filepath = pathlib.Path(filepath)
@@ -97,27 +97,39 @@ def parse_file_path(filepath):
         fname = filepath.parts[-1]
     else:
         fname = None
-    return (dirname, fname)
+    fname, snapshot = blobxfer.util.parse_fileshare_or_file_snapshot_parameter(
+        fname)
+    return (dirname, fname, snapshot)
 
 
-def get_file_properties(client, fileshare, prefix, timeout=None):
-    # type: (azure.storage.file.FileService, str, str, int) ->
+def get_file_properties(
+        client, fileshare, prefix, timeout=None, snapshot=None):
+    # type: (azure.storage.file.FileService, str, str, int, str) ->
     #        azure.storage.file.models.File
     """Get file properties
     :param FileService client: blob client
     :param str fileshare: file share name
     :param str prefix: path prefix
     :param int timeout: timeout
+    :param str snapshot: snapshot
     :rtype: azure.storage.file.models.File
     :return: file properties
     """
-    dirname, fname = parse_file_path(prefix)
+    dirname, fname, ss = parse_file_path(prefix)
+    if ss is not None:
+        if snapshot is not None:
+            raise RuntimeError(
+                'snapshot specified as {} but parsed {} from prefix {}'.format(
+                    snapshot, ss, prefix))
+        else:
+            snapshot = ss
     try:
         return client.get_file_properties(
             share_name=fileshare,
             directory_name=dirname,
             file_name=fname,
             timeout=timeout,
+            snapshot=snapshot,
         )
     except azure.common.AzureMissingResourceHttpError:
         return None
@@ -143,8 +155,9 @@ def check_if_single_file(client, fileshare, prefix, timeout=None):
         return (True, file)
 
 
-def list_files(client, fileshare, prefix, recursive, timeout=None):
-    # type: (azure.storage.file.FileService, str, str, bool, int) ->
+def list_files(
+        client, fileshare, prefix, recursive, timeout=None, snapshot=None):
+    # type: (azure.storage.file.FileService, str, str, bool, int, str) ->
     #        azure.storage.file.models.File
     """List files in path
     :param azure.storage.file.FileService client: file client
@@ -152,6 +165,7 @@ def list_files(client, fileshare, prefix, recursive, timeout=None):
     :param str prefix: path prefix
     :param bool recursive: recursive
     :param int timeout: timeout
+    :param str snapshot: snapshot
     :rtype: azure.storage.file.models.File
     :return: generator of files
     """
@@ -160,6 +174,15 @@ def list_files(client, fileshare, prefix, recursive, timeout=None):
     if _check[0]:
         yield _check[1]
         return
+    # get snapshot from fileshare
+    if snapshot is None:
+        fileshare, snapshot = \
+            blobxfer.util.parse_fileshare_or_file_snapshot_parameter(fileshare)
+        # get snapshot from prefix
+        if snapshot is None:
+            prefix, snapshot = \
+                blobxfer.util.parse_fileshare_or_file_snapshot_parameter(
+                    prefix)
     # else recursively list from prefix path
     dirs = [prefix]
     while len(dirs) > 0:
@@ -168,6 +191,7 @@ def list_files(client, fileshare, prefix, recursive, timeout=None):
             share_name=fileshare,
             directory_name=dir,
             timeout=timeout,
+            snapshot=snapshot,
         )
         for file in files:
             fspath = str(
@@ -178,6 +202,7 @@ def list_files(client, fileshare, prefix, recursive, timeout=None):
                     directory_name=None,
                     file_name=fspath,
                     timeout=timeout,
+                    snapshot=snapshot,
                 )
                 yield fsprop
             else:
@@ -219,7 +244,11 @@ def delete_file(client, fileshare, name, timeout=None):
     :param str name: file name
     :param int timeout: timeout
     """
-    dir, fpath = parse_file_path(name)
+    dir, fpath, snapshot = parse_file_path(name)
+    if blobxfer.util.is_not_empty(snapshot):
+        raise RuntimeError(
+            'attempting to delete single file snapshot: {}/{}'.format(
+                fileshare, name))
     client.delete_file(
         share_name=fileshare,
         directory_name=dir,
@@ -238,7 +267,7 @@ def get_file_range(ase, offsets, timeout=None):
     :rtype: bytes
     :return: content for file range
     """
-    dir, fpath = parse_file_path(ase.name)
+    dir, fpath, _ = parse_file_path(ase.name)
     return ase.client._get_file(
         share_name=ase.container,
         directory_name=dir,
@@ -247,6 +276,7 @@ def get_file_range(ase, offsets, timeout=None):
         end_range=offsets.range_end,
         validate_content=False,  # HTTPS takes care of integrity during xfer
         timeout=timeout,
+        snapshot=ase.snapshot,
     ).content
 
 
@@ -305,7 +335,7 @@ def create_file(ase, timeout=None):
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
     :param int timeout: timeout
     """
-    dir, fpath = parse_file_path(ase.name)
+    dir, fpath, _ = parse_file_path(ase.name)
     ase.client.create_file(
         share_name=ase.container,
         directory_name=dir,
@@ -326,7 +356,7 @@ def put_file_range(ase, offsets, data, timeout=None):
     :param bytes data: data
     :param int timeout: timeout
     """
-    dir, fpath = parse_file_path(ase.name)
+    dir, fpath, _ = parse_file_path(ase.name)
     ase.client.update_range(
         share_name=ase.container,
         directory_name=dir,
@@ -345,7 +375,7 @@ def set_file_md5(ase, md5, timeout=None):
     :param str md5: md5 as base64
     :param int timeout: timeout
     """
-    dir, fpath = parse_file_path(ase.name)
+    dir, fpath, _ = parse_file_path(ase.name)
     ase.client.set_file_properties(
         share_name=ase.container,
         directory_name=dir,
@@ -364,7 +394,7 @@ def set_file_metadata(ase, metadata, timeout=None):
     :param dict metadata: metadata kv pairs
     :param int timeout: timeout
     """
-    dir, fpath = parse_file_path(ase.name)
+    dir, fpath, _ = parse_file_path(ase.name)
     ase.client.set_file_metadata(
         share_name=ase.container,
         directory_name=dir,

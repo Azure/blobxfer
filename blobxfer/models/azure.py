@@ -311,9 +311,11 @@ class StorageEntity(object):
             self._client = sa.page_blob_client
 
     def populate_from_file(
-            self, sa, file, path, vio=None, store_raw_metadata=False):
+            self, sa, file, path, vio=None, store_raw_metadata=False,
+            snapshot=None):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
-        #        azure.storage.file.models.File, str) -> None
+        #        azure.storage.file.models.File, str,
+        #        blobxfer.models.metadata.VectoredStripe, bool, str) -> None
         """Populate properties from File
         :param StorageEntity self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
@@ -321,6 +323,7 @@ class StorageEntity(object):
         :param str path: full path to file
         :param blobxfer.models.metadata.VectoredStripe vio: Vectored stripe
         :param bool store_raw_metadata: store raw metadata
+        :param str snapshot: snapshot
         """
         if store_raw_metadata:
             self._raw_metadata = file.metadata
@@ -333,7 +336,7 @@ class StorageEntity(object):
             self._name = str(pathlib.Path(path) / file.name)
         else:
             self._name = file.name
-        self._snapshot = None
+        self._snapshot = snapshot
         self._lmt = file.properties.last_modified
         self._size = file.properties.content_length
         self._md5 = file.properties.content_settings.content_md5

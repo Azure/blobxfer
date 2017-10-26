@@ -13,6 +13,7 @@ except ImportError:  # noqa
 # non-stdlib imports
 import azure.common
 import azure.storage.common
+import pytest
 # local imports
 import blobxfer.util as util
 import blobxfer.version
@@ -53,31 +54,82 @@ def test_create_client():
 def test_parse_file_path():
     rpath = '/a/b/c'
     fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
-    dir, fname = ops.parse_file_path(path)
+    dir, fname, ss = ops.parse_file_path(path)
     assert fshare == 'a'
     assert dir == 'b'
     assert fname == 'c'
+    assert ss is None
+
+    rpath = '/a/b/c?sharesnapshot=2017-10-25T21:17:42.0000000Z'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname, ss = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir == 'b'
+    assert fname == 'c'
+    assert ss == '2017-10-25T21:17:42.0000000Z'
 
     rpath = 'a/b/c/d'
     fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
-    dir, fname = ops.parse_file_path(path)
+    dir, fname, ss = ops.parse_file_path(path)
     assert fshare == 'a'
     assert dir == 'b/c'
     assert fname == 'd'
+    assert ss is None
+
+    rpath = 'a/b/c/d?sharesnapshot=2017-10-25T21:17:42.0000000Z'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname, ss = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir == 'b/c'
+    assert fname == 'd'
+    assert ss == '2017-10-25T21:17:42.0000000Z'
 
     rpath = 'a/b'
     fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
-    dir, fname = ops.parse_file_path(path)
+    dir, fname, ss = ops.parse_file_path(path)
     assert fshare == 'a'
     assert dir is None
     assert fname == 'b'
+    assert ss is None
+
+    rpath = 'a/b?sharesnapshot=2017-10-25T21:17:42.0000000Z'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname, ss = ops.parse_file_path(path)
+    assert fshare == 'a'
+    assert dir is None
+    assert fname == 'b'
+    assert ss == '2017-10-25T21:17:42.0000000Z'
 
     rpath = 'a'
     fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
-    dir, fname = ops.parse_file_path(path)
+    dir, fname, ss = ops.parse_file_path(path)
     assert fshare == 'a'
     assert dir is None
     assert fname is None
+    assert ss is None
+
+    rpath = 'a?snapshot=2017-10-25T21:17:42.0000000Z'
+    fshare, path = util.explode_azure_path(util.normalize_azure_path(rpath))
+    dir, fname, ss = ops.parse_file_path(path)
+    assert fshare == 'a?snapshot=2017-10-25T21:17:42.0000000Z'
+    assert dir is None
+    assert fname is None
+    assert ss is None
+
+
+@mock.patch('blobxfer.operations.azure.file.parse_file_path')
+def test_get_file_properties(patched_pfp):
+    client = mock.MagicMock()
+    client.get_file_properties = mock.MagicMock()
+    client.get_file_properties.return_value = mock.MagicMock()
+
+    patched_pfp.return_value = ('dir', 'fname', 'ss')
+
+    with pytest.raises(RuntimeError):
+        result = ops.get_file_properties(client, 'a', 'dir', snapshot='0')
+
+    result = ops.get_file_properties(client, 'a', 'dir', snapshot=None)
+    assert result is not None
 
 
 def test_check_if_single_file():
@@ -162,6 +214,12 @@ def test_list_files_directory(patched_cisf):
 
 def test_delete_file():
     assert ops.delete_file(mock.MagicMock(), 'fshare', 'dir/name') is None
+
+    with pytest.raises(RuntimeError):
+        ops.delete_file(
+            mock.MagicMock(),
+            'fshare',
+            'dir/name?sharesnapshot=2017-10-25T21:17:42.0000000Z')
 
 
 def test_get_file_range():

@@ -239,8 +239,9 @@ def test_azuresourcepath():
 
 @mock.patch('blobxfer.models.crypto.EncryptionMetadata')
 @mock.patch('blobxfer.operations.azure.file.list_files')
-def test_azuresourcepath_files(patched_lf, patched_em):
-    p = '/cont/remote/path'
+@mock.patch('blobxfer.operations.azure.file.check_if_single_file')
+def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
+    p = 'cont/name'
     asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
 
@@ -252,6 +253,31 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     sa.file_client = mock.MagicMock()
     creds.get_storage_account.return_value = sa
     f = azure.storage.file.models.File(name='name')
+    patched_cisf.return_value = (False, None)
+    patched_lf.side_effect = [[f]]
+    patched_em.encryption_metadata_exists = mock.MagicMock()
+    patched_em.encryption_metadata_exists.return_value = False
+
+    i = 0
+    for file in asp.files(creds, options):
+        i += 1
+        assert pathlib.Path(file.name) == pathlib.Path('name')
+        assert file.encryption_metadata is None
+    assert i == 1
+
+    p = '/cont/remote/path'
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+
+    options = mock.MagicMock()
+    options.mode = azmodels.StorageModes.File
+    creds = mock.MagicMock()
+    creds.get_storage_account = mock.MagicMock()
+    sa = mock.MagicMock()
+    sa.file_client = mock.MagicMock()
+    creds.get_storage_account.return_value = sa
+    f = azure.storage.file.models.File(name='remote/name')
+    patched_cisf.return_value = (False, None)
     patched_lf.side_effect = [[f]]
     patched_em.encryption_metadata_exists = mock.MagicMock()
     patched_em.encryption_metadata_exists.return_value = False
@@ -267,6 +293,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
     asp.add_includes(['zzz'])
+    patched_cisf.return_value = (True, f)
     patched_lf.side_effect = [[f]]
     assert len(list(asp.files(creds, options))) == 0
 
@@ -283,7 +310,7 @@ def test_azuresourcepath_files(patched_lf, patched_em):
     # test encrypted
     asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
-    fe = azure.storage.file.models.File(name='name')
+    fe = azure.storage.file.models.File(name='remote/name')
     fe.metadata = {'encryptiondata': {'a': 'b'}}
     patched_lf.side_effect = [[fe]]
     patched_em.encryption_metadata_exists.return_value = True
