@@ -206,6 +206,21 @@ def _log_file_option(f):
         callback=callback)(f)
 
 
+def _max_retries_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['max_retries'] = value
+        return value
+    return click.option(
+        '--max-retries',
+        expose_value=False,
+        type=int,
+        default=None,
+        help='Maximum number of retries for a request; negative values are '
+        'unlimited [10]',
+        callback=callback)(f)
+
+
 def _md5_processes_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -396,6 +411,7 @@ def common_options(f):
     f = _proxy_host_option(f)
     f = _progress_bar_option(f)
     f = _md5_processes_option(f)
+    f = _max_retries_option(f)
     f = _log_file_option(f)
     f = _enable_azure_storage_logger_option(f)
     f = _disk_threads_option(f)

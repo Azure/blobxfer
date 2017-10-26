@@ -69,7 +69,7 @@ class StorageCredentials(object):
         self._storage_accounts[name] = StorageAccount(
             name, key, endpoint,
             self._general_options.concurrency.transfer_threads,
-            self._general_options.timeout.timeout,
+            self._general_options.timeout,
             self._general_options.proxy,
         )
 
@@ -87,14 +87,15 @@ class StorageCredentials(object):
 class StorageAccount(object):
     """Azure Storage Account"""
     def __init__(self, name, key, endpoint, transfer_threads, timeout, proxy):
-        # type: (StorageAccount, str, str, str, int, tuple,
+        # type: (StorageAccount, str, str, str, int,
+        #        blobxfer.models.options.Timeout,
         #        blobxfer.models.options.HttpProxy) -> None
         """Ctor for StorageAccount
         :param str name: name of storage account
         :param str key: storage key or sas
         :param str endpoint: endpoint
         :param int transfer_threads: number of transfer threads
-        :param tuple timeout: timeout tuple
+        :param blobxfer.models.options.Timeout timeout: timeout
         :param blobxfer.models.options.HttpProxy proxy: proxy
         """
         if blobxfer.util.is_none_or_empty(key):
@@ -191,10 +192,11 @@ class StorageAccount(object):
         return False
 
     def _create_clients(self, timeout, proxy):
-        # type: (StorageAccount, tuple) -> None
+        # type: (StorageAccount, blobxfer.models.options.Timeout,
+        #        blobxfer.models.options.HttpProxy) -> None
         """Create Azure Storage clients
         :param StorageAccount self: this
-        :param tuple timeout: timeout tuple
+        :param blobxfer.models.options.Timeout timeout: timeout
         :param blobxfer.models.options.HttpProxy proxy: proxy
         """
         self._append_blob_client = \

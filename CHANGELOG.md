@@ -4,6 +4,7 @@
 
 ### Added
 - HTTP Proxy support
+- `max_retries` option
 
 ### Fixed
 - Errant exceptions thrown for `--skip-on-filesize-match` and

@@ -17,15 +17,17 @@ import blobxfer.models.options as options
 
 
 def test_timeout():
-    a = options.Timeout(connect=None, read=1)
+    a = options.Timeout(connect=None, read=1, max_retries=-1)
     assert a.connect == options._DEFAULT_REQUESTS_TIMEOUT[0]
     assert a.read == 1
     assert a.timeout == (options._DEFAULT_REQUESTS_TIMEOUT[0], 1)
+    assert a.max_retries is None
 
-    a = options.Timeout(connect=2, read=0)
+    a = options.Timeout(connect=2, read=0, max_retries=3)
     assert a.connect == 2
     assert a.read == options._DEFAULT_REQUESTS_TIMEOUT[1]
     assert a.timeout == (2, options._DEFAULT_REQUESTS_TIMEOUT[1])
+    assert a.max_retries == 3
 
 
 @mock.patch('multiprocessing.cpu_count', return_value=1)
@@ -103,7 +105,7 @@ def test_general_options():
         log_file='abc.log',
         progress_bar=False,
         resume_file='abc',
-        timeout=options.Timeout(1, 2),
+        timeout=options.Timeout(1, 2, None),
         verbose=True,
     )
 
@@ -115,6 +117,7 @@ def test_general_options():
     assert not a.progress_bar
     assert a.resume_file == pathlib.Path('abc')
     assert a.timeout.timeout == (1, 2)
+    assert a.timeout.max_retries is None
     assert a.verbose
 
     a = options.General(
@@ -126,7 +129,7 @@ def test_general_options():
         ),
         progress_bar=False,
         resume_file=None,
-        timeout=options.Timeout(2, 1),
+        timeout=options.Timeout(2, 1, 0),
         verbose=True,
     )
 
@@ -138,6 +141,7 @@ def test_general_options():
     assert not a.progress_bar
     assert a.resume_file is None
     assert a.timeout.timeout == (2, 1)
+    assert a.timeout.max_retries == 0
     assert a.verbose
 
     with pytest.raises(ValueError):

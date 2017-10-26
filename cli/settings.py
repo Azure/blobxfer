@@ -277,6 +277,9 @@ def merge_global_settings(config, cli_options):
             'read': _merge_setting(
                 cli_options, config['options']['timeout'], 'read',
                 name_cli='timeout'),
+            'max_retries': _merge_setting(
+                cli_options, config['options']['timeout'], 'max_retries',
+                default=10),
         },
         'verbose': _merge_setting(
             cli_options, config['options'], 'verbose', default=False),
@@ -368,6 +371,7 @@ def create_general_options(config, action):
         timeout=blobxfer.models.options.Timeout(
             connect=config['options']['timeout']['connect'],
             read=config['options']['timeout']['read'],
+            max_retries=config['options']['timeout']['max_retries'],
         ),
         verbose=config['options']['verbose'],
         proxy=proxy,

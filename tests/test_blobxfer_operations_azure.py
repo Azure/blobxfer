@@ -22,7 +22,10 @@ import blobxfer.operations.azure as azops
 
 
 def test_storage_credentials():
-    creds = azops.StorageCredentials(mock.MagicMock())
+    go = mock.MagicMock()
+    go.timeout.max_retries = None
+
+    creds = azops.StorageCredentials(go)
 
     with pytest.raises(ValueError):
         creds.add_storage_account('sa1', '', 'core.windows.net')
@@ -64,53 +67,52 @@ def test_storage_credentials():
 
 
 def test_key_is_sas():
+    to = mock.MagicMock()
+    to.max_retries = None
+
     a = azops.StorageAccount(
-        'name', 'abcdef', 'core.windows.net', 10, mock.MagicMock(),
-        mock.MagicMock())
+        'name', 'abcdef', 'core.windows.net', 10, to, mock.MagicMock())
     assert not a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'abcdef&blah', 'core.windows.net', 10, mock.MagicMock(), None)
+        'name', 'abcdef&blah', 'core.windows.net', 10, to, None)
     assert not a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?abcdef', 'core.windows.net', 10, mock.MagicMock(), None)
+        'name', '?abcdef', 'core.windows.net', 10, to, None)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock(),
-        None)
+        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, to, None)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock(),
-        None)
+        'name', 'sv=0&sr=1&sig=2', 'core.windows.net', 10, to, None)
     assert a.is_sas
 
     a = azops.StorageAccount(
-        'name', 'sig=0&sv=0&sr=1&se=2', 'core.windows.net', 10,
-        mock.MagicMock(), None)
+        'name', 'sig=0&sv=0&sr=1&se=2', 'core.windows.net', 10, to, None)
     assert a.is_sas
 
 
 def test_container_creation_allowed():
+    to = mock.MagicMock()
+    to.max_retries = None
+
     a = azops.StorageAccount(
-        'name', 'abcdef', 'core.windows.net', 10, mock.MagicMock(), None)
+        'name', 'abcdef', 'core.windows.net', 10, to, None)
     assert a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, mock.MagicMock(),
-        None)
+        'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, to, None)
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=a&sig=2', 'core.windows.net', 10,
-        mock.MagicMock(), None)
+        'name', '?sv=0&sr=1&srt=a&sig=2', 'core.windows.net', 10, to, None)
     assert not a._container_creation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=c&sig=2', 'core.windows.net', 10,
-        mock.MagicMock(), None)
+        'name', '?sv=0&sr=1&srt=c&sig=2', 'core.windows.net', 10, to, None)
     assert a._container_creation_allowed()
 
 

@@ -91,9 +91,6 @@ Blob container or File share at the begining, e.g., `mycontainer/vdir`
 Resume files should be specific for a session.
 * `--show-config` will show the configuration for the execution. Use caution
 with this option as it will output secrets.
-* `--timeout` is the timeout value, in seconds, applied to both connect
-and read operations. To apply separate values for these operations
-individually, use YAML configuration instead.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
 * `-v` increases logging verbosity
@@ -138,6 +135,8 @@ connecting to an Azure Public region:
     * Azure China Cloud: `core.chinacloudapi.cn`
     * Azure Germany Cloud:  `core.cloudapi.de`
     * Azure US Government Cloud: `core.usgovcloudapi.net`
+* `--max-retries` is the maximum number of retries for a request. Negative
+values result in unlimited retries. The default is 10.
 * `--proxy-host` specifies the IP:port for an HTTP Proxy if required. This
 can be optionally provided through an environment variable
 `BLOBXFER_PROXY_HOST` instead.
@@ -156,6 +155,9 @@ provided through an environment variable
 `BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT` instead.
 * `--sync-copy-dest-remote-path` specifies the destination remote Azure path
 under the synchronous copy destination storage account.
+* `--timeout` is the timeout value, in seconds, applied to both connect
+and read operations. To apply separate values for these operations
+individually, use YAML configuration instead.
 
 ### Encryption
 * `--rsa-private-key` is the RSA private key in PEM format to use. This can

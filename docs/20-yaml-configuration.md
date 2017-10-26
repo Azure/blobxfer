@@ -62,6 +62,7 @@ options:
   timeout:
     connect: null
     read: null
+    max_retries: null
   concurrency:
     md5_processes: 2
     crypto_processes: 2
@@ -79,8 +80,9 @@ options:
 * `progress_bar` controls display of a progress bar output to the console
 * `verbose` controls if verbose logging is enabled
 * `timeout` is a dictionary of timeout values in seconds
-    * `connect` is the connect timeout to apply to the request
-    * `read` is the read timeout to apply to the request
+    * `connect` is the connect timeout to apply to a request
+    * `read` is the read timeout to apply to a request
+    * `max_retries` is the maximum number of retries for a request
 * `concurrency` is a dictionary of concurrency limits
     * `md5_processes` is the number of MD5 offload processes to create for
       MD5 comparison checking

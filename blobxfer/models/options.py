@@ -117,11 +117,12 @@ SyncCopy = collections.namedtuple(
 
 class Timeout(object):
     """Timeout Options"""
-    def __init__(self, connect, read):
+    def __init__(self, connect, read, max_retries):
         """Ctor for Timeout options
         :param Timeout self: this
         :param float connect: connect timeout
         :param float read: read timeout
+        :param int max_retries: max retries
         """
         if connect is None or connect <= 0:
             self._connect = _DEFAULT_REQUESTS_TIMEOUT[0]
@@ -131,6 +132,10 @@ class Timeout(object):
             self._read = _DEFAULT_REQUESTS_TIMEOUT[1]
         else:
             self._read = read
+        if max_retries is None or max_retries < 0:
+            self._max_retries = None
+        else:
+            self._max_retries = max_retries
 
     @property
     def connect(self):
@@ -155,6 +160,14 @@ class Timeout(object):
         :return: (connect, read) timeout tuple
         """
         return (self._connect, self._read)
+
+    @property
+    def max_retries(self):
+        """Max retries
+        :rtype: int
+        :return maximum number of retries
+        """
+        return self._max_retries
 
 
 class Concurrency(object):

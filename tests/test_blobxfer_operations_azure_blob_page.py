@@ -16,10 +16,12 @@ import blobxfer.operations.azure.blob.page as ops
 
 
 def test_create_client():
+    to = mock.MagicMock()
+    to.max_retries = None
+
     sa = azops.StorageAccount(
-        'name', 'key', 'core.windows.net', 10, mock.MagicMock(),
-        mock.MagicMock())
-    client = ops.create_client(sa, mock.MagicMock(), mock.MagicMock())
+        'name', 'key', 'core.windows.net', 10, to, mock.MagicMock())
+    client = ops.create_client(sa, to, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.blob.PageBlobService)
     assert isinstance(
@@ -30,8 +32,8 @@ def test_create_client():
     assert client._httpclient.proxies is not None
 
     sa = azops.StorageAccount(
-        'name', '?key&sig=key', 'core.windows.net', 10, mock.MagicMock(), None)
-    client = ops.create_client(sa, mock.MagicMock(), None)
+        'name', '?key&sig=key', 'core.windows.net', 10, to, None)
+    client = ops.create_client(sa, to, None)
     assert client is not None
     assert isinstance(client, azure.storage.blob.PageBlobService)
     assert isinstance(
