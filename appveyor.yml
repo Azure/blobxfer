@@ -22,8 +22,8 @@ environment:
     PYTHON_VERSION: "3.6"
     PYTHON_ARCH: "64"
     TOX_ENV: "py36"
-  BLOBXFER_SAS:
-    secure: b/A4QFUftPz5dFIU1JTphCV+EfZYW5p7bdgUphoESiRK7t/wiWGhudaDWzI25CA/bfGpHOMW+roeqyKKaYNU6hooXQOLajTmwieKLxdvwXZ+M76PxG301qnQvPW6GlmX9zDYaCE/6jxvxQDfGCJvVw==
+  BLOBXFER_STORAGE_ACCOUNT_KEY:
+    secure: q5RpDPsMjUHNmZo14GkE08in19iEE/pjEhR+n5AkNmzf9T6Wy0RQY3npxpAWFVUQDOARMSai+uJM26J9Hz1B9iSHwJhg9cRd0Zit/3jPTmbj1UollNgfT658PPGqATmb
   BLOBXFER_STORAGE_ACCOUNT:
     secure: qbpOW+pGmGfG7DFFC7LozA==
   DOCKER_USERNAME:
@@ -45,49 +45,84 @@ test_script:
 - tox -e "%TOX_ENV%"
 
 after_test:
-- set BLOBXFER_ARTIFACT=blobxfer-%APPVEYOR_REPO_TAG_NAME%-win-amd64.exe
-- echo is commit tag %APPVEYOR_REPO_TAG% name %APPVEYOR_REPO_TAG_NAME% artifact %BLOBXFER_ARTIFACT%
-- IF "%APPVEYOR_REPO_TAG%"=="true" IF "%PYTHON_VERSION%"=="3.5" (
-  virtualenv -p "%PYTHON%\\python.exe" pyi &&
-  pyi\\Scripts\\activate.bat &&
-  pip install --upgrade pyinstaller &&
-  pip install -e . &&
-  pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli\\cli.py &&
-  pyi\\Scripts\\deactivate.bat &&
-  appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
-  bin\\%BLOBXFER_ARTIFACT% upload --remote-path releases/%APPVEYOR_REPO_TAG_NAME% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
+- echo is pr %APPVEYOR_PULL_REQUEST_NUMBER% is commit tag %APPVEYOR_REPO_TAG% name %APPVEYOR_REPO_TAG_NAME% branch %APPVEYOR_REPO_BRANCH%
+- ps: >-
+    if (!($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null)) {
+      Write-Host "Build is from a PR, not creating binary"
+      return
+    }
+    if (!($env:PYTHON_VERSION -eq "3.6")) {
+      Write-Host "Python environment is not 3.6, not creating binary"
+      return
+    }
+    if ($env:APPVEYOR_REPO_TAG -eq "true") {
+      $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_TAG_NAME + "-win-amd64.exe"
+      $env:UPLOAD_PATH="releases/" + $env:APPVEYOR_REPO_TAG_NAME
+    }
+    else {
+      if ($env:APPVEYOR_REPO_BRANCH -eq "master" -Or $env:APPVEYOR_REPO_BRANCH -eq "develop") {
+        $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_BRANCH + "-" + $env:APPVEYOR_BUILD_NUMBER + "-win-amd64.exe"
+        $env:UPLOAD_PATH="builds/" + $env:APPVEYOR_REPO_BRANCH
+      }
+      else {
+        Write-Host "Invalid tag or branch $env:APPVEYOR_REPO_BRANCH to build binary"
+        return
+      }
+    }
+- IF "%BLOBXFER_ARTIFACT%"=="" (
+    echo "blobxfer artifact not defined"
+  ) ELSE (
+    echo "blobxfer artifact is %BLOBXFER_ARTIFACT% upload path %UPLOAD_PATH%" &&
+    virtualenv -p "%PYTHON%\\python.exe" pyi &&
+    pyi\\Scripts\\activate.bat &&
+    pip install --upgrade pyinstaller &&
+    pip install -e . &&
+    pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli\\cli.py &&
+    pyi\\Scripts\\deactivate.bat &&
+    appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
+    bin\\%BLOBXFER_ARTIFACT% upload --remote-path %UPLOAD_PATH% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
   )
 - ps: >-
-    if (!($Env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null)) {
+    if (!($env:APPVEYOR_PULL_REQUEST_NUMBER -eq $null)) {
       Write-Host "Build is from a PR, not creating a Docker image"
       return
     }
-    if ($Env:PYTHON_VERSION -eq "3.6") {
-      $DOCKER_IMAGE_TAG_SUFFIX = $null
-      if ($Env:APPVEYOR_REPO_TAG -eq "true") {
-        $DOCKER_IMAGE_TAG_SUFFIX = $Env:APPVEYOR_REPO_TAG_NAME + '-windows'
-      }
-      elseif ($Env:APPVEYOR_REPO_BRANCH -eq "master") {
-        $DOCKER_IMAGE_TAG_SUFFIX = 'latest-windows'
-      }
-      elseif ($Env:APPVEYOR_REPO_BRANCH -eq "develop") {
-        $DOCKER_IMAGE_TAG_SUFFIX = 'develop-windows'
-      }
-      if ($DOCKER_IMAGE_TAG_SUFFIX -eq $null) {
-        Write-Host "Image tag suffix is null, not creating a Docker image"
-        return
-      }
-      $DOCKER_IMAGE_TAG = $Env:DOCKER_IMAGE_TAG_PREFIX + $DOCKER_IMAGE_TAG_SUFFIX
-      Write-Host "Creating image with tag: $DOCKER_IMAGE_TAG"
-      Install-Package -Name docker -ProviderName DockerMsftProvider -Verbose -Update -Force
-      Start-Service docker
-      docker version
-      pushd docker\\win
-      docker build --build-arg GIT_BRANCH=$Env:APPVEYOR_REPO_BRANCH --build-arg GIT_COMMIT=$Env:APPVEYOR_REPO_COMMIT -t $DOCKER_IMAGE_TAG .
-      docker login -u="$Env:DOCKER_USERNAME" -p="$Env:DOCKER_PASSWORD"
-      docker push $DOCKER_IMAGE_TAG
-      popd
+    if (!($env:PYTHON_VERSION -eq "3.6")) {
+      Write-Host "Python environment is not 3.6, not creating a Docker image"
+      return
     }
+    
+    $DOCKER_IMAGE_TAG_SUFFIX = $null
+    
+    if ($env:APPVEYOR_REPO_TAG -eq "true") {
+      $DOCKER_IMAGE_TAG_SUFFIX = $env:APPVEYOR_REPO_TAG_NAME + '-windows'
+    }
+    elseif ($env:APPVEYOR_REPO_BRANCH -eq "master") {
+      $DOCKER_IMAGE_TAG_SUFFIX = 'latest-windows'
+    }
+    elseif ($env:APPVEYOR_REPO_BRANCH -eq "develop") {
+      $DOCKER_IMAGE_TAG_SUFFIX = 'develop-windows'
+    }
+    if ($DOCKER_IMAGE_TAG_SUFFIX -eq $null) {
+      Write-Host "Image tag suffix is null, not creating a Docker image"
+      return
+    }
+    
+    $DOCKER_IMAGE_TAG = $env:DOCKER_IMAGE_TAG_PREFIX + $DOCKER_IMAGE_TAG_SUFFIX
+    
+    Write-Host "Creating image with tag: $DOCKER_IMAGE_TAG"
+    
+    docker version
+    
+    pushd docker\\win
+    
+    docker build --build-arg GIT_BRANCH=$env:APPVEYOR_REPO_BRANCH --build-arg GIT_COMMIT=$env:APPVEYOR_REPO_COMMIT -t $DOCKER_IMAGE_TAG .
+    
+    docker login -u="$env:DOCKER_USERNAME" -p="$env:DOCKER_PASSWORD"
+    
+    docker push $DOCKER_IMAGE_TAG
+    
+    popd
 
 deploy:
 - provider: GitHub
@@ -101,4 +136,4 @@ deploy:
   force_update: true
   on:
     appveyor_repo_tag: true
-    PYTHON_VERSION: "3.5"
+    PYTHON_VERSION: "3.6"

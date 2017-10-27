@@ -7,6 +7,9 @@
 - HTTP Proxy support
 - `max_retries` option
 
+### Changed
+- Pre-built binaries are now built with Python 3.6
+
 ### Fixed
 - Errant exceptions thrown for `--skip-on-filesize-match` and
 `--skip-on-lmt-ge` options (#51)

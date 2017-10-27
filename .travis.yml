@@ -7,11 +7,11 @@ matrix:
   - python: 2.7
   - python: 3.4
   - python: 3.5
+  - python: 3.6
     addons:
       apt:
         packages:
         - pandoc
-  - python: 3.6
 #  - language: generic
 #    os: osx
 #    before_install:
@@ -27,7 +27,6 @@ env:
   - secure: F15Weue/tcIB7hcZFTOEVxQSwy5D0124Stq185bEudE3orpsscNp97FCNUczQHqt38OrRrswTU/HwpuJQF0G54RxLWQspmef7dgRIJSboQUd9j5Se/bmRmSsBGvffOCLyEDU8Lq0tT8xb2o30xclcqX9fb9EdXVlbHlIqeGnmkEEmgnCxUkfHEQW+kYN2CRVeVwKjnYnyByFtXErTjwc1Mp4IOpWjsclS+AIe2S0gAU5jx8ZqImXKUmhkm7OOIyOYaJjT+0r/MrpSJgwjjb+yPazhOL6tOD1gCFGds5NwvZd8B7cpD/DqgakEdQWz+pvedJZQTdfxSQPK7qYz43tjSwQhxIHO02hpSxq5T5feUuXOiLKlrona6aTLnzsr/ftJ0KlMElihwEJPCzrb9I5oxbCMz/ZH2a1yzGVUaeob3we1vIFN66dB27n0zEE3wxhJOcul5Y8SIQRrrMVLPYZmJr8HxV220lbadUOJInicyM5EsO+S7jLlb/b2n4i2mr3J0eNif1MaxLrj1NcbQOVjyjg/n9Zkw8fNB7x9qfsWmIMovKYQKFQpNW1sv5T5CR5zqV0in6eKvgw6qyt6oxxMN/ViZ0vyvywDvsEcH7pTZGsnC/VDrkEj3Z62zFa8ewY4W1AGQDWZtJBnPJXx2wmFWgnMG8mSpFuI/gJDkgprEI=
 
 install:
-- export BLOBXFER_NOBUILD=$([[ "$TRAVIS_PYTHON_VERSION" == "3.5" ]] || [[ "$TRAVIS_OS_NAME" == "osx" ]] || echo 1)
 - travis_retry pip install --upgrade pip
 - travis_retry pip install --upgrade setuptools wheel
 - travis_retry pip install --upgrade codecov tox-travis
@@ -37,23 +36,38 @@ script:
 
 after_success:
 - codecov
-- echo BLOBXFER_NOBUILD=$BLOBXFER_NOBUILD
-
-before_deploy:
-- echo BLOBXFER_ARTIFACT=$BLOBXFER_ARTIFACT
 - |
-    travis_retry pip install pypandoc
-    if [[ ! -e "bin/$BLOBXFER_ARTIFACT" ]] && [[ "$BLOBXFER_NOBUILD" != "1" ]]; then
-        if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
-            brew install pandoc
-        fi
+    if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then
+      echo "Not building binary with PR $TRAVIS_PULL_REQUEST"
+      return
+    fi
+    if [[ "$TRAVIS_PYTHON_VERSION" != "3.6" ]]; then
+      echo "Not building binary without Python 3.6"
+      return
+    fi
+    if [[ ! -z "$TRAVIS_TAG" ]]; then
+      export UPLOAD_PATH="releases/$TRAVIS_TAG"
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        brew install pandoc
+      else
+        travis_retry pip install pypandoc
+      fi
+    elif [[ "$TRAVIS_BRANCH" == "master" ]] || [[ "$TRAVIS_BRANCH" == "develop" ]]; then
+      export BLOBXFER_ARTIFACT="blobxfer-${TRAVIS_BRANCH}-${TRAVIS_BUILD_NUMBER}-$TRAVIS_OS_NAME-x86_64"
+      export UPLOAD_PATH="builds/$TRAVIS_BRANCH"
+    else
+      echo "Invalid tag=$TRAVIS_TAG or branch=$TRAVIS_BRANCH to build binary"
+      return
+    fi
+    echo "BLOBXFER_ARTIFACT=$BLOBXFER_ARTIFACT UPLOAD_PATH=$UPLOAD_PATH"
+    if [[ ! -e "bin/$BLOBXFER_ARTIFACT" ]]; then
         virtualenv -p python3 pyi
         $SHELL -c "set -e; source pyi/bin/activate; \
                    pip install pyinstaller; \
                    pip install --no-cache-dir -e .; \
                    pyinstaller -F -n $BLOBXFER_ARTIFACT -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli/cli.py; \
                    deactivate"
-        bin/$BLOBXFER_ARTIFACT upload --remote-path releases/$TRAVIS_TAG --local-path bin/$BLOBXFER_ARTIFACT --strip-components 1 --file-md5 --overwrite
+        bin/$BLOBXFER_ARTIFACT upload --remote-path $UPLOAD_PATH --local-path bin/$BLOBXFER_ARTIFACT --strip-components 1 --file-md5 --overwrite
     fi
 
 deploy:
@@ -62,7 +76,7 @@ deploy:
     skip_cleanup: true
     on:
       tags: true
-      condition: "$TRAVIS_PYTHON_VERSION == 3.5"
+      condition: "$TRAVIS_PYTHON_VERSION == 3.6"
     user: alfpark
     password:
       secure: IG7hwkaRS3iVJVwKmJng60q2/RX3nvfs5ZCW9CmRjF57cc2yEzB1O+Z7YpbX4+yI9zlebTBH+1HEeX9J8kb0jCMgtjUIFLcOFz977b8y/BbY93ffQlFt2p2EQHKOcOjTbXMvWOiR3LO+5DWBg11oSKlCZkZkjjDbUIe8mleeEls6s1VxjP0MDLbbgSh09Sdn5+FD24wOnkkW9OrKZHm4kghOwnhqquwMDilO9iDsAAZBF7t2BNvJzfTeZxeHCImvId3jN3EskHuoLbIcexDiwXjr5alo5+OdglMVjYI6+bVediFDw4wKTSNeHxkeScoelZJLy1SiP9FiEmUlHBeQaVKA1MB4BenXTrFHys+tGa1FuTack0pWASelqZ88xtrW09/QSqToA3pade4lMF7HAB7qpPIy1NaniVOnks8c7h9s0okh7WYtW/zdX8enQWJVISPKqS6Mtb0IUEVZbePsrWprkHlscW/Gg8p8TRCVA/7CgdA66PrvZSTKvbKBpAHkxkxNmA8LvTIzqBrEBsUIY0LY7omGOksqGivYh4xPP34MrVrJag1gpKOjNz5ZvvghDz3iI8PPJSuZoBT3fCRaBg4uaeDWc0Z+KXMtCJmfqI61oW5kMABuncoO/KEaC916Y0TDz01Wr/+fCf68VNB2iXaNklTv173Jy3hA+248oig=
@@ -70,7 +84,7 @@ deploy:
     skip_cleanup: true
     on:
       tags: true
-      condition: "$BLOBXFER_NOBUILD != 1"
+      condition: "$TRAVIS_PYTHON_VERSION == 3.6"
     draft: true
     overwrite: true
     tag_name: $TRAVIS_TAG
