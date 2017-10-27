@@ -3,6 +3,10 @@
 configuration files are specified with the `--config` option to any
 `blobxfer` command.
 
+For an in-depth explanation of each option or the associated default value,
+please see the [CLI Usage](10-cli-udage.md) documentation for the
+corresponding CLI option.
+
 ## Schema
 The `blobxfer` YAML schema consists of 5 distinct "sections". The following
 sub-sections will describe each. You may combine all 5 sections into the

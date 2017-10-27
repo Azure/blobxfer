@@ -56,6 +56,48 @@ def test_update_progress_bar():
         assert patched_upb.call_count == 1
 
 
+def test_global_dest_mode_is_file():
+    s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+
+    s._spec.options.dest_mode = azmodels.StorageModes.File
+
+    assert s._global_dest_mode_is_file()
+
+    s._spec.options.dest_mode = azmodels.StorageModes.Auto
+    s._spec.options.mode = azmodels.StorageModes.File
+
+    assert s._global_dest_mode_is_file()
+
+    s._spec.options.mode = azmodels.StorageModes.Page
+
+    assert not s._global_dest_mode_is_file()
+
+
+def test_translate_src_mode_to_dst_mode():
+    s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    s._spec.options.dest_mode = azmodels.StorageModes.Auto
+
+    src_mode = azmodels.StorageModes.File
+
+    assert s._translate_src_mode_to_dst_mode(
+        src_mode) == azmodels.StorageModes.File
+
+    src_mode = azmodels.StorageModes.Append
+
+    assert s._translate_src_mode_to_dst_mode(
+        src_mode) == azmodels.StorageModes.Append
+
+    s._spec.options.dest_mode = azmodels.StorageModes.Page
+
+    assert s._translate_src_mode_to_dst_mode(
+        src_mode) == azmodels.StorageModes.Page
+
+    s._spec.options.dest_mode = azmodels.StorageModes.File
+
+    assert s._translate_src_mode_to_dst_mode(
+        src_mode) == azmodels.StorageModes.File
+
+
 @mock.patch('blobxfer.operations.azure.file.list_all_files')
 @mock.patch('blobxfer.operations.azure.file.delete_file')
 @mock.patch('blobxfer.operations.azure.blob.list_all_blobs')
@@ -589,13 +631,15 @@ def test_check_for_existing_remote(gbp, gfp):
 
     s._spec.options.dest_mode = azmodels.StorageModes.File
     gfp.return_value = None
-    assert s._check_for_existing_remote(sa, 'cont', 'name') is None
+    src_mode = azmodels.StorageModes.File
+    assert s._check_for_existing_remote(sa, 'cont', 'name', src_mode) is None
 
     with mock.patch(
             'blobxfer.models.crypto.EncryptionMetadata.'
             'encryption_metadata_exists', return_value=False):
         gfp.return_value = mock.MagicMock()
-        assert s._check_for_existing_remote(sa, 'cont', 'name') is not None
+        assert s._check_for_existing_remote(
+            sa, 'cont', 'name', src_mode) is not None
 
     with mock.patch(
             'blobxfer.models.crypto.EncryptionMetadata.'
@@ -603,17 +647,20 @@ def test_check_for_existing_remote(gbp, gfp):
         with mock.patch(
                 'blobxfer.models.crypto.EncryptionMetadata.convert_from_json'):
             gfp.return_value = mock.MagicMock()
-            assert s._check_for_existing_remote(sa, 'cont', 'name') is not None
+            assert s._check_for_existing_remote(
+                sa, 'cont', 'name', src_mode) is not None
 
     s._spec.options.dest_mode = azmodels.StorageModes.Block
     gbp.return_value = None
-    assert s._check_for_existing_remote(sa, 'cont', 'name') is None
+    src_mode = azmodels.StorageModes.Block
+    assert s._check_for_existing_remote(sa, 'cont', 'name', src_mode) is None
 
     with mock.patch(
             'blobxfer.models.crypto.EncryptionMetadata.'
             'encryption_metadata_exists', return_value=False):
         gbp.return_value = mock.MagicMock()
-        assert s._check_for_existing_remote(sa, 'cont', 'name') is not None
+        assert s._check_for_existing_remote(
+            sa, 'cont', 'name', src_mode) is not None
 
 
 def test_get_destination_paths():

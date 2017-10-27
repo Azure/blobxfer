@@ -10,6 +10,7 @@
 ### Fixed
 - Errant exceptions thrown for `--skip-on-filesize-match` and
 `--skip-on-lmt-ge` options (#51)
+- Match `dest_mode` to `mode` when `dest_mode` is set to `auto` on synccopy
 
 ## [1.0.0rc2] - 2017-10-16
 ### Added

@@ -150,6 +150,36 @@ class SyncCopy(object):
             self._synccopy_bytes_sofar,
         )
 
+    def _global_dest_mode_is_file(self):
+        # type: (SyncCopy) -> bool
+        """Determine if destination mode is file
+        :param SyncCopy self: this
+        :rtype: bool
+        :return: destination mode is file
+        """
+        if (self._spec.options.dest_mode ==
+                blobxfer.models.azure.StorageModes.File or
+                (self._spec.options.mode ==
+                 blobxfer.models.azure.StorageModes.File and
+                 self._spec.options.dest_mode ==
+                 blobxfer.models.azure.StorageModes.Auto)):
+            return True
+        return False
+
+    def _translate_src_mode_to_dst_mode(self, src_mode):
+        # type: (SyncCopy, blobxfer.models.azure.StorageModes) -> bool
+        """Translate the source mode into the destination mode
+        :param SyncCopy self: this
+        :param blobxfer.models.azure.StorageModes src_mode: source mode
+        :rtype: blobxfer.models.azure.StorageModes
+        :return: destination mode
+        """
+        if (self._spec.options.dest_mode ==
+                blobxfer.models.azure.StorageModes.Auto):
+            return src_mode
+        else:
+            return self._spec.options.dest_mode
+
     def _delete_extraneous_files(self):
         # type: (SyncCopy) -> None
         """Delete extraneous files on the remote
@@ -167,8 +197,7 @@ class SyncCopy(object):
             logger.debug(
                 'attempting to delete extraneous blobs/files from: {}'.format(
                     key))
-            if (self._spec.options.dest_mode ==
-                    blobxfer.models.azure.StorageModes.File):
+            if self._global_dest_mode_is_file():
                 files = blobxfer.operations.azure.file.list_all_files(
                     sa.file_client, container)
                 for file in files:
@@ -294,12 +323,18 @@ class SyncCopy(object):
                     ase, offsets, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Page:
             if data is not None:
-                # no need to align page as page should already be aligned
+                # compute aligned size
+                aligned = blobxfer.util.page_align_content_length(
+                    offsets.num_bytes)
+                # align page
+                if aligned != offsets.num_bytes:
+                    data = data.ljust(aligned, b'\0')
                 if blobxfer.operations.md5.check_data_is_empty(data):
                     return
                 # upload page
                 blobxfer.operations.azure.blob.page.put_page(
-                    ase, offsets.range_start, offsets.range_end, data)
+                    ase, offsets.range_start,
+                    offsets.range_start + aligned - 1, data)
 
     def _process_data(self, sd, ase, offsets, data):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor,
@@ -572,24 +607,25 @@ class SyncCopy(object):
         else:
             return SynccopyAction.Skip
 
-    def _check_for_existing_remote(self, sa, cont, name):
-        # type: (SyncCopy, blobxfer.operations.azure.StorageAccount,
-        #        str, str) -> bobxfer.models.azure.StorageEntity
+    def _check_for_existing_remote(self, sa, cont, name, mode):
+        # type: (SyncCopy, blobxfer.operations.azure.StorageAccount, str, str,
+        #        blobxfer.models.azure.StorageModes) ->
+        #        bobxfer.models.azure.StorageEntity
         """Check for an existing remote file
         :param SyncCopy self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param str cont: container
         :param str name: entity name
+        :param blobxfer.models.StorageModes mode: dest mode
         :rtype: blobxfer.models.azure.StorageEntity
         :return: remote storage entity
         """
-        if (self._spec.options.dest_mode ==
-                blobxfer.models.azure.StorageModes.File):
+        if mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
                 sa.file_client, cont, name)
         else:
             fp = blobxfer.operations.azure.blob.get_blob_properties(
-                sa.block_blob_client, cont, name, self._spec.options.dest_mode)
+                sa.block_blob_client, cont, name, mode)
         if fp is not None:
             if blobxfer.models.crypto.EncryptionMetadata.\
                     encryption_metadata_exists(fp.metadata):
@@ -598,8 +634,7 @@ class SyncCopy(object):
             else:
                 ed = None
             ase = blobxfer.models.azure.StorageEntity(cont, ed)
-            if (self._spec.options.dest_mode ==
-                    blobxfer.models.azure.StorageModes.File):
+            if mode == blobxfer.models.azure.StorageModes.File:
                 dir, _, _ = blobxfer.operations.azure.file.parse_file_path(
                     name)
                 ase.populate_from_file(sa, fp, dir)
@@ -643,11 +678,12 @@ class SyncCopy(object):
                         'attempting rename multiple files to a directory')
             else:
                 name = str(pathlib.Path(name) / src_ase.name)
-            dst_ase = self._check_for_existing_remote(sa, cont, name)
+            # translate source mode to dest mode
+            dst_mode = self._translate_src_mode_to_dst_mode(src_ase.mode)
+            dst_ase = self._check_for_existing_remote(sa, cont, name, dst_mode)
             if dst_ase is None:
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
-                dst_ase.populate_from_local(
-                    sa, cont, name, self._spec.options.dest_mode)
+                dst_ase.populate_from_local(sa, cont, name, dst_mode)
                 dst_ase.size = src_ase.size
             # check condition for dst
             action = self._check_copy_conditions(src_ase, dst_ase)

@@ -14,6 +14,9 @@ Downloads remote Azure paths, which may contain many resources, to the
 local machine. This command requires at the minimum, the following options
 if invoked without a YAML configuration file:
 
+* `--mode` specifies the source Azure Storage mode. This defaults to `auto`
+which will target Azure Blob storage (any blob type). To source from Azure
+File storage, set this option to `file`.
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
 * `--local-path`
@@ -27,6 +30,9 @@ The local path may contain many resources on the local machine. This command
 requires at the minimum, the following options if invoked without a YAML
 configuration file:
 
+* `--mode` specifies the destination Azure Storage mode. This defaults to
+`auto` which will target Azure Blob storage (any blob type). To upload to
+Azure File storage, set this option to `file`.
 * `--local-path`
 * `--storage-account` for the destination remote Azure path
 * `--remote-path` for the destination remote Azure path
@@ -42,9 +48,15 @@ Synchronously copies remote Azure paths to other remote Azure paths. This
 command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 
+* `--mode` specifies the source Azure Storage mode. This defaults to `auto`
+which will target Azure Blob storage (any blob type). To upload to Azure File
+storage, set this option to `file`.
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path
-* `--sync-copy-dest-mode` for the destination mode
+* `--sync-copy-dest-mode` for the destination mode. If `auto` is specified
+for this option, the destination mode will be set the same as the source
+`--mode`. These options need not be the same which allows for object-transform
+copy operations.
 * `--sync-copy-dest-remote-path` for the destination remote Azure path
 * `--sync-copy-dest-storage-account` for the destination remote Azure path
 
