@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.0.0rc3] - 2017-10-27
 ### Added
 - Fileshare snapshot source support for download and synccopy (#53)
 - HTTP Proxy support
@@ -293,7 +294,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0rc2...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...HEAD
+[1.0.0rc3]: https://github.com/Azure/blobxfer/compare/1.0.0rc2...1.0.0rc3
 [1.0.0rc2]: https://github.com/Azure/blobxfer/compare/1.0.0rc1...1.0.0rc2
 [1.0.0rc1]: https://github.com/Azure/blobxfer/compare/1.0.0b2...1.0.0rc1
 [1.0.0b2]: https://github.com/Azure/blobxfer/compare/1.0.0b1...1.0.0b2
