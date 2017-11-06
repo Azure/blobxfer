@@ -34,11 +34,11 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage-blob==0.37.0',
+    'azure-storage-blob==0.37.1',
     'azure-storage-file==0.37.0',
     'bitstring==3.1.5',
     'click==6.7',
-    'cryptography>=2.1.2',
+    'cryptography>=2.1.3',
     'future==0.16.0',
     'pathlib2==2.3.0;python_version<"3.5"',
     'python-dateutil==2.6.1',
@@ -67,7 +67,7 @@ setup(
     install_requires=install_requires,
     tests_require=['pytest'],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Developers',
         'Intended Audience :: End Users/Desktop',

@@ -7,9 +7,92 @@ try:
 except ImportError:  # noqa
     import mock
 # non-stdlib imports
+import azure.storage.common.models
 import pytest
+import requests
+import urllib3
 # module under test
 import blobxfer.retry as retry
+
+
+def test_should_retry():
+    er = retry.ExponentialRetryWithMaxWait()
+    context = mock.MagicMock()
+    context.count = 1
+    er.max_attempts = 1
+
+    assert not er._should_retry(context)
+
+    context.count = 0
+    er.max_attempts = 20
+    context.response.status = None
+    context.exception = requests.Timeout()
+
+    assert er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.MaxRetryError(
+            mock.MagicMock(), mock.MagicMock(),
+            reason=urllib3.exceptions.NewConnectionError(
+                list(retry._NON_RETRYABLE_ERRNO)[0], 'message')
+        )
+    )
+    context.exception = ex
+
+    assert not er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.MaxRetryError(
+            mock.MagicMock(), mock.MagicMock(),
+            reason=urllib3.exceptions.NewConnectionError(
+                list(retry._RETRYABLE_ERRNO)[0], 'message')
+        )
+    )
+    context.exception = ex
+
+    assert er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.MaxRetryError(
+            mock.MagicMock(), mock.MagicMock(),
+            reason=urllib3.exceptions.NewConnectionError(
+                '[Errno N]', 'message')
+        )
+    )
+    context.exception = ex
+
+    assert not er._should_retry(context)
+
+    ex = requests.exceptions.ContentDecodingError()
+    context.exception = ex
+
+    assert er._should_retry(context)
+
+    context.exception = None
+    context.response.status = 200
+
+    assert er._should_retry(context)
+
+    context.response.status = 300
+
+    assert not er._should_retry(context)
+
+    context.response.status = 404
+    context.location_mode = azure.storage.common.models.LocationMode.SECONDARY
+
+    assert er._should_retry(context)
+
+    context.response.status = 408
+
+    assert er._should_retry(context)
+
+    context.response.status = 500
+
+    assert er._should_retry(context)
+
+    context.response.status = 501
+
+    assert not er._should_retry(context)
 
 
 def test_exponentialretrywithmaxwait():

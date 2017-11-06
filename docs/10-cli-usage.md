@@ -18,7 +18,8 @@ if invoked without a YAML configuration file:
 which will target Azure Blob storage (any blob type). To source from Azure
 File storage, set this option to `file`.
 * `--storage-account` for the source remote Azure path
-* `--remote-path` for the source remote Azure path
+* `--remote-path` for the source remote Azure path. This must have, at
+the minimum, a container or file share name.
 * `--local-path`
 
 Additionally, an authentication option for the storage account is required.
@@ -35,7 +36,8 @@ configuration file:
 Azure File storage, set this option to `file`.
 * `--local-path`
 * `--storage-account` for the destination remote Azure path
-* `--remote-path` for the destination remote Azure path
+* `--remote-path` for the destination remote Azure path. This must have,
+at the minimum, a container or file share name.
 
 Additionally, an authentication option for the storage account is required.
 Please see the Authentication sub-section below under Options.
@@ -52,12 +54,14 @@ a YAML configuration file:
 which will target Azure Blob storage (any blob type). To upload to Azure File
 storage, set this option to `file`.
 * `--storage-account` for the source remote Azure path
-* `--remote-path` for the source remote Azure path
+* `--remote-path` for the source remote Azure path. This must have, at
+the minimum, a container or file share name.
 * `--sync-copy-dest-mode` for the destination mode. If `auto` is specified
 for this option, the destination mode will be set the same as the source
 `--mode`. These options need not be the same which allows for object-transform
 copy operations.
-* `--sync-copy-dest-remote-path` for the destination remote Azure path
+* `--sync-copy-dest-remote-path` for the destination remote Azure path.
+This must have, at the minimum, a container or file share name.
 * `--sync-copy-dest-storage-account` for the destination remote Azure path
 
 Additionally, an authentication option for both storage accounts is required.
@@ -148,7 +152,7 @@ connecting to an Azure Public region:
     * Azure Germany Cloud:  `core.cloudapi.de`
     * Azure US Government Cloud: `core.usgovcloudapi.net`
 * `--max-retries` is the maximum number of retries for a request. Negative
-values result in unlimited retries. The default is 10.
+values result in unlimited retries. The default is 1000.
 * `--proxy-host` specifies the IP:port for an HTTP Proxy if required. This
 can be optionally provided through an environment variable
 `BLOBXFER_PROXY_HOST` instead.

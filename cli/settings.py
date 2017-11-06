@@ -279,7 +279,7 @@ def merge_global_settings(config, cli_options):
                 name_cli='timeout'),
             'max_retries': _merge_setting(
                 cli_options, config['options']['timeout'], 'max_retries',
-                default=10),
+                default=1000),
         },
         'verbose': _merge_setting(
             cli_options, config['options'], 'verbose', default=False),

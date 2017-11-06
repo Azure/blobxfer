@@ -30,9 +30,28 @@ from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
+import errno
 # non-stdlib imports
+import azure.storage.common.models
 import azure.storage.common.retry
+import requests
+import urllib3
 # local imports
+
+
+# global defines
+_RETRYABLE_ERRNO = frozenset((
+    '[Errno {}]'.format(errno.ECONNRESET),
+    '[Errno {}]'.format(errno.ECONNREFUSED),
+    '[Errno {}]'.format(errno.ECONNABORTED),
+    '[Errno {}]'.format(errno.ENETRESET),
+    '[Errno {}]'.format(errno.ETIMEDOUT),
+))
+_NON_RETRYABLE_ERRNO = frozenset((
+    '[Errno -2] Name or service not known',
+    '[Errno 8] nodename nor servname',
+    '[Errno 11001] getaddrinfo failed',
+))
 
 
 class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
@@ -65,6 +84,73 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
         self.reset_at_max = reset_at_max
         super(ExponentialRetryWithMaxWait, self).__init__(
             max_retries if max_retries is not None else 2147483647, False)
+
+    def _should_retry(self, context):
+        # type: (ExponentialRetryWithMaxWait,
+        #        azure.storage.common.models.RetryContext) -> bool
+        """Determine if retry should happen or not
+        :param ExponentialRetryWithMaxWait self: this
+        :param azure.storage.common.models.RetryContext context: retry context
+        :rtype: bool
+        :return: True if retry should happen, False otherwise
+        """
+        # do not retry if max attempts equal or exceeded
+        if context.count >= self.max_attempts:
+            return False
+
+        # get response status
+        status = None
+        if context.response and context.response.status:
+            status = context.response.status
+
+        # if there is no response status, then handle the exception
+        # appropriately from the lower layer
+        if status is None:
+            exc = context.exception
+            # requests timeout, retry
+            if isinstance(exc, requests.Timeout):
+                return True
+            elif (isinstance(exc, requests.exceptions.ConnectionError) or
+                  isinstance(exc, requests.exceptions.ChunkedEncodingError)):
+                # newer versions of requests do not expose errno on the
+                # args[0] reason object; manually string parse
+                if (isinstance(
+                        exc.args[0], urllib3.exceptions.MaxRetryError) and
+                        isinstance(
+                            exc.args[0].reason,
+                            urllib3.exceptions.NewConnectionError)):
+                    msg = exc.args[0].reason.args[0]
+                    if any(x in msg for x in _NON_RETRYABLE_ERRNO):
+                        return False
+                    elif any(x in msg for x in _RETRYABLE_ERRNO):
+                        return True
+                    else:
+                        # default to not retry in unknown case
+                        return False
+            return True
+        elif 200 <= status < 300:
+            # failure during respond body download or parsing, so success
+            # codes should be retried
+            return True
+        elif 300 <= status < 500:
+            # response code 404 should be retried if secondary was used
+            if (status == 404 and
+                    context.location_mode ==
+                    azure.storage.common.models.LocationMode.SECONDARY):
+                return True
+            # response code 408 is a timeout and should be retried
+            if status == 408:
+                return True
+            return False
+        elif status >= 500:
+            # response codes above 500 should be retried except for
+            # 501 (not implemented) and 505 (version not supported)
+            if status == 501 or status == 505:
+                return False
+            return True
+        else:  # noqa
+            # this should be unreachable, retry anyway
+            return True
 
     def retry(self, context):
         # type: (ExponentialRetryWithMaxWait,
