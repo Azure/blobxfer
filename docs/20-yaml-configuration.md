@@ -4,14 +4,18 @@ configuration files are specified with the `--config` option to any
 `blobxfer` command.
 
 For an in-depth explanation of each option or the associated default value,
-please see the [CLI Usage](10-cli-udage.md) documentation for the
+please see the [CLI Usage](10-cli-usage.md) documentation for the
 corresponding CLI option.
 
 ## Schema
-The `blobxfer` YAML schema consists of 5 distinct "sections". The following
-sub-sections will describe each. You may combine all 5 sections into the
+The `blobxfer` YAML schema consists of distinct "sections". The following
+sub-sections will describe each. You can combine all sections into the
 same YAML file if desired as `blobxfer` will only read the required sections
 to execute the specified command.
+
+You can view a complete sample YAML configuration [here](sample_config.yaml).
+Note that the sample configuration file is just a sample and may not contain
+all possible options.
 
 #### Configuration Sections
 1. [`version`](#version)

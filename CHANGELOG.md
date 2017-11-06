@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2017-11-06
+### Added
+- Sample YAML config
+
+### Changed
+- Default max retries is now set to 1000 per request
+- Updated dependencies to latest
+
+### Fixed
+- Retry handler does not retry on name resolution failures (#46)
+
 ## [1.0.0rc3] - 2017-10-27
 ### Added
 - Fileshare snapshot source support for download and synccopy (#53)
@@ -294,7 +305,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...1.0.0
 [1.0.0rc3]: https://github.com/Azure/blobxfer/compare/1.0.0rc2...1.0.0rc3
 [1.0.0rc2]: https://github.com/Azure/blobxfer/compare/1.0.0rc1...1.0.0rc2
 [1.0.0rc1]: https://github.com/Azure/blobxfer/compare/1.0.0b2...1.0.0rc1

@@ -1,0 +1,86 @@
+# configuration version
+version: 1
+
+# general options
+options:
+  log_file: blobxfer.log
+  progress_bar: true
+  verbose: false
+
+# azure storage credentials
+azure_storage:
+  endpoint: core.windows.net
+  accounts:
+    mystorageaccount: ABCDE...
+
+# download specification
+download:
+  - source:
+    - mystorageaccount: some/remote/path
+    destination: mybackup/dir
+    options:
+      check_file_md5: true
+      chunk_size_bytes: 4194304
+      delete_extraneous_destination: false
+      mode: auto
+      overwrite: true
+      recursive: true
+      rename: false
+      restore_file_attributes: false
+      rsa_private_key: my_private_key.pem
+      rsa_private_key_passphrase: null
+      skip_on:
+        filesize_match: false
+        lmt_ge: false
+        md5_match: true
+
+# synccopy specification
+synccopy:
+  - source:
+    - mystorageaccount: source/path
+    destination:
+    - myotherstorageaccount: dest/path
+    include:
+    - "*.dat"
+    exclude:
+    - "*.tmp"
+    options:
+      delete_extraneous_destination: false
+      dest_mode: auto
+      mode: auto
+      overwrite: true
+      recursive: true
+      rename: false
+      skip_on:
+        filesize_match: false
+        lmt_ge: false
+        md5_match: true
+
+# upload specification
+upload:
+  - source:
+    - /path/to/source
+    destination:
+    - mystorageaccount: destination/dir
+    include:
+    - "*.txt"
+    - "*.bin"
+    exclude:
+    - "*.tmp"
+    options:
+      mode: auto
+      chunk_size_bytes: 4194304
+      delete_extraneous_destination: false
+      one_shot_bytes: 33554432
+      overwrite: true
+      recursive: true
+      rename: false
+      rsa_public_key: my_public_key.pem
+      skip_on:
+        filesize_match: false
+        lmt_ge: false
+        md5_match: true
+      store_file_properties:
+        attributes: false
+        md5: true
+      strip_components: 0
