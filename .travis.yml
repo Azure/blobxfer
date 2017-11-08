@@ -67,7 +67,9 @@ after_success:
                    pip install --no-cache-dir -e .; \
                    pyinstaller -F -n $BLOBXFER_ARTIFACT -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli/cli.py; \
                    deactivate"
-        bin/$BLOBXFER_ARTIFACT upload --remote-path $UPLOAD_PATH --local-path bin/$BLOBXFER_ARTIFACT --strip-components 1 --file-md5 --overwrite
+        chmod +x bin/$BLOBXFER_ARTIFACT
+        gzip -k bin/$BLOBXFER_ARTIFACT
+        bin/$BLOBXFER_ARTIFACT upload --remote-path $UPLOAD_PATH --local-path bin/${BLOBXFER_ARTIFACT}.gz --strip-components 1 --file-md5 --overwrite
     fi
 
 deploy:
@@ -88,6 +90,6 @@ deploy:
     draft: true
     overwrite: true
     tag_name: $TRAVIS_TAG
-    file: bin/$BLOBXFER_ARTIFACT
+    file: bin/${BLOBXFER_ARTIFACT}.gz
     api_key:
       secure: QCcrLa2x15RVNX42x6Ts4E/AU4QvwacuoQJ5BlFK6hdevRZYyRSQB3yBD6ZhAqi79qxd7KpRoPj8mu0N3WaZuB3XtQ2scxQLvN5vueC6c9A2Ic9venoLfVYG9Np4jOYxwx3QRtMPA6SNEmxNxBK+jjClwNi71vshTwo14z0/IW7Zi7WNEzoZW3iNj7e+zbaVvuyx+vGI+Ckgjyy7OgaulNtlHG/vYuJuAMn7WzbyGuSQTuqI2npKvykumi9rNSQpmR+2WP9gbo8D+WU+iESHJ+r0YUbZRWDwGHA7fvbCNLMwFdXwaXccc6jozxqULTmt6mNnlSpaKduYiSoru9L8+kzxR1b+xYEK0fGr6/khABt5O26Pk6tCynKz4LrurSefA3mHrNYIT3PGGUvUTJAhSVaK9O/ag2qkDTA0NGp7KV+xDG4KCWvqeuPssqh9ppDl27T1s/aWMtKeeswCRhGMlfCICg9hhPzyc97ZBzl7DLRPITUceSzc2cGp88zGYdlJEg+5yuSl1j+Al5jmWMxuLF1MLOmFYw1pA1z7zPpcq8zzC0t5eu6n/fFh6k57sZQ6VDeS4kix4q0W6XjIFx4yA/Aa4CpeEAOb+jPzZxRuQ/UvRgL4M7lnb8aIOqNcoXEcccgnrcULjJ9pcJCMHE0p5WU7JnF8mpazJude51yikx0=
