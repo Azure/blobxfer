@@ -121,7 +121,8 @@ class StorageAccount(object):
             'https://',
             requests.adapters.HTTPAdapter(
                 pool_connections=transfer_threads,
-                pool_maxsize=transfer_threads << 1,
+                pool_maxsize=transfer_threads << 2,
+                pool_block=False,
             )
         )
         self._create_clients(timeout, proxy)

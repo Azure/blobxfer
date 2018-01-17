@@ -50,7 +50,7 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
-_AUTO_SELECT_CHUNKSIZE_BYTES = 16777216
+_AUTO_SELECT_CHUNKSIZE_BYTES = 8388608
 # named tuples
 Offsets = collections.namedtuple(
     'Offsets', [
@@ -704,15 +704,16 @@ class Descriptor(object):
 
     def write_data(self, offsets, data):
         # type: (Descriptor, Offsets, bytes) -> None
-        """Postpone integrity check for chunk
+        """Write data to disk
         :param Descriptor self: this
         :param Offsets offsets: download offsets
         :param bytes data: data
         """
         if len(data) > 0:
+            # offset from internal view
+            pos = self.view.fd_start + offsets.fd_start
             with self.final_path.open('r+b') as fd:
-                # offset some internal view
-                fd.seek(self.view.fd_start + offsets.fd_start, 0)
+                fd.seek(pos, 0)
                 fd.write(data)
 
     def finalize_integrity(self):

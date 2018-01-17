@@ -202,8 +202,8 @@ class Concurrency(object):
             if self.disk_threads > 64:
                 self.disk_threads = 64
             # for download action, cap disk threads to lower value
-            if action == 1 and self.disk_threads > 16:
-                self.disk_threads = 16
+            if action == 1 and self.disk_threads > 32:
+                self.disk_threads = 32
             auto_disk = True
         # for synccopy action, set all non-transfer counts to zero
         if action == 3:
@@ -213,7 +213,15 @@ class Concurrency(object):
             self.disk_threads = 0
         if self.transfer_threads is None or self.transfer_threads < 1:
             if auto_disk:
-                self.transfer_threads = self.disk_threads << 1
+                # for download action, cap network threads to lower value
+                if action == 1:
+                    max_threads = (multiprocessing.cpu_count() >> 1) - 2
+                    if max_threads < 3:
+                        max_threads = 3
+                    self.transfer_threads = max_threads
+                    self.disk_threads = int(max_threads * 1.5)
+                else:
+                    self.transfer_threads = self.disk_threads << 1
             else:
                 self.transfer_threads = multiprocessing.cpu_count() << 2
             # cap maximum number of threads from cpu count to 96

@@ -56,6 +56,8 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
+# global defines
+_MAX_SINGLE_OBJECT_CONCURRENCY = 8
 
 
 class DownloadAction(enum.Enum):
@@ -85,6 +87,7 @@ class Downloader(object):
         self._transfer_queue = queue.Queue()
         self._transfer_set = set()
         self._transfer_threads = []
+        self._transfer_cc = {}
         self._disk_operation_lock = threading.Lock()
         self._disk_queue = queue.Queue()
         self._disk_set = set()
@@ -539,11 +542,20 @@ class Downloader(object):
                 self._transfer_set.remove(
                     blobxfer.operations.download.Downloader.
                     create_unique_transfer_operation_id(dd.entity))
+                self._transfer_cc.pop(dd.final_path)
             return
         # re-enqueue for other threads to download
-        self._transfer_queue.put(dd)
         if offsets is None:
+            self._transfer_queue.put(dd)
             return
+        # check if there are too many concurrent connections
+        with self._transfer_lock:
+            if dd.final_path not in self._transfer_cc:
+                self._transfer_cc[dd.final_path] = 0
+            self._transfer_cc[dd.final_path] += 1
+            cc_xfer = self._transfer_cc[dd.final_path]
+        if cc_xfer <= _MAX_SINGLE_OBJECT_CONCURRENCY:
+            self._transfer_queue.put(dd)
         # issue get range
         if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
             data = blobxfer.operations.azure.file.get_file_range(
@@ -551,6 +563,10 @@ class Downloader(object):
         else:
             data = blobxfer.operations.azure.blob.get_blob_range(
                 dd.entity, offsets)
+        with self._transfer_lock:
+            self._transfer_cc[dd.final_path] -= 1
+        if cc_xfer > _MAX_SINGLE_OBJECT_CONCURRENCY:
+            self._transfer_queue.put(dd)
         # enqueue data for processing
         with self._disk_operation_lock:
             self._disk_set.add(

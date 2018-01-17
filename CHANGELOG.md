@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Changed
+- Default chunk size and thread counts for downloading
+- Limit number of concurrent downloads per object
+
+### Fixed
+- Connection pool thread exhaustion
+
 ## [1.0.0] - 2017-11-06
 ### Added
 - Sample YAML config

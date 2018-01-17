@@ -77,8 +77,8 @@ def test_concurrency_options_max_disk_and_transfer_threads(patched_cc):
         action=1,
     )
 
-    assert a.disk_threads == 16
-    assert a.transfer_threads == 32
+    assert a.disk_threads == 45
+    assert a.transfer_threads == 30
 
     a = options.Concurrency(
         crypto_processes=1,
@@ -92,6 +92,20 @@ def test_concurrency_options_max_disk_and_transfer_threads(patched_cc):
     assert a.crypto_processes == 0
     assert a.disk_threads == 0
     assert a.transfer_threads == 96
+
+
+@mock.patch('multiprocessing.cpu_count', return_value=6)
+def test_concurrency_options_max_disk_and_transfer_threads2(patched_cc):
+    a = options.Concurrency(
+        crypto_processes=1,
+        md5_processes=1,
+        disk_threads=None,
+        transfer_threads=None,
+        action=1,
+    )
+
+    assert a.disk_threads == 4
+    assert a.transfer_threads == 3
 
 
 def test_general_options():

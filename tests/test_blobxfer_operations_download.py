@@ -549,12 +549,14 @@ def test_process_download_descriptor_vio(tmpdir):
         key = ops.Downloader.create_unique_transfer_operation_id(ase)
         d._transfer_set.add(key)
         d._dd_map[str(lp)] = mock.MagicMock()
+        d._transfer_cc[dd.final_path] = mock.MagicMock()
 
         d._process_download_descriptor(dd)
         assert dd.finalize_file.call_count == 0
 
         d._transfer_set.add(key)
         d._dd_map[str(lp)] = mock.MagicMock()
+        d._transfer_cc[dd.final_path] = mock.MagicMock()
         d._process_download_descriptor(dd)
         assert dd.finalize_file.call_count == 1
 
@@ -687,7 +689,10 @@ def test_worker_thread_transfer(
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [dd]
         patched_tc.side_effect = [False, True]
+        msoc = ops._MAX_SINGLE_OBJECT_CONCURRENCY
+        ops._MAX_SINGLE_OBJECT_CONCURRENCY = 0
         d._worker_thread_transfer()
+        ops._MAX_SINGLE_OBJECT_CONCURRENCY = msoc
         assert len(d._disk_set) == 1
         a, b, c = d._disk_queue.get()
         d._process_data(a, b, c)
