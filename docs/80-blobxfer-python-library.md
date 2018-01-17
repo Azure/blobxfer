@@ -62,7 +62,7 @@ credentials.add_storage_account(...)
 
 # construct Azure source paths and add it to specification
 asp = blobxfer.api.AzureSourcePath()
-asp.add_path_with_storeage_account(...)
+asp.add_path_with_storage_account(...)
 specification.add_azure_source_path(asp)
 
 # execute downloader

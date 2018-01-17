@@ -41,7 +41,7 @@ yum install -y python34 python34-devel gcc openssl-devel libffi-devel
 curl -fSsL https://bootstrap.pypa.io/get-pip.py | python3
 
 # for Python2
-yum install -y gcc openssl-dev libffi-devel python-devel
+yum install -y gcc openssl-devel libffi-devel python-devel
 curl -fSsL https://bootstrap.pypa.io/get-pip.py | python
 ```
 
