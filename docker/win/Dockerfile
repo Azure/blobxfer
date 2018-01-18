@@ -1,7 +1,7 @@
 # Dockerfile for Azure/blobxfer (Windows)
 # Adapted from: https://github.com/StefanScherer/dockerfiles-windows/blob/master/python/Dockerfile
 
-FROM python:3.6.3-windowsservercore
+FROM python:3.6.4-windowsservercore-ltsc2016
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ENV chocolateyUseWindowsCompression false
@@ -27,7 +27,7 @@ COPY --from=0 /blobxfer/THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.tx
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV PYTHON_VERSION 3.6.3
+ENV PYTHON_VERSION 3.6.4
 ENV PYTHON_PIP_VERSION 9.0.1
 
 RUN $env:PATH = 'C:\Python;C:\Python\Scripts;{0}' -f $env:PATH ; \
