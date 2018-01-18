@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2018-01-18
 ### Added
 - Support for setting blob access tiers on Upload and SyncCopy
 
@@ -9,6 +10,7 @@
 - Default chunk size and thread counts for downloading
 - Limit number of concurrent downloads per object
 - Update dependencies to latest
+- Update Docker images to Alpine 3.7 and Python 3.6.4
 
 ### Fixed
 - Connection pool thread exhaustion
@@ -316,7 +318,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/Azure/blobxfer/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...1.0.0
 [1.0.0rc3]: https://github.com/Azure/blobxfer/compare/1.0.0rc2...1.0.0rc3
 [1.0.0rc2]: https://github.com/Azure/blobxfer/compare/1.0.0rc1...1.0.0rc2
