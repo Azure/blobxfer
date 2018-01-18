@@ -129,6 +129,7 @@ def add_cli_options(cli_options, action):
             'include': cli_options.get('include'),
             'exclude': cli_options.get('exclude'),
             'options': {
+                'access_tier': cli_options.get('access_tier'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
                 'dest_mode': cli_options.get('sync_copy_dest_mode'),
                 'mode': cli_options.get('mode'),
@@ -150,6 +151,7 @@ def add_cli_options(cli_options, action):
             'include': cli_options.get('include'),
             'exclude': cli_options.get('exclude'),
             'options': {
+                'access_tier': cli_options.get('access_tier'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
                 'delete_extraneous_destination': cli_options.get('delete'),
                 'mode': cli_options.get('mode'),
@@ -535,6 +537,8 @@ def create_synccopy_specifications(ctx_cli_options, config):
         cli_sod = cli_options['skip_on']
         scs = blobxfer.models.synccopy.Specification(
             synccopy_options=blobxfer.models.options.SyncCopy(
+                access_tier=_merge_setting(
+                    cli_options, conf_options, 'access_tier', default=None),
                 delete_extraneous_destination=_merge_setting(
                     cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
@@ -647,6 +651,8 @@ def create_upload_specifications(ctx_cli_options, config):
         cli_sod = cli_options['skip_on']
         us = blobxfer.models.upload.Specification(
             upload_options=blobxfer.models.options.Upload(
+                access_tier=_merge_setting(
+                    cli_options, conf_options, 'access_tier', default=None),
                 chunk_size_bytes=_merge_setting(
                     cli_options, conf_options, 'chunk_size_bytes',
                     default=0),

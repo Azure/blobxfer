@@ -413,6 +413,11 @@ class SyncCopy(object):
             # finalize upload for non-one shots
             if not sd.is_one_shot_block_blob:
                 self._finalize_upload(sd)
+            else:
+                # set access tier for one shots
+                if sd.requires_access_tier_set:
+                    blobxfer.operations.azure.blob.block.set_blob_access_tier(
+                        sd.dst_entity)
             # accounting
             with self._transfer_lock:
                 self._transfer_set.remove(
@@ -555,6 +560,10 @@ class SyncCopy(object):
         elif sd.remote_is_file:
             # azure file finalization
             self._finalize_azure_file(sd, metadata, digest)
+        # set access tier
+        if sd.requires_access_tier_set:
+            blobxfer.operations.azure.blob.block.set_blob_access_tier(
+                sd.dst_entity)
 
     def _check_copy_conditions(self, src, dst):
         # type: (SyncCopy, blobxfer.models.azure.StorageEntity,
@@ -685,6 +694,10 @@ class SyncCopy(object):
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 dst_ase.populate_from_local(sa, cont, name, dst_mode)
                 dst_ase.size = src_ase.size
+            # overwrite tier with specified storage tier
+            if (dst_mode == blobxfer.models.azure.StorageModes.Block and
+                    self._spec.options.access_tier is not None):
+                dst_ase.access_tier = self._spec.options.access_tier
             # check condition for dst
             action = self._check_copy_conditions(src_ase, dst_ase)
             if action == SynccopyAction.Copy:

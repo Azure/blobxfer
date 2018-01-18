@@ -2,9 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- Support for setting blob access tiers on Upload and SyncCopy
+
 ### Changed
 - Default chunk size and thread counts for downloading
 - Limit number of concurrent downloads per object
+- Update dependencies to latest
 
 ### Fixed
 - Connection pool thread exhaustion

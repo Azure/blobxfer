@@ -29,6 +29,7 @@ def test_azurestorageentity():
     blob.properties.content_settings = mock.MagicMock()
     blob.properties.content_settings.content_md5 = 'abc'
     blob.properties.blob_type = azure.storage.blob.models._BlobTypes.BlockBlob
+    blob.properties.blob_tier = 'Cool'
     ase.populate_from_blob(mock.MagicMock(), blob)
 
     assert ase.create_containers is not None
@@ -42,6 +43,7 @@ def test_azurestorageentity():
     assert ase.encryption_metadata is None
     assert ase.raw_metadata is None
     assert ase.snapshot is None
+    assert ase.access_tier == 'Cool'
     assert ase.mode == azmodels.StorageModes.Block
 
     blob.properties.blob_type = azure.storage.blob.models._BlobTypes.AppendBlob

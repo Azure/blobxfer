@@ -458,8 +458,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
-        store_raw_metadata = isinstance(
-            options, blobxfer.models.options.SyncCopy)
+        is_synccopy = isinstance(options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
             cont, dir = blobxfer.util.explode_azure_path(rpath)
@@ -470,7 +469,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 if not self._inclusion_check(blob.name):
                     continue
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, store_raw_metadata, sa, blob,
+                        creds, options, is_synccopy, sa, blob,
                         False, cont):
                     if ase is None:
                         continue

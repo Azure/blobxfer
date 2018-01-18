@@ -12,6 +12,7 @@ try:
 except ImportError:  # noqa
     import pathlib
 # non-stdlib imports
+import azure.storage.blob
 import pytest
 # local imports
 import blobxfer.models.azure as azmodels
@@ -870,6 +871,30 @@ def test_check_for_existing_remote(gbp, gfp):
             'encryption_metadata_exists', return_value=False):
         gbp.return_value = mock.MagicMock()
         assert u._check_for_existing_remote(sa, 'cont', 'name') is not None
+
+    # check access tiers
+    with mock.patch(
+            'blobxfer.models.crypto.EncryptionMetadata.'
+            'encryption_metadata_exists', return_value=False):
+        gbp.return_value = mock.MagicMock()
+        gbp.return_value.properties.blob_type = \
+            azure.storage.blob.models._BlobTypes.BlockBlob
+        gbp.return_value.properties.blob_tier = None
+
+        u._spec.options.access_tier = None
+        ase = u._check_for_existing_remote(sa, 'cont', 'name')
+        assert ase is not None
+        assert ase.access_tier is None
+
+        gbp.return_value.properties.blob_tier = 'Cool'
+        ase = u._check_for_existing_remote(sa, 'cont', 'name')
+        assert ase is not None
+        assert ase.access_tier is None
+
+        u._spec.options.access_tier = 'Hot'
+        ase = u._check_for_existing_remote(sa, 'cont', 'name')
+        assert ase is not None
+        assert ase.access_tier == 'Hot'
 
 
 def test_generate_destination_for_source():

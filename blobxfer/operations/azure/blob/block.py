@@ -174,3 +174,16 @@ def get_committed_block_list(ase, timeout=None):
         snapshot=snapshot,
         block_list_type=azure.storage.blob.BlockListType.Committed,
         timeout=timeout).committed_blocks
+
+
+def set_blob_access_tier(ase, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity, int) -> None
+    """Set blob access tier
+    :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
+    :param int timeout: timeout
+    """
+    ase.client.set_standard_blob_tier(
+        container_name=ase.container,
+        blob_name=ase.name,
+        standard_blob_tier=ase.access_tier,
+        timeout=timeout)  # noqa

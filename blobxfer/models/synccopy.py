@@ -216,6 +216,16 @@ class Descriptor(object):
         )
 
     @property
+    def remote_is_block_blob(self):
+        # type: (Descriptor) -> bool
+        """Remote destination is an Azure Block Blob
+        :param Descriptor self: this
+        :rtype: bool
+        :return: remote is an Azure Block Blob
+        """
+        return self.dst_entity.mode == blobxfer.models.azure.StorageModes.Block
+
+    @property
     def is_one_shot_block_blob(self):
         # type: (Descriptor) -> bool
         """Is one shot block blob
@@ -223,11 +233,7 @@ class Descriptor(object):
         :rtype: bool
         :return: if upload is a one-shot block blob
         """
-        return (
-            self.dst_entity.mode ==
-            blobxfer.models.azure.StorageModes.Block and
-            self._total_chunks == 1
-        )
+        return self.remote_is_block_blob and self._total_chunks == 1
 
     @property
     def requires_put_block_list(self):
@@ -237,11 +243,18 @@ class Descriptor(object):
         :rtype: bool
         :return: if finalize requires a put block list
         """
-        return (
-            self.dst_entity.mode ==
-            blobxfer.models.azure.StorageModes.Block and
-            self._total_chunks > 1
-        )
+        return self.remote_is_block_blob and self._total_chunks > 1
+
+    @property
+    def requires_access_tier_set(self):
+        # type: (Descriptor) -> bool
+        """Remote destination requires an access tier set operation
+        :param Descriptor self: this
+        :rtype: bool
+        :return: access tier is set
+        """
+        return (self.remote_is_block_blob and
+                self.dst_entity.access_tier is not None)
 
     def complete_offset_upload(self, chunk_num):
         # type: (Descriptor, int) -> None

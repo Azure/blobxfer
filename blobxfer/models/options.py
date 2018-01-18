@@ -76,6 +76,7 @@ FileProperties = collections.namedtuple(
 )
 Upload = collections.namedtuple(
     'Upload', [
+        'access_tier',
         'chunk_size_bytes',
         'delete_extraneous_destination',
         'mode',
@@ -105,6 +106,7 @@ Download = collections.namedtuple(
 )
 SyncCopy = collections.namedtuple(
     'SyncCopy', [
+        'access_tier',
         'delete_extraneous_destination',
         'dest_mode',
         'mode',

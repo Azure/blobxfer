@@ -222,6 +222,15 @@ regarding Vectored IO operations in `blobxfer`.
 Vectored IO operations
 
 ### Other
+* `--access-tier` sets the
+[access tier](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
+of the object (block blobs only) for upload and synccopy operations. If this
+is not specified, which is the default, then no access tier is actively set
+for the object which then inherits from whatever the default access tier is
+for the account. Note that the access tier is applied to all files
+transferred for the blobxfer invocation. This can only be set for Blob
+Storage and General Purpose V2 storage accounts. Valid values for this
+option are `hot`, `cool`, or `archive`.
 * `--delete` deletes extraneous files (including blob snapshots if the parent
 is deleted) at the remote destination path on uploads and at the local
 resource on downloads. This actions occur after the transfer has taken place,

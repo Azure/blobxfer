@@ -191,6 +191,8 @@ def output_parameters(general_options, spec):
         log.append('        local destination: {}'.format(
             spec.destination.path))
     elif isinstance(spec, blobxfer.models.upload.Specification):
+        log.append('              access tier: {}'.format(
+            spec.options.access_tier))
         log.append('         chunk size bytes: {}'.format(
             spec.options.chunk_size_bytes))
         log.append('           one shot bytes: {}'.format(
@@ -204,6 +206,9 @@ def output_parameters(general_options, spec):
             'Loaded' if spec.options.rsa_public_key else 'None'))
         log.append('       local source paths: {}'.format(
             ' '.join([str(src) for src in spec.sources.paths])))
+    elif isinstance(spec, blobxfer.models.synccopy.Specification):
+        log.append('              access tier: {}'.format(
+            spec.options.access_tier))
     log.append(sep)
     log = os.linesep.join(log)
     if blobxfer.util.is_not_empty(general_options.log_file):

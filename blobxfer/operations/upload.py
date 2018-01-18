@@ -698,6 +698,10 @@ class Uploader(object):
         elif ud.remote_is_file:
             # azure file finalization
             self._finalize_azure_file(ud, metadata)
+        # set access tier
+        if ud.requires_access_tier_set:
+            blobxfer.operations.azure.blob.block.set_blob_access_tier(
+                ud.entity)
 
     def _get_destination_paths(self):
         # type: (Uploader) ->
@@ -855,6 +859,9 @@ class Uploader(object):
                 ase.populate_from_file(sa, fp, dir)
             else:
                 ase.populate_from_blob(sa, fp)
+                # overwrite tier with specified storage tier
+                if ase.mode == blobxfer.models.azure.StorageModes.Block:
+                    ase.access_tier = self._spec.options.access_tier
         else:
             ase = None
         return ase
@@ -901,6 +908,8 @@ class Uploader(object):
                 ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 ase.populate_from_local(
                     sa, cont, name, self._spec.options.mode)
+                if ase.mode == blobxfer.models.azure.StorageModes.Block:
+                    ase.access_tier = self._spec.options.access_tier
             yield sa, ase
 
     def _vectorize_and_bind(self, local_path, dest):
@@ -946,6 +955,8 @@ class Uploader(object):
                         ase.container, ed=None)
                     sase.populate_from_local(
                         sa, ase.container, name, self._spec.options.mode)
+                    if sase.mode == blobxfer.models.azure.StorageModes.Block:
+                        sase.access_tier = self._spec.options.access_tier
                 slice_map[i] = sase
             # create new local path to ase mappings
             curr = 0

@@ -18,6 +18,7 @@ import blobxfer.models.synccopy as synccopy
 def test_specification():
     spec = synccopy.Specification(
         synccopy_options=options.SyncCopy(
+            access_tier=None,
             delete_extraneous_destination=False,
             dest_mode=azmodels.StorageModes.Auto,
             mode=azmodels.StorageModes.Auto,

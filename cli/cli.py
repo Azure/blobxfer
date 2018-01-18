@@ -441,6 +441,19 @@ def _access_key_option(f):
         callback=callback)(f)
 
 
+def _access_tier_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['access_tier'] = value
+        return value
+    return click.option(
+        '--access-tier',
+        expose_value=False,
+        default=None,
+        help='Access tier to apply to target (block blob only)',
+        callback=callback)(f)
+
+
 def _chunk_size_bytes_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -854,6 +867,7 @@ def upload_options(f):
     f = _distribution_mode(f)
     f = _delete_option(f)
     f = _chunk_size_bytes_option(f)
+    f = _access_tier_option(f)
     f = _access_key_option(f)
     return f
 
@@ -898,6 +912,7 @@ def sync_copy_options(f):
     f = _exclude_option(f)
     f = _endpoint_option(f)
     f = _chunk_size_bytes_option(f)
+    f = _access_tier_option(f)
     f = _access_key_option(f)
     return f
 

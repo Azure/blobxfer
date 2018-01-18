@@ -190,6 +190,7 @@ upload:
       - "*.tmp"
       options:
           mode: auto
+          access_tier: null
           chunk_size_bytes: 0
           delete_extraneous_destination: true
           one_shot_bytes: 33554432
@@ -219,6 +220,8 @@ upload:
 * `exclude` is a list of exclude patterns
 * `options` are upload-specific options
     * `mode` is the operating mode
+    * `access_tier` is the access tier to set for the object. If not set,
+      the default access tier for the storage account is inferred.
     * `chunk_size_bytes` is the maximum amount of data to upload per request.
       This corresponds to the block size for block and append blobs, page size
       for page blobs, and the file chunk for files. Only block blobs can have
@@ -280,6 +283,7 @@ synccopy:
       options:
           mode: auto
           dest_mode: auto
+          access_tier: null
           delete_extraneous_destination: true
           overwrite: true
           recursive: true
@@ -298,6 +302,8 @@ are copied to each destination specified.
 * `options` are synccopy-specific options
     * `mode` is the source mode
     * `dest_mode` is the destination mode
+    * `access_tier` is the access tier to set for the object. If not set,
+      the default access tier for the storage account is inferred.
     * `delete_extraneous_destination` will cleanup any files in remote
       destinations that are not found in the remote sources. Note that this
       interacts with include and exclude filters.

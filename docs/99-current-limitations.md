@@ -41,3 +41,7 @@ remain in the directory on the Azure File share.
 * Directories with no characters, e.g. `mycontainer//mydir` are not
 supported.
 * `/dev/null` or `nul` destinations are not supported.
+* Application of access tiers can only be applied to block blobs on either
+Blob Storage or General Purpose V2 Storage accounts. Please see
+[this article](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
+for more information.

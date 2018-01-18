@@ -76,6 +76,7 @@ class StorageEntity(object):
         self._vio = None
         self._fileattr = None
         self._raw_metadata = None
+        self._access_tier = None
         self.replica_targets = None
 
     @property
@@ -278,6 +279,25 @@ class StorageEntity(object):
         """
         return self._raw_metadata
 
+    @property
+    def access_tier(self):
+        # type: (StorageEntity) -> str
+        """Return access tier for blob
+        :param StorageEntity self: this
+        :rtype: str
+        :return: access tier
+        """
+        return self._access_tier
+
+    @access_tier.setter
+    def access_tier(self, value):
+        # type: (StorageEntity, str) -> None
+        """Set access tier
+        :param StorageEntity self: this
+        :param str value: value
+        """
+        self._access_tier = value
+
     def populate_from_blob(self, sa, blob, vio=None, store_raw_metadata=False):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.blob.models.Blob) -> None
@@ -304,6 +324,7 @@ class StorageEntity(object):
             self._mode = StorageModes.Append
             self._client = sa.append_blob_client
         elif blob.properties.blob_type == BlobTypes.BlockBlob:
+            self._access_tier = blob.properties.blob_tier
             self._mode = StorageModes.Block
             self._client = sa.block_blob_client
         elif blob.properties.blob_type == BlobTypes.PageBlob:

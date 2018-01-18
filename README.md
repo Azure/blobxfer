@@ -33,6 +33,8 @@ from Azure Blob and File Storage
 * Support reading/pipe from `stdin` including to page blob destinations
 * Support reading from blob and file share snapshots for downloading and
 synchronous copy
+* Support for setting access tier on objects for uploading and synchronous
+copy
 * Configurable one-shot block upload support
 * Configurable chunk size for both upload and download
 * Automatic block size selection for block blob uploading

@@ -46,6 +46,7 @@ def test_output_parameters():
 
     spec = modelsul.Specification(
         upload_options=options.Upload(
+            access_tier='cool',
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=azmodels.StorageModes.Auto,
@@ -74,6 +75,7 @@ def test_output_parameters():
 
     spec = modelssc.Specification(
         synccopy_options=options.SyncCopy(
+            access_tier='archive',
             delete_extraneous_destination=False,
             dest_mode=azmodels.StorageModes.Auto,
             mode=azmodels.StorageModes.Auto,

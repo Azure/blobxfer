@@ -38,12 +38,12 @@ install_requires = [
     'azure-storage-file==0.37.0',
     'bitstring==3.1.5',
     'click==6.7',
-    'cryptography>=2.1.3',
+    'cryptography>=2.1.4',
     'future==0.16.0',
     'pathlib2==2.3.0;python_version<"3.5"',
     'python-dateutil==2.6.1',
     'requests==2.18.4',
-    'ruamel.yaml==0.15.34',
+    'ruamel.yaml==0.15.35',
     'scandir==1.6;python_version<"3.5"',
 ]
 

@@ -155,6 +155,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=4194304,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -184,6 +185,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=4194304,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -213,6 +215,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=-1,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -240,6 +243,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=upload._MAX_BLOCK_BLOB_CHUNKSIZE_BYTES + 1,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -267,6 +271,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=4194304,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -294,6 +299,7 @@ def test_specification(tmpdir):
     with pytest.raises(ValueError):
         upload.Specification(
             upload_options=options.Upload(
+                access_tier=None,
                 chunk_size_bytes=4194304,
                 delete_extraneous_destination=False,
                 mode=azmodels.StorageModes.Auto,
@@ -320,6 +326,7 @@ def test_specification(tmpdir):
 
     spec = upload.Specification(
         upload_options=options.Upload(
+            access_tier=None,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
             mode=azmodels.StorageModes.Auto,
@@ -391,6 +398,7 @@ def test_descriptor(tmpdir):
     assert ud.requires_put_block_list
     assert not ud.requires_non_encrypted_md5_put
     assert not ud.requires_set_file_properties_md5
+    assert not ud.requires_access_tier_set
     assert ud.requires_resize() == (False, ud._offset)
 
     # test sym key
