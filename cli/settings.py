@@ -191,9 +191,14 @@ def add_cli_options(cli_options, action):
         arg.pop('destination')
         count += 1
     if count == 1:
-        raise ValueError(
-            '--local-path and --remote-path must be specified together '
-            'through the commandline')
+        if action == TransferAction.Synccopy:
+            raise ValueError(
+                '--remote-path and --sync-copy-dest-remote-path must be '
+                'specified together through the commandline')
+        else:
+            raise ValueError(
+                '--local-path and --remote-path must be specified together '
+                'through the commandline')
     if 'accounts' in azstorage:
         cli_options['azure_storage'] = azstorage
     cli_options[action.name.lower()] = arg
@@ -514,8 +519,7 @@ def create_synccopy_specifications(ctx_cli_options, config):
             raise ValueError('unknown source mode: {}'.format(mode))
         # get destination mode
         destmode = _merge_setting(
-            cli_options, conf_options, 'dest_mode',
-            name_cli='sync_copy_dest_mode')
+            cli_options, conf_options, 'dest_mode', name_cli='dest_mode')
         if blobxfer.util.is_none_or_empty(destmode):
             destmode = mode
         else:

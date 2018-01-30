@@ -163,8 +163,14 @@ def output_parameters(general_options, spec):
         general_options.resume_file))
     log.append('                  timeout: connect={} read={}'.format(
         general_options.timeout.connect, general_options.timeout.read))
-    log.append('                     mode: {}'.format(
-        spec.options.mode))
+    if isinstance(spec, blobxfer.models.synccopy.Specification):
+        log.append('              source mode: {}'.format(
+            spec.options.mode))
+        log.append('                dest mode: {}'.format(
+            spec.options.dest_mode))
+    else:
+        log.append('                     mode: {}'.format(
+            spec.options.mode))
     log.append(
         '                  skip on: fs_match={} lmt_ge={} md5={}'.format(
             spec.skip_on.filesize_match,
