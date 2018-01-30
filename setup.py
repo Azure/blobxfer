@@ -34,8 +34,8 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage-blob==0.37.1',
-    'azure-storage-file==0.37.0',
+    'azure-storage-blob==1.0.0',
+    'azure-storage-file==1.0.0',
     'bitstring==3.1.5',
     'click==6.7',
     'cryptography>=2.1.4',

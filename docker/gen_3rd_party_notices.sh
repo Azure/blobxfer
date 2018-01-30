@@ -32,7 +32,7 @@ DEPENDENCIES=(
     https://github.com/requests/requests/raw/master/LICENSE
     ruamel.yaml
     https://bitbucket.org/ruamel/yaml
-    https://bitbucket.org/ruamel/yaml/raw/aea7d3ed00153263b5aa3ff5dd7b5a0658bf8ae7/LICENSE
+    https://bitbucket.org/ruamel/yaml/raw/ef15acf88b039656570f9b1f45b5e7394c154997/LICENSE
 )
 DEPLEN=${#DEPENDENCIES[@]}
 
