@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2018-01-30
+### Changed
+- Updated Azure Storage dependencies to 1.0.0 (GA version)
+
+### Fixed
+- `--sync-copy-dest-mode` option not honored from CLI (#57)
+
 ## [1.1.0] - 2018-01-18
 ### Added
 - Support for setting blob access tiers on Upload and SyncCopy
@@ -318,7 +325,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/Azure/blobxfer/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/Azure/blobxfer/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...1.0.0
 [1.0.0rc3]: https://github.com/Azure/blobxfer/compare/1.0.0rc2...1.0.0rc3
