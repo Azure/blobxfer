@@ -16,6 +16,8 @@ compiler and supporting libraries if there is no binary wheel for that
 dependency and your platform. Please follow the pre-requisites section first
 prior to invoking installation via `pip`.
 
+It is strongly recommended to use a 64-bit Python interpreter.
+
 ### Pre-requisites
 `blobxfer` has dependencies which require a C compiler if your platform does
 not have pre-made binary wheels for these dependencies. Please follow the
@@ -68,6 +70,7 @@ to ensure that you have the latest version of Python, a compiler and pip.
 Please install at least Python 3.5 or later to avoid requiring a
 compiler. If you must use Python 2.7, you can download the necessary
 development headers and compiler [from Microsoft](http://aka.ms/vcpython27).
+It is strongly recommended to use a 64-bit interpreter.
 
 #### Windows Subsystem for Linux
 Please follow the same instructions for the Linux distribution installed.
@@ -97,9 +100,8 @@ for all platforms and architectures at this time.
 
 Note that for the Linux pre-built binary, it may not work on all
 distributions. If this is the case, please pick an alternate installation
-method. The Linux pre-built binary is gzipped. Please run gunzip on the
-file. Executable bit permission should be preserved by default, if it is
-not, then make sure the executable bit is set via `chmod +x`.
+method. After downloading the binary, make sure that the executable bit is
+set via `chmod +x` prior to attempting to execute the file.
 
 ## <a name="docker"></a>Docker Image
 [blobxfer](https://hub.docker.com/r/alfpark/blobxfer/) is available on

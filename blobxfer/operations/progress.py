@@ -117,10 +117,11 @@ def output_parameters(general_options, spec):
         blobxfer.version.__version__))
     log.append('                 platform: {}'.format(platform.platform()))
     log.append(
-        ('               components: {}={} azstor.blob={} azstor.file={} '
+        ('               components: {}={}-{} azstor.blob={} azstor.file={} '
          'crypt={} req={}').format(
             platform.python_implementation(),
             platform.python_version(),
+             '64bit' if sys.maxsize > 2**32 else '32bit',
             azure.storage.blob._constants.__version__,
             azure.storage.file._constants.__version__,
             cryptography.__version__,
