@@ -210,6 +210,7 @@ encrypted files that have been uploaded with `blobxfer`.
 ### Vectored IO
 Please see the [Vectored IO](30-vectored-io.md) document for more information
 regarding Vectored IO operations in `blobxfer`.
+
 * `--distribution-mode` is the Vectored IO distribution mode
     * `disabled` which is default (no Vectored IO)
     * `replica` which will replicate source files to target destinations on

@@ -36,6 +36,9 @@ init:
 - echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
 
 install:
+- "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
+- where pip
+- pip install --upgrade --user pip
 - pip install --upgrade setuptools wheel
 - pip install --upgrade coveralls tox
 
@@ -91,9 +94,9 @@ after_test:
       Write-Host "Python environment is not 3.6, not creating a Docker image"
       return
     }
-    
+
     $DOCKER_IMAGE_TAG_SUFFIX = $null
-    
+
     if ($env:APPVEYOR_REPO_TAG -eq "true") {
       $DOCKER_IMAGE_TAG_SUFFIX = $env:APPVEYOR_REPO_TAG_NAME + '-windows'
     }
@@ -107,21 +110,21 @@ after_test:
       Write-Host "Image tag suffix is null, not creating a Docker image"
       return
     }
-    
+
     $DOCKER_IMAGE_TAG = $env:DOCKER_IMAGE_TAG_PREFIX + $DOCKER_IMAGE_TAG_SUFFIX
-    
+
     Write-Host "Creating image with tag: $DOCKER_IMAGE_TAG"
-    
+
     docker version
-    
+
     pushd docker\\win
-    
+
     docker build --build-arg GIT_BRANCH=$env:APPVEYOR_REPO_BRANCH --build-arg GIT_COMMIT=$env:APPVEYOR_REPO_COMMIT -t $DOCKER_IMAGE_TAG .
-    
+
     docker login -u="$env:DOCKER_USERNAME" -p="$env:DOCKER_PASSWORD"
-    
+
     docker push $DOCKER_IMAGE_TAG
-    
+
     popd
 
 deploy:
