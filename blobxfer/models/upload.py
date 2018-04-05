@@ -580,16 +580,16 @@ class Descriptor(object):
                     md5digest,
                 )
                 # prune md5 cache
-                if completed:
-                    self._md5_cache.clear()
-                elif (last_consecutive is not None and
-                      len(self._md5_cache) >
-                      _MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD):
-                    mkeys = sorted(list(self._md5_cache.keys()))
-                    for key in mkeys:
-                        if key >= last_consecutive:
-                            break
-                        self._md5_cache.pop(key)
+                if self.must_compute_md5:
+                    if completed:
+                        self._md5_cache.clear()
+                    elif (len(self._md5_cache) >
+                          _MD5_CACHE_RESUME_ENTRIES_GC_THRESHOLD):
+                        mkeys = sorted(list(self._md5_cache.keys()))
+                        for key in mkeys:
+                            if key >= last_consecutive:
+                                break
+                            self._md5_cache.pop(key)
 
     def hmac_data(self, data):
         # type: (Descriptor, bytes) -> None
@@ -817,7 +817,7 @@ class Descriptor(object):
                 self._total_chunks = rr.total_chunks
                 self._completed_chunks.int = rr.completed_chunks
                 self._outstanding_ops = 0
-                return self._src_ase.size * replica_factor
+                return self._ase.size * replica_factor
         # encrypted files are not resumable due to hmac requirement
         if self._ase.is_encrypted:
             logger.debug('cannot resume encrypted entity {}'.format(
