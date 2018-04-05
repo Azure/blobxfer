@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+- Update dependencies to latest
+
+### Fixed
+- Non-MD5 upload invalid ref (#60)
+- Retry of broken encrypted upload (#61)
+- Detect non-Base64 encoded storage account keys (#62)
+
 ## [1.1.1] - 2018-01-30
 ### Changed
 - Updated Azure Storage dependencies to 1.0.0 (GA version)
