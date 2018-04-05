@@ -99,8 +99,12 @@ def get_md5_from_metadata(ase):
     # md5 in blobxfer extensions
     md5 = None
     if ase.is_encrypted:
-        md5 = ase.encryption_metadata.blobxfer_extensions.\
-            pre_encrypted_content_md5
+        try:
+            md5 = ase.encryption_metadata.blobxfer_extensions.\
+                pre_encrypted_content_md5
+        except AttributeError:
+            # this can happen if partial metadata is present
+            md5 = None
     if blobxfer.util.is_none_or_empty(md5):
         md5 = ase.md5
     return md5

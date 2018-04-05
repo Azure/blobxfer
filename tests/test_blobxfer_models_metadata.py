@@ -13,6 +13,12 @@ import pytest
 import blobxfer.models.metadata as md
 
 
+class AseAE(object):
+    def __init__(self):
+        self.is_encrypted = True
+        self.md5 = 'aseae'
+
+
 def test_get_md5_from_metadata():
     ase = mock.MagicMock()
     ase.is_encrypted = True
@@ -23,6 +29,10 @@ def test_get_md5_from_metadata():
     ase.is_encrypted = False
     ase.md5 = 'md5'
     assert md.get_md5_from_metadata(ase) == 'md5'
+
+    ase = AseAE()
+    asemd5 = md.get_md5_from_metadata(ase)
+    assert asemd5 == 'aseae'
 
 
 def test_generate_fileattr_metadata():
