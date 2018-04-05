@@ -30,6 +30,7 @@ from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
+import re
 # non-stdlib imports
 import requests
 # local imports
@@ -86,6 +87,10 @@ class StorageCredentials(object):
 
 class StorageAccount(object):
     """Azure Storage Account"""
+    _VALID_BASE64_RE = re.compile(
+        '^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{4}|[A-Za-z0-9+/]{3}=|'
+        '[A-Za-z0-9+/]{2}==)$')
+
     def __init__(self, name, key, endpoint, transfer_threads, timeout, proxy):
         # type: (StorageAccount, str, str, str, int,
         #        blobxfer.models.options.Timeout,
@@ -112,9 +117,16 @@ class StorageAccount(object):
         self.endpoint = endpoint
         self.is_sas = StorageAccount._key_is_sas(self.key)
         self.create_containers = self._container_creation_allowed()
-        # normalize sas keys
-        if self.is_sas and self.key.startswith('?'):
-            self.key = self.key[1:]
+        if self.is_sas:
+            # normalize sas keys
+            if self.key.startswith('?'):
+                self.key = self.key[1:]
+        else:
+            # check if sa shared key is base64
+            if StorageAccount._VALID_BASE64_RE.match(self.key) is None:
+                raise ValueError(
+                    ('specified storage account key is invalid for storage '
+                     'account: {}').format(self.name))
         # create requests session for connection pooling
         self.session = requests.Session()
         self.session.mount(

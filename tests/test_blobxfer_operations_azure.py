@@ -71,12 +71,12 @@ def test_key_is_sas():
     to.max_retries = None
 
     a = azops.StorageAccount(
-        'name', 'abcdef', 'core.windows.net', 10, to, mock.MagicMock())
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, mock.MagicMock())
     assert not a.is_sas
 
-    a = azops.StorageAccount(
-        'name', 'abcdef&blah', 'core.windows.net', 10, to, None)
-    assert not a.is_sas
+    with pytest.raises(ValueError):
+        a = azops.StorageAccount(
+            'name', 'abcdef&blah', 'core.windows.net', 10, to, None)
 
     a = azops.StorageAccount(
         'name', '?abcdef', 'core.windows.net', 10, to, None)
@@ -100,7 +100,7 @@ def test_container_creation_allowed():
     to.max_retries = None
 
     a = azops.StorageAccount(
-        'name', 'abcdef', 'core.windows.net', 10, to, None)
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
     assert a._container_creation_allowed()
 
     a = azops.StorageAccount(

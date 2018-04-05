@@ -27,7 +27,7 @@ def test_create_client():
     to.max_retries = None
 
     sa = azops.StorageAccount(
-        'name', 'key', 'core.windows.net', 10, to, mock.MagicMock())
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, mock.MagicMock())
     client = ops.create_client(sa, to, mock.MagicMock())
     assert client is not None
     assert isinstance(client, azure.storage.file.FileService)
