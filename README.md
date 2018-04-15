@@ -16,6 +16,8 @@ your own Python scripts.
 from Azure Blob and File Storage
 * Standalone library for integration with scripts or other Python packages
 * High-performance design with asynchronous transfers and disk I/O
+* Supports ingress, egress and synchronization of entire directories,
+containers and file shares
 * YAML configuration driven execution support
 * Resume support
 * Vectored IO support
