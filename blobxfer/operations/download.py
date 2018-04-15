@@ -542,7 +542,7 @@ class Downloader(object):
                 self._transfer_set.remove(
                     blobxfer.operations.download.Downloader.
                     create_unique_transfer_operation_id(dd.entity))
-                self._transfer_cc.pop(dd.final_path)
+                self._transfer_cc.pop(dd.final_path, None)
             return
         # re-enqueue for other threads to download
         if offsets is None:
