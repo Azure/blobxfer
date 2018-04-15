@@ -32,7 +32,7 @@ DEPENDENCIES=(
     https://github.com/requests/requests/raw/master/LICENSE
     ruamel.yaml
     https://bitbucket.org/ruamel/yaml
-    https://bitbucket.org/ruamel/yaml/raw/ef15acf88b039656570f9b1f45b5e7394c154997/LICENSE
+    https://bitbucket.org/ruamel/yaml/raw/8d3f84d78aff534cbc881fa509ade31a5edc451d/LICENSE
 )
 DEPLEN=${#DEPENDENCIES[@]}
 
@@ -41,12 +41,8 @@ add_attribution() {
     url=$2
     license=$(curl -fSsL $3)
 
-    echo "" >> $TPNFILE
-    echo "-------------------------------------------------------------------------------" >> $TPNFILE
-    echo "" >> $TPNFILE
-    echo "$name ($url)" >> $TPNFILE
-    echo "" >> $TPNFILE
-    echo "$license" >> $TPNFILE
+    { echo ""; echo "-------------------------------------------------------------------------------"; \
+      echo ""; echo "$name ($url)"; echo ""; echo "$license"; } >> $TPNFILE
 }
 
 cat << 'EOF' > $TPNFILE
@@ -61,13 +57,12 @@ Microsoft product. Microsoft reserves all other rights not expressly
 granted under this agreement, whether by implication, estoppel or otherwise.
 EOF
 
-echo -n "Generating $(($DEPLEN / 3)) attributions: ["
+echo -n "Generating $((DEPLEN / 3)) attributions: ["
 i=0
-while [ $i -lt $DEPLEN ]; do
-    add_attribution ${DEPENDENCIES[$i]} ${DEPENDENCIES[$(($i+1))]} ${DEPENDENCIES[$(($i+2))]}
-    i=$(($i + 3))
+while [ $i -lt "$DEPLEN" ]; do
+    add_attribution "${DEPENDENCIES[$i]}" "${DEPENDENCIES[$((i+1))]}" "${DEPENDENCIES[$((i+2))]}"
+    i=$((i + 3))
     echo -n "."
 done
-echo "" >> $TPNFILE
-echo "-------------------------------------------------------------------------------" >> $TPNFILE
+{ echo ""; echo "-------------------------------------------------------------------------------"; } >> $TPNFILE
 echo "] done."
