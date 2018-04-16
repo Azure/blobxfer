@@ -96,6 +96,7 @@ def add_cli_options(cli_options, action):
                     'rsa_private_key_passphrase'),
                 'restore_file_attributes': cli_options.get(
                     'file_attributes'),
+                'strip_components': cli_options.get('strip_components'),
                 'skip_on': {
                     'filesize_match': cli_options.get(
                         'skip_on_filesize_match'),
@@ -455,6 +456,9 @@ def create_download_specifications(ctx_cli_options, config):
                     cli_options, conf_options, 'restore_file_attributes',
                     default=False),
                 rsa_private_key=rpk,
+                strip_components=_merge_setting(
+                    cli_options, conf_options, 'strip_components',
+                    default=0),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(

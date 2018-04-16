@@ -102,6 +102,7 @@ Download = collections.namedtuple(
         'rename',
         'restore_file_attributes',
         'rsa_private_key',
+        'strip_components',
     ]
 )
 SyncCopy = collections.namedtuple(

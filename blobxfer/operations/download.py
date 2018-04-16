@@ -725,8 +725,18 @@ class Downloader(object):
                         self._spec.options.rename):
                     lpath = pathlib.Path(self._spec.destination.path)
                 else:
-                    lpath = pathlib.Path(
-                        self._spec.destination.path, rfile.name)
+                    lpath = None
+                    if self._spec.options.strip_components > 0:
+                        _lparts = pathlib.Path(rfile.name).parts
+                        _strip = min(
+                            (len(_lparts) - 1,
+                             self._spec.options.strip_components)
+                        )
+                        if _strip > 0:
+                            lpath = pathlib.Path(*_lparts[_strip:])
+                    if lpath is None:
+                        lpath = pathlib.Path(rfile.name)
+                    lpath = pathlib.Path(self._spec.destination.path) / lpath
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 if action == DownloadAction.Skip:

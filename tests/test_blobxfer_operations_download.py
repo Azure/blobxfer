@@ -48,6 +48,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=mock.MagicMock(),
         local_destination_path=models.LocalDestinationPath(
@@ -78,6 +79,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=True,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=mock.MagicMock(),
         local_destination_path=models.LocalDestinationPath(
@@ -101,6 +103,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=mock.MagicMock(),
         local_destination_path=models.LocalDestinationPath(
@@ -124,6 +127,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=True,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=mock.MagicMock(),
         local_destination_path=models.LocalDestinationPath(
@@ -153,6 +157,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,
@@ -182,6 +187,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,
@@ -208,6 +214,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=False,
@@ -231,6 +238,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,
@@ -263,6 +271,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=False,
@@ -919,6 +928,7 @@ def _create_downloader_for_start(td):
     d._spec.options.mode = azmodels.StorageModes.Auto
     d._spec.options.overwrite = True
     d._spec.options.rename = False
+    d._spec.options.strip_components = 0
     d._spec.skip_on = mock.MagicMock()
     d._spec.skip_on.md5_match = False
     d._spec.skip_on.lmt_ge = False
@@ -991,6 +1001,20 @@ def test_start(
         d.start()
     d._download_terminate = True
     assert d._transfer_queue.qsize() == 1
+    dd = d._transfer_queue.get()
+    assert 'remote' in dd.final_path.parts
+
+    b.properties.content_length = 0
+    patched_lb.side_effect = [[b]]
+    d = _create_downloader_for_start(tmpdir)
+    d._check_download_conditions.return_value = ops.DownloadAction.Download
+    d._spec.options.strip_components = 1
+    with pytest.raises(RuntimeError):
+        d.start()
+    d._download_terminate = True
+    assert d._transfer_queue.qsize() == 1
+    dd = d._transfer_queue.get()
+    assert 'remote' not in dd.final_path.parts
 
     # test exception count
     b = azure.storage.blob.models.Blob(name='name')

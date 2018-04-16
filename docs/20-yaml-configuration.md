@@ -135,6 +135,7 @@ download:
           restore_file_attributes: true
           rsa_private_key: myprivatekey.pem
           rsa_private_key_passphrase: myoptionalpassword
+          strip_components: 1
           skip_on:
               filesize_match: false
               lmt_ge: false
@@ -165,6 +166,8 @@ download:
       encrypted blobs or files
     * `rsa_private_key_passphrase` is the RSA private key passphrase, if
       required
+    * `strip_components` is the number of leading path components to strip
+      from the remote path
     * `skip_on` are skip on options to use
         * `filesize_match` skip if file size match
         * `lmt_ge` skip if local file has a last modified time greater than or
@@ -251,6 +254,7 @@ upload:
         * `attributes` will store POSIX file mode and ownership
         * `md5` will store the MD5 of the file
     * `strip_components` is the number of leading path components to strip
+      from the local path
     * `vectored_io` are the Vectored IO options to apply to the upload
         * `stripe_chunk_size_bytes` is the stripe width for each chunk if
           `stripe` `distribution_mode` is selected

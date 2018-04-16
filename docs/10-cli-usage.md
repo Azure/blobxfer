@@ -250,7 +250,7 @@ using `stdin` as a source.
 beforehand when using `stdin` as a source and the destination is a page blob.
 This value will automatically be page blob boundary aligned.
 * `--strip-components N` will strip the leading `N` components from the
-local file path on upload. The default is `0`.
+local file path on upload or remote file path on download. The default is `0`.
 
 ## <a name="examples"></a>Example Invocations
 ### `download` Examples

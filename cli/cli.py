@@ -772,7 +772,8 @@ def _strip_components_option(f):
         expose_value=False,
         type=int,
         default=None,
-        help='Strip leading file path components on upload [0]',
+        help='Strip leading file path components: local path for upload '
+        'or remote path for download [0]',
         callback=callback)(f)
 
 
@@ -888,6 +889,7 @@ def upload_options(f):
 
 
 def download_options(f):
+    f = _strip_components_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)

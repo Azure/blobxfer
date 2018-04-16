@@ -216,7 +216,7 @@ class Descriptor(object):
         self._hasher_lock = threading.Lock()
         self._resume_mgr = resume_mgr
         self._ase = ase
-        # set paths
+        # set path
         self.final_path = lpath
         self.view = None
         # auto-select chunk size

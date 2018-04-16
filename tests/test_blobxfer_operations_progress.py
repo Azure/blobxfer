@@ -34,6 +34,7 @@ def test_output_parameters():
             rename=False,
             restore_file_attributes=False,
             rsa_private_key=None,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,
