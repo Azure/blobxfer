@@ -38,8 +38,16 @@ for more information.
 File share which has empty directories.
 * Empty directories are not deleted if `--delete` is specified and no files
 remain in the directory on the Azure File share.
-* Directories with no characters, e.g. `mycontainer//mydir` are not
-supported.
+* Virtual directories in Azure with no characters, e.g. `mycontainer//mydir`
+are not supported.
+* Downloading of a remote path is based on prefix-matching. Thus a remote path
+of `mycontainer/mydir` will also download `mycontainer/mydirfile.txt` and
+`mycontainer/mydir1` in addition to `mycontainer/mydir`. To only download
+contents of `mycontainer/mydir`, please specify an `--include` filter. For
+this example, the include filter would be `--include mydir/*`. Ensure that
+the parameter is quoted or shell globbing is disabled. Note that a
+remote path of `mycontainer/mydir/` will not work as intended as, internally,
+`blobxfer` will strip the trailing slash.
 * `/dev/null` or `nul` destinations are not supported.
 * Application of access tiers can only be applied to block blobs on either
 Blob Storage or General Purpose V2 Storage accounts. Please see
