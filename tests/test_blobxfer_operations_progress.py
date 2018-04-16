@@ -20,6 +20,7 @@ import blobxfer.operations.progress as ops
 
 def test_output_parameters():
     go = mock.MagicMock()
+    go.quiet = False
     go.log_file = 'abc'
 
     spec = modelsdl.Specification(
@@ -95,6 +96,7 @@ def test_output_parameters():
 
 def test_update_progress_bar():
     go = mock.MagicMock()
+    go.quiet = False
     go.progress_bar = True
     go.log_file = 'abc'
 

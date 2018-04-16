@@ -65,7 +65,8 @@ def update_progress_bar(
     :param int bytes_sofar: bytes transferred so far
     :param bool stdin_upload: stdin upload
     """
-    if (not go.progress_bar or blobxfer.util.is_none_or_empty(go.log_file) or
+    if (go.quiet or not go.progress_bar or
+            blobxfer.util.is_none_or_empty(go.log_file) or
             start is None):
         return
     diff = (blobxfer.util.datetime_now() - start).total_seconds()
@@ -108,6 +109,8 @@ def output_parameters(general_options, spec):
     :param blobxfer.models.options.General general_options: general options
     :param object spec: upload or download spec
     """
+    if general_options.quiet:
+        return
     sep = '============================================'
     log = []
     log.append(sep)

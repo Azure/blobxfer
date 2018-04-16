@@ -99,6 +99,7 @@ destination.
 * `--progress-bar` or `--no-progress-bar` controls if a progress bar is
 output to the console. `--log-file` must be specified for a progress bar
 to be output.
+* `-q` or `--quiet` enables quiet mode
 * `--recursive` or `--no-recursive` controls if the source path should be
 recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
@@ -109,7 +110,7 @@ Resume files should be specific for a session.
 with this option as it will output secrets.
 * `-h` or `--help` can be passed at every command level to receive context
 sensitive help.
-* `-v` increases logging verbosity
+* `-v` or `--verbose` increases logging verbosity
 
 ### Authentication
 `blobxfer` supports both Storage Account access keys and Shared Access

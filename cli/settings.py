@@ -290,6 +290,8 @@ def merge_global_settings(config, cli_options):
         },
         'verbose': _merge_setting(
             cli_options, config['options'], 'verbose', default=False),
+        'quiet': _merge_setting(
+            cli_options, config['options'], 'quiet', default=False),
         'concurrency': {
             'crypto_processes': _merge_setting(
                 cli_options, config['options']['concurrency'],
@@ -381,6 +383,7 @@ def create_general_options(config, action):
             max_retries=config['options']['timeout']['max_retries'],
         ),
         verbose=config['options']['verbose'],
+        quiet=config['options']['quiet'],
         proxy=proxy,
     )
 

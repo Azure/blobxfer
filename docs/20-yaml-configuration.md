@@ -66,6 +66,7 @@ options:
   enable_azure_storage_logger: false
   resume_file: /path/to/resumefile.db
   progress_bar: true
+  quiet: false
   verbose: true
   timeout:
     connect: null
@@ -86,6 +87,7 @@ options:
 * `enable_azure_storage_logger` controls the Azure Storage logger output
 * `resume_file` is the location of the resume database to create
 * `progress_bar` controls display of a progress bar output to the console
+* `quiet` controls quiet mode
 * `verbose` controls if verbose logging is enabled
 * `timeout` is a dictionary of timeout values in seconds
     * `connect` is the connect timeout to apply to a request

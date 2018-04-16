@@ -360,6 +360,20 @@ def _verbose_option(f):
         callback=callback)(f)
 
 
+def _quiet_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['quiet'] = value
+        return value
+    return click.option(
+        '-q', '--quiet',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Quiet mode',
+        callback=callback)(f)
+
+
 def _local_resource_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -406,6 +420,7 @@ def common_options(f):
     f = _timeout_option(f)
     f = _show_config_option(f)
     f = _resume_file_option(f)
+    f = _quiet_option(f)
     f = _proxy_username_option(f)
     f = _proxy_password_option(f)
     f = _proxy_host_option(f)
