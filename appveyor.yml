@@ -61,17 +61,26 @@ after_test:
     if ($env:APPVEYOR_REPO_TAG -eq "true") {
       $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_TAG_NAME + "-win-amd64.exe"
       $env:UPLOAD_PATH="releases/" + $env:APPVEYOR_REPO_TAG_NAME
+      $env:BUILDVER_DOTTED = $env:APPVEYOR_REPO_TAG
     }
     else {
       if ($env:APPVEYOR_REPO_BRANCH -eq "master" -Or $env:APPVEYOR_REPO_BRANCH -eq "develop") {
         $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_BRANCH + "-" + $env:APPVEYOR_BUILD_NUMBER + "-win-amd64.exe"
         $env:UPLOAD_PATH="builds/" + $env:APPVEYOR_REPO_BRANCH
+        $env:BUILDVER_DOTTED = [string]::Format("0.0.0.{0}",$env:APPVEYOR_BUILD_NUMBER)
       }
       else {
         Write-Host "Invalid tag or branch $env:APPVEYOR_REPO_BRANCH to build binary"
         return
       }
     }
+
+    $bvt0,$bvt1,$bvt2,$bvt3 = $env:BUILDVER_DOTTED.split('.')
+
+    $env:BUILDVER_TUPLE = [string]::Format("({0}, {1}, {2}, {3})",$bvt0,$bvt1,$bvt2,$bvt3)
+
+    $env:BRANCH_GITSHA1 = [string]::Format("{0}@{1}",$env:APPVEYOR_REPO_BRANCH,$env:APPVEYOR_REPO_COMMIT.Substring(0,7))
+
 - IF "%BLOBXFER_ARTIFACT%"=="" (
     echo "blobxfer artifact not defined"
   ) ELSE (
@@ -80,7 +89,11 @@ after_test:
     pyi\\Scripts\\activate.bat &&
     pip install --upgrade pyinstaller &&
     pip install -e . &&
-    pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --distpath bin cli\\cli.py &&
+    sed -i -e "s/{BUILDVER_TUPLE}/%BUILDVER_TUPLE%/g" cli\\file_version_info.txt &&
+    sed -i -e "s/{BUILDVER_DOTTED}/%BUILDVER_DOTTED%/g" cli\\file_version_info.txt &&
+    sed -i -e "s/{BRANCH_GITSHA1}/%BRANCH_GITSHA1%/g" cli\\file_version_info.txt &&
+    sed -i -e "s/{EXE}/%BLOBXFER_ARTIFACT%/g" cli\\file_version_info.txt &&
+    pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --icon cli\\azure.ico --version-file cli\\file_version_info.txt --distpath bin cli\\cli.py &&
     pyi\\Scripts\\deactivate.bat &&
     appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
     bin\\%BLOBXFER_ARTIFACT% upload --remote-path %UPLOAD_PATH% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
