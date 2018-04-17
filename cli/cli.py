@@ -30,6 +30,7 @@ from builtins import (  # noqa
 # stdlib imports
 import json
 import logging
+import multiprocessing
 try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
@@ -996,4 +997,5 @@ def upload(ctx):
 
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     cli()
