@@ -37,7 +37,9 @@ def test_get_md5_from_metadata():
 
 def test_generate_fileattr_metadata():
     with mock.patch('blobxfer.util.on_windows', return_value=True):
+        md._FILEATTR_WARNED_ON_WINDOWS = False
         assert md.generate_fileattr_metadata(None, None) is None
+        assert md._FILEATTR_WARNED_ON_WINDOWS
 
     with mock.patch('blobxfer.util.on_windows', return_value=False):
         lp = mock.MagicMock()
@@ -65,11 +67,13 @@ def test_fileattr_from_metadata():
     assert md.fileattr_from_metadata(None) is None
 
     with mock.patch('blobxfer.util.on_windows', return_value=True):
+        md._FILEATTR_WARNED_ON_WINDOWS = False
         val = {
             md.JSON_KEY_BLOBXFER_METADATA: json.dumps(
                 {md._JSON_KEY_FILE_ATTRIBUTES: {}})
         }
         assert md.fileattr_from_metadata(val) is None
+        assert md._FILEATTR_WARNED_ON_WINDOWS
 
     with mock.patch('blobxfer.util.on_windows', return_value=False):
         lp = mock.MagicMock()

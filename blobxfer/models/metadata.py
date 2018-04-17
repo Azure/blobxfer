@@ -86,6 +86,7 @@ VectoredNextEntry = collections.namedtuple(
         'name',
     ]
 )
+_FILEATTR_WARNED_ON_WINDOWS = False
 
 
 def get_md5_from_metadata(ase):
@@ -119,8 +120,12 @@ def generate_fileattr_metadata(local_path, metadata):
     :return: merged metadata dictionary
     """
     if blobxfer.util.on_windows():
-        logger.warning(
-            'file attributes store/restore on Windows is not supported yet')
+        global _FILEATTR_WARNED_ON_WINDOWS
+        if not _FILEATTR_WARNED_ON_WINDOWS:
+            _FILEATTR_WARNED_ON_WINDOWS = True
+            logger.warning(
+                'file attributes store/restore on Windows is not '
+                'supported yet')
         return None
     else:
         md = {
@@ -149,9 +154,12 @@ def fileattr_from_metadata(md):
         return None
     else:
         if blobxfer.util.on_windows():
-            logger.warning(
-                'file attributes store/restore on Windows is not supported '
-                'yet')
+            global _FILEATTR_WARNED_ON_WINDOWS
+            if not _FILEATTR_WARNED_ON_WINDOWS:
+                _FILEATTR_WARNED_ON_WINDOWS = True
+                logger.warning(
+                    'file attributes store/restore on Windows is not '
+                    'supported yet')
             fileattr = None
         else:
             try:
