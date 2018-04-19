@@ -24,6 +24,7 @@ FROM microsoft/nanoserver
 
 COPY --from=0 /Python /Python
 COPY --from=0 /blobxfer/THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.txt
+COPY --from=0 /blobxfer/LICENSE /BLOBXFER_LICENSE.txt
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 

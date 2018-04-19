@@ -40,7 +40,7 @@ install_requires = [
     'click==6.7',
     'cryptography>=2.2.2',
     'future==0.16.0',
-    'pathlib2==2.3.0;python_version<"3.5"',
+    'pathlib2==2.3.2;python_version<"3.5"',
     'python-dateutil==2.7.2',
     'requests==2.18.4',
     'ruamel.yaml==0.15.37',

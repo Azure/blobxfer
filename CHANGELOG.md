@@ -2,13 +2,20 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2018-04-19
+### Added
+- Support for --strip-components parameter on download (#69)
+- Support for -q/--quiet option to suppress output to stdout (#70)
+
 ### Changed
 - Update dependencies to latest
+- Update Windows Docker image to use Python 3.6.5
 
 ### Fixed
 - Non-MD5 upload invalid ref (#60)
 - Retry of broken encrypted upload (#61)
 - Detect non-Base64 encoded storage account keys (#62)
+- Regression in download of zero-length blobs (#68)
 
 ## [1.1.1] - 2018-01-30
 ### Changed
@@ -333,7 +340,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.1.1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/Azure/blobxfer/compare/1.1.0...1.2.0
 [1.1.1]: https://github.com/Azure/blobxfer/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/Azure/blobxfer/compare/1.0.0...1.1.0
 [1.0.0]: https://github.com/Azure/blobxfer/compare/1.0.0rc3...1.0.0
@@ -347,5 +355,5 @@ usage documentation carefully when upgrading from 0.12.1.
 [0.12.1]: https://github.com/Azure/blobxfer/compare/0.12.0...0.12.1
 [0.12.0]: https://github.com/Azure/blobxfer/compare/0.11.5...0.12.0
 [0.11.5]: https://github.com/Azure/blobxfer/compare/0.11.4...0.11.5
-[0.11.4]: https://github.com/Azure/blobxfer/compare/v0.11.2...0.11.4
-[0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...v0.11.2
+[0.11.4]: https://github.com/Azure/blobxfer/compare/0.11.2...0.11.4
+[0.11.2]: https://github.com/Azure/blobxfer/compare/e5e435a...0.11.2
