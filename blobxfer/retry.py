@@ -40,17 +40,19 @@ import urllib3
 
 
 # global defines
-_RETRYABLE_ERRNO = frozenset((
+_RETRYABLE_ERRNO_MAXRETRY = frozenset((
     '[Errno {}]'.format(errno.ECONNRESET),
     '[Errno {}]'.format(errno.ECONNREFUSED),
     '[Errno {}]'.format(errno.ECONNABORTED),
     '[Errno {}]'.format(errno.ENETRESET),
     '[Errno {}]'.format(errno.ETIMEDOUT),
 ))
-_NON_RETRYABLE_ERRNO = frozenset((
-    '[Errno -2] Name or service not known',
-    '[Errno 8] nodename nor servname',
-    '[Errno 11001] getaddrinfo failed',
+_RETRYABLE_ERRNO_PROTOCOL = frozenset((
+    '({},'.format(errno.ECONNRESET),
+    '({},'.format(errno.ECONNREFUSED),
+    '({},'.format(errno.ECONNABORTED),
+    '({},'.format(errno.ENETRESET),
+    '({},'.format(errno.ETIMEDOUT),
 ))
 
 
@@ -107,27 +109,36 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
         # appropriately from the lower layer
         if status is None:
             exc = context.exception
+            # default to not retry in unknown/unhandled exception case
+            ret = False
             # requests timeout, retry
             if isinstance(exc, requests.Timeout):
-                return True
+                ret = True
+            elif isinstance(exc, requests.exceptions.ContentDecodingError):
+                ret = True
             elif (isinstance(exc, requests.exceptions.ConnectionError) or
                   isinstance(exc, requests.exceptions.ChunkedEncodingError)):
                 # newer versions of requests do not expose errno on the
                 # args[0] reason object; manually string parse
-                if (isinstance(
-                        exc.args[0], urllib3.exceptions.MaxRetryError) and
-                        isinstance(
-                            exc.args[0].reason,
-                            urllib3.exceptions.NewConnectionError)):
-                    msg = exc.args[0].reason.args[0]
-                    if any(x in msg for x in _NON_RETRYABLE_ERRNO):
-                        return False
-                    elif any(x in msg for x in _RETRYABLE_ERRNO):
-                        return True
+                if isinstance(exc.args[0], urllib3.exceptions.MaxRetryError):
+                    try:
+                        msg = exc.args[0].reason.args[0]
+                    except (AttributeError, IndexError):
+                        # unexpected/malformed exception hierarchy, don't retry
+                        pass
                     else:
-                        # default to not retry in unknown case
-                        return False
-            return True
+                        if any(x in msg for x in _RETRYABLE_ERRNO_MAXRETRY):
+                            ret = True
+                elif isinstance(exc.args[0], urllib3.exceptions.ProtocolError):
+                    try:
+                        msg = exc.args[0].args[0]
+                    except (AttributeError, IndexError):
+                        # unexpected/malformed exception hierarchy, don't retry
+                        pass
+                    else:
+                        if any(x in msg for x in _RETRYABLE_ERRNO_PROTOCOL):
+                            ret = True
+            return ret
         elif 200 <= status < 300:
             # failure during respond body download or parsing, so success
             # codes should be retried

@@ -20,36 +20,30 @@ def test_should_retry():
     context = mock.MagicMock()
     context.count = 1
     er.max_attempts = 1
-
     assert not er._should_retry(context)
 
     context.count = 0
     er.max_attempts = 20
     context.response.status = None
     context.exception = requests.Timeout()
-
     assert er._should_retry(context)
 
+    # test malformed
     ex = requests.ConnectionError(
         urllib3.exceptions.MaxRetryError(
-            mock.MagicMock(), mock.MagicMock(),
-            reason=urllib3.exceptions.NewConnectionError(
-                list(retry._NON_RETRYABLE_ERRNO)[0], 'message')
-        )
+            mock.MagicMock(), mock.MagicMock())
     )
     context.exception = ex
-
     assert not er._should_retry(context)
 
     ex = requests.ConnectionError(
         urllib3.exceptions.MaxRetryError(
             mock.MagicMock(), mock.MagicMock(),
             reason=urllib3.exceptions.NewConnectionError(
-                list(retry._RETRYABLE_ERRNO)[0], 'message')
+                list(retry._RETRYABLE_ERRNO_MAXRETRY)[0], 'message')
         )
     )
     context.exception = ex
-
     assert er._should_retry(context)
 
     ex = requests.ConnectionError(
@@ -60,38 +54,51 @@ def test_should_retry():
         )
     )
     context.exception = ex
+    assert not er._should_retry(context)
 
+    # test malformed
+    ex = requests.ConnectionError(
+        urllib3.exceptions.ProtocolError()
+    )
+    context.exception = ex
+    assert not er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.ProtocolError(
+            '({}, message)'.format(list(retry._RETRYABLE_ERRNO_PROTOCOL)[0])
+        )
+    )
+    context.exception = ex
+    assert er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.ProtocolError('(N, message)')
+    )
+    context.exception = ex
     assert not er._should_retry(context)
 
     ex = requests.exceptions.ContentDecodingError()
     context.exception = ex
-
     assert er._should_retry(context)
 
     context.exception = None
     context.response.status = 200
-
     assert er._should_retry(context)
 
     context.response.status = 300
-
     assert not er._should_retry(context)
 
     context.response.status = 404
     context.location_mode = azure.storage.common.models.LocationMode.SECONDARY
-
     assert er._should_retry(context)
 
     context.response.status = 408
-
     assert er._should_retry(context)
 
     context.response.status = 500
-
     assert er._should_retry(context)
 
     context.response.status = 501
-
     assert not er._should_retry(context)
 
 
