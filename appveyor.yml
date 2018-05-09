@@ -12,7 +12,7 @@ environment:
     PYTHON_VERSION: "2.7"
     PYTHON_ARCH: "64"
     TOX_ENV: "py27"
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
     PYTHON: "C:\\Python35-x64"
     PYTHON_VERSION: "3.5"
     PYTHON_ARCH: "64"
@@ -61,13 +61,14 @@ after_test:
     if ($env:APPVEYOR_REPO_TAG -eq "true") {
       $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_TAG_NAME + "-win-amd64.exe"
       $env:UPLOAD_PATH="releases/" + $env:APPVEYOR_REPO_TAG_NAME
-      $env:BUILDVER_DOTTED = $env:APPVEYOR_REPO_TAG_NAME
+      $env:APPVEYOR_REPO_TAG_NAME -match "^([\d\.])+"
+      $env:BUILDVER_DOTTED = $matches[0]
     }
     else {
       if ($env:APPVEYOR_REPO_BRANCH -eq "master" -Or $env:APPVEYOR_REPO_BRANCH -eq "develop") {
         $env:BLOBXFER_ARTIFACT = "blobxfer-" + $env:APPVEYOR_REPO_BRANCH + "-" + $env:APPVEYOR_BUILD_NUMBER + "-win-amd64.exe"
         $env:UPLOAD_PATH="builds/" + $env:APPVEYOR_REPO_BRANCH
-        $env:BUILDVER_DOTTED = [string]::Format("0.0.{0}",$env:APPVEYOR_BUILD_NUMBER)
+        $env:BUILDVER_DOTTED = "0.0.0"
       }
       else {
         Write-Host "Invalid tag or branch $env:APPVEYOR_REPO_BRANCH to build binary"
@@ -77,7 +78,7 @@ after_test:
 
     $bvt0,$bvt1,$bvt2 = $env:BUILDVER_DOTTED.split('.')
 
-    $env:BUILDVER_TUPLE = [string]::Format("({0}, {1}, {2}, 0)",$bvt0,$bvt1,$bvt2)
+    $env:BUILDVER_TUPLE = [string]::Format("({0}, {1}, {2}, {3})",$bvt0,$bvt1,$bvt2,$env:APPVEYOR_BUILD_NUMBER)
 
     $env:BRANCH_GITSHA1 = [string]::Format("{0}@{1}",$env:APPVEYOR_REPO_BRANCH,$env:APPVEYOR_REPO_COMMIT.Substring(0,7))
 
@@ -103,8 +104,8 @@ after_test:
       Write-Host "Build is from a PR, not creating a Docker image"
       return
     }
-    if (!($env:PYTHON_VERSION -eq "3.6")) {
-      Write-Host "Python environment is not 3.6, not creating a Docker image"
+    if (!($env:PYTHON_VERSION -eq "3.5")) {
+      Write-Host "Python environment is not 3.5, not creating a Docker image"
       return
     }
 
