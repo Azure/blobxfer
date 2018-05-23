@@ -2,10 +2,18 @@
 
 ## [Unreleased]
 
+### Changed
+- Updated dependencies
+
+### Fixed
+- Skip on options not properly respected with delete option for synccopy
+and upload (#72)
+- Improve retry handling code
+
 ## [1.2.0] - 2018-04-19
 ### Added
-- Support for --strip-components parameter on download (#69)
-- Support for -q/--quiet option to suppress output to stdout (#70)
+- Support for `--strip-components` parameter on download (#69)
+- Support for `-q`/`--quiet` option to suppress output to stdout (#70)
 
 ### Changed
 - Update dependencies to latest

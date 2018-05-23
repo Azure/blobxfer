@@ -744,6 +744,8 @@ class Uploader(object):
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
+                        if self._general_options.verbose:
+                            logger.debug('deleting file: {}'.format(file))
                         blobxfer.operations.azure.file.delete_file(
                             sa.file_client, container, file)
                         deleted += 1
@@ -755,6 +757,8 @@ class Uploader(object):
                         create_destination_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
+                        if self._general_options.verbose:
+                            logger.debug('deleting blob: {}'.format(blob.name))
                         blobxfer.operations.azure.blob.delete_blob(
                             sa.block_blob_client, container, blob.name)
                         deleted += 1

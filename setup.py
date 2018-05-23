@@ -41,7 +41,7 @@ install_requires = [
     'cryptography>=2.2.2',
     'future==0.16.0',
     'pathlib2==2.3.2;python_version<"3.5"',
-    'python-dateutil==2.7.2',
+    'python-dateutil==2.7.3',
     'requests==2.18.4',
     'ruamel.yaml==0.15.37',
     'scandir==1.7;python_version<"3.5"',

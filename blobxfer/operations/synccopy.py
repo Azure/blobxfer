@@ -204,6 +204,8 @@ class SyncCopy(object):
                     id = blobxfer.operations.synccopy.SyncCopy.\
                         create_deletion_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
+                        if self._general_options.verbose:
+                            logger.debug('deleting file: {}'.format(file))
                         blobxfer.operations.azure.file.delete_file(
                             sa.file_client, container, file)
                         deleted += 1
@@ -215,6 +217,8 @@ class SyncCopy(object):
                         create_deletion_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
+                        if self._general_options.verbose:
+                            logger.debug('deleting blob: {}'.format(blob.name))
                         blobxfer.operations.azure.blob.delete_blob(
                             sa.block_blob_client, container, blob.name)
                         deleted += 1
@@ -702,6 +706,15 @@ class SyncCopy(object):
             action = self._check_copy_conditions(src_ase, dst_ase)
             if action == SynccopyAction.Copy:
                 yield dst_ase
+            elif action == SynccopyAction.Skip:
+                # add to exclusion set if skipping
+                if self._spec.options.delete_extraneous_destination:
+                    uid = (
+                        blobxfer.operations.synccopy.SyncCopy.
+                        create_deletion_id(
+                            dst_ase._client, dst_ase.container, dst_ase.name)
+                    )
+                    self._delete_exclude.add(uid)
 
     def _bind_sources_to_destination(self):
         # type: (SyncCopy) ->
@@ -740,20 +753,21 @@ class SyncCopy(object):
                     if primary_dst.replica_targets is None:
                         primary_dst.replica_targets = []
                     primary_dst.replica_targets.extend(dest[1:])
-                    # add replica targets to deletion exclusion set
-                    if self._spec.options.delete_extraneous_destination:
-                        for rt in primary_dst.replica_targets:
-                            ruid = (
-                                blobxfer.operations.synccopy.SyncCopy.
-                                create_deletion_id(
-                                    rt._client, rt.container, rt.name)
-                            )
-                            if ruid in seen:
-                                raise RuntimeError(
-                                    ('duplicate destination entity detected: '
-                                     '{}/{}').format(
-                                         rt._client.primary_endpoint, rt.path))
-                            seen.add(ruid)
+                    # check replica targets for duplicates
+                    for rt in primary_dst.replica_targets:
+                        ruid = (
+                            blobxfer.operations.synccopy.SyncCopy.
+                            create_deletion_id(
+                                rt._client, rt.container, rt.name)
+                        )
+                        if ruid in seen:
+                            raise RuntimeError(
+                                ('duplicate destination entity detected: '
+                                 '{}/{}').format(
+                                     rt._client.primary_endpoint, rt.path))
+                        seen.add(ruid)
+                        # add replica targets to deletion exclusion set
+                        if self._spec.options.delete_extraneous_destination:
                             self._delete_exclude.add(ruid)
                 yield src_ase, primary_dst
 

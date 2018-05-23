@@ -529,11 +529,6 @@ class Downloader(object):
             # finalize file
             if finalize:
                 dd.finalize_file()
-                # remove from delete after set
-                try:
-                    self._delete_after.remove(dd.final_path)
-                except KeyError:
-                    pass
             # accounting
             with self._transfer_lock:
                 self._download_sofar += 1
@@ -675,10 +670,12 @@ class Downloader(object):
         logger.info('attempting to delete {} extraneous files'.format(
             len(self._delete_after)))
         for file in self._delete_after:
+            if self._general_options.verbose:
+                logger.debug('deleting local file: {}'.format(file))
             try:
                 file.unlink()
-            except OSError:
-                pass
+            except OSError as e:
+                logger.error('error deleting local file: {}'.format(str(e)))
 
     def _run(self):
         # type: (Downloader) -> None
@@ -739,6 +736,11 @@ class Downloader(object):
                     lpath = pathlib.Path(self._spec.destination.path) / lpath
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
+                # remove from delete after set
+                try:
+                    self._delete_after.remove(lpath)
+                except KeyError:
+                    pass
                 if action == DownloadAction.Skip:
                     skipped_files += 1
                     skipped_size += rfile.size

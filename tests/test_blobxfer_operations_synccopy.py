@@ -690,6 +690,7 @@ def test_generate_destination_for_source():
     src_ase.name = 'srcase'
 
     sa = mock.MagicMock()
+    sa.block_blob_client.primary_endpoint = 'ep'
     sa.name = 'name'
     sa.endpoint = 'ep'
 
@@ -699,10 +700,18 @@ def test_generate_destination_for_source():
     ]
 
     s._check_copy_conditions = mock.MagicMock()
+    s._check_copy_conditions.return_value = ops.SynccopyAction.Skip
+
+    with pytest.raises(StopIteration):
+        next(s._generate_destination_for_source(src_ase))
+    assert len(s._delete_exclude) == 1
+
+    s._delete_exclude = set()
     s._check_copy_conditions.return_value = ops.SynccopyAction.Copy
 
     ase = next(s._generate_destination_for_source(src_ase))
     assert ase is not None
+    assert len(s._delete_exclude) == 0
     assert ase.size == src_ase.size
     assert ase.mode == s._spec.options.dest_mode
     assert pathlib.Path(ase.name) == pathlib.Path('dstname', src_ase.name)

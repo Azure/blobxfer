@@ -27,7 +27,7 @@ env:
   - secure: F15Weue/tcIB7hcZFTOEVxQSwy5D0124Stq185bEudE3orpsscNp97FCNUczQHqt38OrRrswTU/HwpuJQF0G54RxLWQspmef7dgRIJSboQUd9j5Se/bmRmSsBGvffOCLyEDU8Lq0tT8xb2o30xclcqX9fb9EdXVlbHlIqeGnmkEEmgnCxUkfHEQW+kYN2CRVeVwKjnYnyByFtXErTjwc1Mp4IOpWjsclS+AIe2S0gAU5jx8ZqImXKUmhkm7OOIyOYaJjT+0r/MrpSJgwjjb+yPazhOL6tOD1gCFGds5NwvZd8B7cpD/DqgakEdQWz+pvedJZQTdfxSQPK7qYz43tjSwQhxIHO02hpSxq5T5feUuXOiLKlrona6aTLnzsr/ftJ0KlMElihwEJPCzrb9I5oxbCMz/ZH2a1yzGVUaeob3we1vIFN66dB27n0zEE3wxhJOcul5Y8SIQRrrMVLPYZmJr8HxV220lbadUOJInicyM5EsO+S7jLlb/b2n4i2mr3J0eNif1MaxLrj1NcbQOVjyjg/n9Zkw8fNB7x9qfsWmIMovKYQKFQpNW1sv5T5CR5zqV0in6eKvgw6qyt6oxxMN/ViZ0vyvywDvsEcH7pTZGsnC/VDrkEj3Z62zFa8ewY4W1AGQDWZtJBnPJXx2wmFWgnMG8mSpFuI/gJDkgprEI=
 
 install:
-- travis_retry pip install --upgrade pip==9.0.3
+- travis_retry pip install --upgrade pip
 - travis_retry pip install --upgrade setuptools wheel
 - travis_retry pip install --upgrade codecov tox-travis
 
