@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2018-05-23
 ### Changed
 - Updated dependencies
 
@@ -348,7 +349,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.2.1...HEAD
+[1.2.1]: https://github.com/Azure/blobxfer/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/Azure/blobxfer/compare/1.1.0...1.2.0
 [1.1.1]: https://github.com/Azure/blobxfer/compare/1.1.0...1.1.1
 [1.1.0]: https://github.com/Azure/blobxfer/compare/1.0.0...1.1.0
