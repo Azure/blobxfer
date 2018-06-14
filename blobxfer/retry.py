@@ -54,6 +54,10 @@ _RETRYABLE_ERRNO_PROTOCOL = frozenset((
     '({},'.format(errno.ENETRESET),
     '({},'.format(errno.ETIMEDOUT),
 ))
+_RETRYABLE_STRING_FALLBACK = frozenset((
+    'connection aborted',
+    'timed out',
+))
 
 
 class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
@@ -138,6 +142,11 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
                     else:
                         if any(x in msg for x in _RETRYABLE_ERRNO_PROTOCOL):
                             ret = True
+            else:
+                # fallback to string search
+                msg = str(exc).lower()
+                if any(x in msg for x in _RETRYABLE_STRING_FALLBACK):
+                    ret = True
             return ret
         elif 200 <= status < 300:
             # failure during respond body download or parsing, so success

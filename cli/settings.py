@@ -279,12 +279,16 @@ def merge_global_settings(config, cli_options):
         'resume_file': _merge_setting(
             cli_options, config['options'], 'resume_file'),
         'timeout': {
+            # TODO deprecated timeout setting
+            'timeout': _merge_setting(
+                cli_options, config['options']['timeout'], 'timeout',
+                name_cli='timeout'),
             'connect': _merge_setting(
                 cli_options, config['options']['timeout'], 'connect',
-                name_cli='timeout'),
+                name_cli='connect_timeout'),
             'read': _merge_setting(
                 cli_options, config['options']['timeout'], 'read',
-                name_cli='timeout'),
+                name_cli='read_timeout'),
             'max_retries': _merge_setting(
                 cli_options, config['options']['timeout'], 'max_retries',
                 default=1000),
@@ -378,9 +382,16 @@ def create_general_options(config, action):
         log_file=config['options']['log_file'],
         progress_bar=config['options']['progress_bar'],
         resume_file=config['options']['resume_file'],
+        # TODO deprecated timeout setting
         timeout=blobxfer.models.options.Timeout(
-            connect=config['options']['timeout']['connect'],
-            read=config['options']['timeout']['read'],
+            connect=(
+                config['options']['timeout']['connect'] or
+                config['options']['timeout']['timeout']
+            ),
+            read=(
+                config['options']['timeout']['read'] or
+                config['options']['timeout']['timeout']
+            ),
             max_retries=config['options']['timeout']['max_retries'],
         ),
         verbose=config['options']['verbose'],

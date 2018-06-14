@@ -165,8 +165,10 @@ def output_parameters(general_options, spec):
         general_options.log_file))
     log.append('              resume file: {}'.format(
         general_options.resume_file))
-    log.append('                  timeout: connect={} read={}'.format(
-        general_options.timeout.connect, general_options.timeout.read))
+    log.append(
+        '                  timeout: connect={} read={} max_retries={}'.format(
+            general_options.timeout.connect, general_options.timeout.read,
+            general_options.timeout.max_retries))
     if isinstance(spec, blobxfer.models.synccopy.Specification):
         log.append('              source mode: {}'.format(
             spec.options.mode))

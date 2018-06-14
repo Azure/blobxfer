@@ -37,6 +37,7 @@ try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
     import pathlib
+import sys
 # non-stdlib imports
 # local imports
 import blobxfer.util
@@ -44,7 +45,10 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
-_DEFAULT_REQUESTS_TIMEOUT = (3.1, 12.1)
+if sys.version_info >= (3, 5):  # noqa
+    _DEFAULT_REQUESTS_TIMEOUT = (10, 100)
+else:  # noqa
+    _DEFAULT_REQUESTS_TIMEOUT = (10, 19)
 
 # named tuples
 HttpProxy = collections.namedtuple(

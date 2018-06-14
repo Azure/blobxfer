@@ -144,6 +144,8 @@ comparing files with `skip_on` `md5_match`.
 to/from Azure Storage.
 
 ### Connection
+* `--connect-timeout` is the connect timeout value. This is the time allowed,
+in seconds, to establish a connection with the server.
 * `--endpoint` is the Azure Storage endpoint to connect to; the default is
 Azure Public regions, or `core.windows.net`. Note that this is the base
 endpoint name and not a full URL (as blobxfer deals with both Azure Blob
@@ -163,6 +165,8 @@ can be optionally provided through an environment variable
 * `--proxy-password` specifies the password for the username for an HTTP
 Proxy if required. This can be optionally provided through an environment
 variable `BLOBXFER_PROXY_PASSWORD` instead.
+* `--read-timeout` is the read timeout value. This is the time allowed,
+in seconds, for the server to send a response.
 * `--storage-account` specifies the storage account to use. This can be
 optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
 instead.
@@ -173,8 +177,9 @@ provided through an environment variable
 * `--sync-copy-dest-remote-path` specifies the destination remote Azure path
 under the synchronous copy destination storage account.
 * `--timeout` is the timeout value, in seconds, applied to both connect
-and read operations. To apply separate values for these operations
-individually, use YAML configuration instead.
+and read operations. This option is DEPRECATED. Please specify the connect
+timeout as `--connect-timeout` and the read timeout as `--read-timeout`
+separately.
 
 ### Encryption
 * `--rsa-private-key` is the RSA private key in PEM format to use. This can

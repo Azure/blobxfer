@@ -77,6 +77,22 @@ def test_should_retry():
     context.exception = ex
     assert not er._should_retry(context)
 
+    ex = Exception('Connection aborted.')
+    context.exception = ex
+    assert er._should_retry(context)
+
+    ex = Exception('Read timed out.')
+    context.exception = ex
+    assert er._should_retry(context)
+
+    ex = Exception('The write operation timed out.')
+    context.exception = ex
+    assert er._should_retry(context)
+
+    ex = Exception('no retry')
+    context.exception = ex
+    assert not er._should_retry(context)
+
     ex = requests.exceptions.ContentDecodingError()
     context.exception = ex
     assert er._should_retry(context)

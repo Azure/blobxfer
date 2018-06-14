@@ -110,9 +110,6 @@ class CliContext(object):
         # set log file if specified
         logfile = self.config['options'].get('log_file', None)
         blobxfer.util.setup_logger(logger, logfile)
-        # set verbose logging
-        if self.config['options'].get('verbose', False):
-            blobxfer.util.set_verbose_logger_handlers()
         # set azure storage logging level
         azstorage_logger = logging.getLogger('azure.storage')
         if self.config['options'].get('enable_azure_storage_logger', False):
@@ -122,6 +119,9 @@ class CliContext(object):
             # disable azure storage logging: setting logger level to CRITICAL
             # effectively disables logging from azure storage
             azstorage_logger.setLevel(logging.CRITICAL)
+        # set verbose logging
+        if self.config['options'].get('verbose', False):
+            blobxfer.util.set_verbose_logger_handlers()
         # output mixed config
         if self.show_config:
             logger.debug('config: \n{}'.format(
@@ -148,6 +148,20 @@ def _config_option(f):
         default=None,
         help='YAML configuration file',
         envvar='BLOBXFER_CONFIG_FILE',
+        callback=callback)(f)
+
+
+def _connect_timeout_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['connect_timeout'] = value
+        return value
+    return click.option(
+        '--connect-timeout',
+        expose_value=False,
+        type=float,
+        default=None,
+        help='Timeout, in seconds, applied to connect operations',
         callback=callback)(f)
 
 
@@ -292,6 +306,20 @@ def _proxy_username_option(f):
         callback=callback)(f)
 
 
+def _read_timeout_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['read_timeout'] = value
+        return value
+    return click.option(
+        '--read-timeout',
+        expose_value=False,
+        type=float,
+        default=None,
+        help='Timeout, in seconds, applied to read operations',
+        callback=callback)(f)
+
+
 def _resume_file_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -328,8 +356,8 @@ def _timeout_option(f):
         expose_value=False,
         type=float,
         default=None,
-        help='Timeout, in seconds, applied to both connect and read '
-        'operations',
+        help='[DEPRECATED] Timeout, in seconds, applied to both connect '
+        'and read operations',
         callback=callback)(f)
 
 
@@ -421,6 +449,7 @@ def common_options(f):
     f = _timeout_option(f)
     f = _show_config_option(f)
     f = _resume_file_option(f)
+    f = _read_timeout_option(f)
     f = _quiet_option(f)
     f = _proxy_username_option(f)
     f = _proxy_password_option(f)
@@ -432,6 +461,7 @@ def common_options(f):
     f = _enable_azure_storage_logger_option(f)
     f = _disk_threads_option(f)
     f = _crypto_processes_option(f)
+    f = _connect_timeout_option(f)
     f = _config_option(f)
     return f
 
