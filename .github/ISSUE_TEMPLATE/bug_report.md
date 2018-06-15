@@ -1,20 +1,25 @@
-### Problem Description
+---
+name: Bug report
+about: Create a report to help us improve
 
-### Azure blobxfer parameters output
+---
+
+#### Problem Description
+
+#### Azure blobxfer parameters output
 ```
 INSERT PARAMETER OUTPUT LOG HERE
 ```
 
-### Steps to Reproduce
+#### Steps to Reproduce
 
-### Expected Results
+#### Expected Results
 
-### Actual Results
+#### Actual Results
 
-### Additional Logs
+#### Additional Logs
 ```
 INSERT ADDITIONAL LOGS HERE
 ```
 
-### Additonal Comments
-
+#### Additonal Comments
