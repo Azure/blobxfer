@@ -67,6 +67,7 @@ options:
   resume_file: /path/to/resumefile.db
   progress_bar: true
   quiet: false
+  dry_run: false
   verbose: true
   timeout:
     connect: null
@@ -88,6 +89,7 @@ options:
 * `resume_file` is the location of the resume database to create
 * `progress_bar` controls display of a progress bar output to the console
 * `quiet` controls quiet mode
+* `dry_run` will perform a dry run
 * `verbose` controls if verbose logging is enabled
 * `timeout` is a dictionary of timeout values in seconds
     * `connect` is the connect timeout to apply to a request

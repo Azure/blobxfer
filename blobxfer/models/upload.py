@@ -232,10 +232,11 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
             return True
         return False
 
-    def files(self):
-        # type: (LocalSourcePaths) -> LocalPath
+    def files(self, dry_run):
+        # type: (LocalSourcePaths, bool) -> LocalPath
         """Generator for files in paths
         :param LocalSourcePath self: this
+        :param bool dry_run: dry run
         :rtype: LocalPath
         :return: LocalPath
         """
@@ -260,11 +261,18 @@ class LocalSourcePath(blobxfer.models._BaseSourcePaths):
                         relative_path=pathlib.Path(tmp.name),
                         use_stdin=False,
                     )
+                elif dry_run:
+                    logger.info(
+                        '[DRY RUN] skipping due to filters: {}'.format(tmp))
             else:
                 del tmp
                 for entry in blobxfer.util.scantree(_ppath):
                     _rpath = pathlib.Path(entry.path).relative_to(_ppath)
                     if not self._inclusion_check(_rpath):
+                        if dry_run:
+                            logger.info(
+                                '[DRY RUN] skipping due to filters: {}'.format(
+                                    _rpath))
                         continue
                     yield LocalPath(
                         parent_path=_expath,

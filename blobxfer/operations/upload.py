@@ -243,8 +243,18 @@ class Uploader(object):
             with self._upload_lock:
                 self._upload_set.remove(uid)
                 self._upload_total -= 1
+            if self._general_options.dry_run:
+                logger.info('[DRY RUN] MD5 match, skipping: {} -> {}'.format(
+                    src.absolute_path, rfile.path))
         else:
-            self._add_to_upload_queue(src, rfile, uid)
+            if self._general_options.dry_run:
+                with self._upload_lock:
+                    self._upload_set.remove(uid)
+                    self._upload_total -= 1
+                logger.info('[DRY RUN] MD5 mismatch, upload: {} -> {}'.format(
+                    src.absolute_path, rfile.path))
+            else:
+                self._add_to_upload_queue(src, rfile, uid)
 
     def _check_for_uploads_from_md5(self):
         # type: (Uploader) -> None
@@ -744,11 +754,15 @@ class Uploader(object):
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
-                        if self._general_options.verbose:
-                            logger.debug('deleting file: {}'.format(file))
-                        blobxfer.operations.azure.file.delete_file(
-                            sa.file_client, container, file)
-                        deleted += 1
+                        if self._general_options.dry_run:
+                            logger.info('[DRY RUN] deleting file: {}'.format(
+                                file))
+                        else:
+                            if self._general_options.verbose:
+                                logger.debug('deleting file: {}'.format(file))
+                            blobxfer.operations.azure.file.delete_file(
+                                sa.file_client, container, file)
+                            deleted += 1
             else:
                 blobs = blobxfer.operations.azure.blob.list_all_blobs(
                     sa.block_blob_client, container)
@@ -757,11 +771,16 @@ class Uploader(object):
                         create_destination_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
-                        if self._general_options.verbose:
-                            logger.debug('deleting blob: {}'.format(blob.name))
-                        blobxfer.operations.azure.blob.delete_blob(
-                            sa.block_blob_client, container, blob.name)
-                        deleted += 1
+                        if self._general_options.dry_run:
+                            logger.info('[DRY RUN] deleting blob: {}'.format(
+                                blob.name))
+                        else:
+                            if self._general_options.verbose:
+                                logger.debug('deleting blob: {}'.format(
+                                    blob.name))
+                            blobxfer.operations.azure.blob.delete_blob(
+                                sa.block_blob_client, container, blob.name)
+                            deleted += 1
             checked.add(key)
         logger.info('deleted {} extraneous blobs/files'.format(deleted))
 
@@ -778,6 +797,9 @@ class Uploader(object):
         lpath = local_path.absolute_path
         # check if local file still exists
         if not local_path.use_stdin and not lpath.exists():
+            if self._general_options.verbose:
+                logger.warning(
+                    'skipping file that no longer exists: {}'.format(lpath))
             return UploadAction.Skip
         # if remote file doesn't exist, upload
         if rfile is None or rfile.from_local:
@@ -1067,12 +1089,13 @@ class Uploader(object):
         self._initialize_disk_threads()
         self._initialize_transfer_threads()
         # initialize local counters
+        files_processed = 0
         skipped_files = 0
         skipped_size = 0
         approx_total_bytes = 0
         # iterate through source paths to upload
         seen = set()
-        for src in self._spec.sources.files():
+        for src in self._spec.sources.files(self._general_options.dry_run):
             # create a destination array for the source
             dest = [
                 (sa, ase) for sa, ase in
@@ -1088,9 +1111,13 @@ class Uploader(object):
                 seen.add(dest_id)
                 if self._spec.options.delete_extraneous_destination:
                     self._delete_exclude.add(dest_id)
+                files_processed += 1
                 if action == UploadAction.Skip:
                     skipped_files += 1
                     skipped_size += ase.size if ase.size is not None else 0
+                    if self._general_options.dry_run:
+                        logger.info('[DRY RUN] skipping: {} -> {}'.format(
+                            lp.absolute_path, ase.path))
                     continue
                 approx_total_bytes += lp.size
                 if blobxfer.util.is_not_empty(ase.replica_targets):
@@ -1104,7 +1131,14 @@ class Uploader(object):
                 if action == UploadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lp, ase)
                 elif action == UploadAction.Upload:
-                    self._add_to_upload_queue(lp, ase, uid)
+                    if self._general_options.dry_run:
+                        logger.info('[DRY RUN] upload: {} -> {}'.format(
+                            lp.absolute_path, ase.path))
+                        with self._upload_lock:
+                            self._upload_set.remove(uid)
+                            self._upload_total -= 1
+                    else:
+                        self._add_to_upload_queue(lp, ase, uid)
         del seen
         # set remote files processed
         with self._md5_meta_lock:
@@ -1116,9 +1150,10 @@ class Uploader(object):
                  'skipped').format(
                     skipped_files, skipped_size / blobxfer.util.MEGABYTE))
             logger.debug(
-                ('{0} local/remote files processed, waiting for upload '
+                ('{0} local files processed, waiting for upload '
                  'completion of approx. {1:.4f} MiB').format(
-                     self._upload_total, upload_size_mib))
+                     files_processed, upload_size_mib))
+        del files_processed
         del skipped_files
         del skipped_size
         del upload_size_mib
@@ -1150,6 +1185,8 @@ class Uploader(object):
         # output throughput
         if self._upload_start_time is not None:
             ultime = (end_time - self._upload_start_time).total_seconds()
+            if ultime == 0:  # noqa
+                ultime = 1e-9
             mibup = self._upload_bytes_total / blobxfer.util.MEGABYTE
             mibps = mibup / ultime
             logger.info(

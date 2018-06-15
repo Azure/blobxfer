@@ -120,6 +120,8 @@ def test_general_options():
         progress_bar=False,
         resume_file='abc',
         timeout=options.Timeout(1, 2, None),
+        quiet=True,
+        dry_run=True,
         verbose=True,
     )
 
@@ -132,6 +134,8 @@ def test_general_options():
     assert a.resume_file == pathlib.Path('abc')
     assert a.timeout.timeout == (1, 2)
     assert a.timeout.max_retries is None
+    assert a.quiet
+    assert a.dry_run
     assert a.verbose
 
     a = options.General(
@@ -156,6 +160,8 @@ def test_general_options():
     assert a.resume_file is None
     assert a.timeout.timeout == (2, 1)
     assert a.timeout.max_retries == 0
+    assert not a.quiet
+    assert not a.dry_run
     assert a.verbose
 
     with pytest.raises(ValueError):

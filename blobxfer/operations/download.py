@@ -140,12 +140,13 @@ class Downloader(object):
                          len(self._transfer_set) == 0))
 
     @staticmethod
-    def ensure_local_destination(creds, spec):
+    def ensure_local_destination(creds, spec, dry_run):
         # type: (blobxfer.operations.azure.StorageCredentials,
-        #        blobxfer.models.download.Specification) -> None
+        #        blobxfer.models.download.Specification, bool) -> None
         """Ensure a local destination path given a download spec
         :param blobxfer.operations.azure.StorageCredentials creds: creds
         :param blobxfer.models.download.Specification spec: download spec
+        :param bool dry_run: dry run
         """
         # ensure destination path is writable given the source
         if len(spec.sources) < 1:
@@ -173,7 +174,8 @@ class Downloader(object):
         logger.debug('dest is_dir={} for {} specs'.format(
             spec.destination.is_dir, len(spec.sources)))
         # ensure destination path
-        spec.destination.ensure_path_exists()
+        if not dry_run:
+            spec.destination.ensure_path_exists()
 
     @staticmethod
     def create_unique_transfer_operation_id(ase):
@@ -327,8 +329,22 @@ class Downloader(object):
                     create_unique_transfer_operation_id(rfile))
                 self._download_total -= 1
                 self._download_bytes_total -= size
+            if self._general_options.dry_run:
+                logger.info('[DRY RUN] MD5 match, skipping: {} -> {}'.format(
+                    rfile.path, lpath))
         else:
-            self._add_to_download_queue(lpath, rfile)
+            if self._general_options.dry_run:
+                with self._transfer_lock:
+                    self._transfer_set.remove(
+                        blobxfer.operations.download.Downloader.
+                        create_unique_transfer_operation_id(rfile))
+                    self._download_total -= 1
+                    self._download_bytes_total -= size
+                logger.info(
+                    '[DRY RUN] MD5 mismatch, download: {} -> {}'.format(
+                        rfile.path, lpath))
+            else:
+                self._add_to_download_queue(lpath, rfile)
 
     def _check_for_downloads_from_md5(self):
         # type: (Downloader) -> None
@@ -670,12 +686,17 @@ class Downloader(object):
         logger.info('attempting to delete {} extraneous files'.format(
             len(self._delete_after)))
         for file in self._delete_after:
-            if self._general_options.verbose:
-                logger.debug('deleting local file: {}'.format(file))
-            try:
-                file.unlink()
-            except OSError as e:
-                logger.error('error deleting local file: {}'.format(str(e)))
+            if self._general_options.dry_run:
+                logger.info('[DRY RUN] deleting local file: {}'.format(
+                    file))
+            else:
+                if self._general_options.verbose:
+                    logger.debug('deleting local file: {}'.format(file))
+                try:
+                    file.unlink()
+                except OSError as e:
+                    logger.error('error deleting local file: {}'.format(
+                        str(e)))
 
     def _run(self):
         # type: (Downloader) -> None
@@ -687,7 +708,7 @@ class Downloader(object):
         logger.info('blobxfer start time: {0}'.format(self._start_time))
         # ensure destination path
         blobxfer.operations.download.Downloader.ensure_local_destination(
-            self._creds, self._spec)
+            self._creds, self._spec, self._general_options.dry_run)
         logger.info('downloading blobs/files to local path: {}'.format(
             self._spec.destination.path))
         self._catalog_local_files_for_deletion()
@@ -712,11 +733,14 @@ class Downloader(object):
         self._initialize_transfer_threads()
         self._initialize_disk_threads()
         # initialize local counters
+        files_processed = 0
         skipped_files = 0
         skipped_size = 0
         # iterate through source paths to download
         for src in self._spec.sources:
-            for rfile in src.files(self._creds, self._spec.options):
+            for rfile in src.files(
+                    self._creds, self._spec.options,
+                    self._general_options.dry_run):
                 # form local path for remote file
                 if (not self._spec.destination.is_dir and
                         self._spec.options.rename):
@@ -734,6 +758,7 @@ class Downloader(object):
                     if lpath is None:
                         lpath = pathlib.Path(rfile.name)
                     lpath = pathlib.Path(self._spec.destination.path) / lpath
+                files_processed += 1
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 # remove from delete after set
@@ -744,19 +769,33 @@ class Downloader(object):
                 if action == DownloadAction.Skip:
                     skipped_files += 1
                     skipped_size += rfile.size
+                    if self._general_options.dry_run:
+                        logger.info('[DRY RUN] skipping: {} -> {}'.format(
+                            lpath, rfile.path))
                     continue
                 # add potential download to set
+                dlid = (
+                    blobxfer.operations.download.Downloader.
+                    create_unique_transfer_operation_id(rfile)
+                )
                 with self._transfer_lock:
-                    self._transfer_set.add(
-                        blobxfer.operations.download.Downloader.
-                        create_unique_transfer_operation_id(rfile))
+                    self._transfer_set.add(dlid)
                     self._download_total += 1
                     self._download_bytes_total += rfile.size
                 # either MD5 check or download now
                 if action == DownloadAction.CheckMd5:
                     self._pre_md5_skip_on_check(lpath, rfile)
                 elif action == DownloadAction.Download:
-                    self._add_to_download_queue(lpath, rfile)
+                    if self._general_options.dry_run:
+                        logger.info(
+                            '[DRY RUN] download: {} -> {}'.format(
+                                rfile.path, lpath))
+                        with self._transfer_lock:
+                            self._transfer_set.remove(dlid)
+                            self._download_total -= 1
+                            self._download_bytes_total -= rfile.size
+                    else:
+                        self._add_to_download_queue(lpath, rfile)
         # set remote files processed
         with self._md5_meta_lock:
             self._all_remote_files_processed = True
@@ -771,7 +810,8 @@ class Downloader(object):
             logger.debug(
                 ('{0} remote files processed, waiting for download '
                  'completion of approx. {1:.4f} MiB').format(
-                     self._download_total, download_size_mib))
+                     files_processed, download_size_mib))
+        del files_processed
         del skipped_files
         del skipped_size
         # wait for downloads to complete
@@ -801,6 +841,8 @@ class Downloader(object):
         # output throughput
         if self._download_start_time is not None:
             dltime = (end_time - self._download_start_time).total_seconds()
+            if dltime == 0:  # noqa
+                dltime = 1e-9
             download_size_mib = (
                 self._download_bytes_total / blobxfer.util.MEGABYTE
             )

@@ -56,7 +56,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
         ),
     )
     with pytest.raises(RuntimeError):
-        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, False)
 
     # blob directory
     asp = azops.SourcePath()
@@ -64,7 +64,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     asp.add_path_with_storage_account(p, 'sa')
     ds.add_azure_source_path(asp)
     patched_blob.return_value = False
-    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, False)
     assert ds.destination.is_dir
 
     # blob single file + rename
@@ -89,7 +89,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     ds.add_azure_source_path(asp)
     patched_blob.return_value = True
     with pytest.raises(RuntimeError):
-        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, False)
 
     # file directory
     ds = models.Specification(
@@ -112,7 +112,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     )
     ds.add_azure_source_path(asp)
     patched_file.return_value = (False, None)
-    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+    ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, True)
     assert ds.destination.is_dir
 
     # file single + rename
@@ -137,7 +137,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     ds.add_azure_source_path(asp)
     patched_file.return_value = (True, mock.MagicMock())
     with pytest.raises(RuntimeError):
-        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds)
+        ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, False)
 
 
 def test_check_download_conditions(tmpdir):
@@ -329,6 +329,7 @@ def test_pre_md5_skip_on_check():
 
 def test_post_md5_skip_on_check(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._download_total = 0
     d._download_bytes_total = 0
     d._md5_offload = mock.MagicMock()
@@ -347,10 +348,18 @@ def test_post_md5_skip_on_check(tmpdir):
     d._transfer_set.add(key)
     assert key in d._md5_map
 
+    d._general_options.dry_run = True
     d._post_md5_skip_on_check(key, lpath, None, True)
     assert key not in d._md5_map
 
+    d._general_options.dry_run = False
     d._add_to_download_queue = mock.MagicMock()
+    d._pre_md5_skip_on_check(lpath, rfile)
+    d._transfer_set.add(key)
+    d._post_md5_skip_on_check(key, lpath, rfile._size, False)
+    assert d._add_to_download_queue.call_count == 1
+
+    d._general_options.dry_run = True
     d._pre_md5_skip_on_check(lpath, rfile)
     d._transfer_set.add(key)
     d._post_md5_skip_on_check(key, lpath, rfile._size, False)
@@ -368,6 +377,7 @@ def test_check_for_downloads_from_md5():
     rfile._size = 256
     key = ops.Downloader.create_unique_transfer_operation_id(rfile)
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._md5_map[key] = rfile
     d._transfer_set.add(key)
     d._md5_offload = mock.MagicMock()
@@ -388,6 +398,7 @@ def test_check_for_downloads_from_md5():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._md5_map[key] = rfile
         d._transfer_set.add(key)
         d._md5_offload = mock.MagicMock()
@@ -407,6 +418,7 @@ def test_check_for_downloads_from_md5():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._md5_map[key] = rfile
         d._transfer_set.add(key)
         d._md5_offload = mock.MagicMock()
@@ -429,6 +441,7 @@ def test_check_for_crypto_done():
     rfile._size = 256
     key = ops.Downloader.create_unique_transfer_operation_id(rfile)
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._transfer_set.add(key)
     dd = mock.MagicMock()
     d._dd_map[lpath] = dd
@@ -451,6 +464,7 @@ def test_check_for_crypto_done():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._transfer_set.add(key)
         dd = mock.MagicMock()
         dd.entity = rfile
@@ -474,6 +488,7 @@ def test_check_for_crypto_done():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._transfer_set.add(key)
         dd = mock.MagicMock()
         dd.entity = rfile
@@ -498,6 +513,7 @@ def test_add_to_download_queue(tmpdir):
     ase._encryption = mock.MagicMock()
     ase._encryption.symmetric_key = b'abc'
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._spec.options.chunk_size_bytes = 1
 
     d._add_to_download_queue(lpath, ase)
@@ -510,6 +526,7 @@ def test_initialize_and_terminate_threads():
     opts.concurrency.transfer_threads = 2
     opts.concurrency.disk_threads = 2
     d = ops.Downloader(opts, mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._worker_thread_transfer = mock.MagicMock()
 
     d._initialize_transfer_threads()
@@ -535,6 +552,7 @@ def test_process_download_descriptor_vio(tmpdir):
             new_callable=mock.PropertyMock) as patched_aoc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
         opts = mock.MagicMock()
@@ -581,6 +599,7 @@ def test_worker_thread_transfer(
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._process_download_descriptor = mock.MagicMock()
         d._general_options.concurrency.disk_threads = 1
         d._disk_set.add(0)
@@ -594,6 +613,7 @@ def test_worker_thread_transfer(
         assert d._process_download_descriptor.call_count == 0
 
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._process_download_descriptor = mock.MagicMock()
     d._download_terminate = True
     d._general_options.concurrency.transfer_threads = 1
@@ -636,6 +656,7 @@ def test_worker_thread_transfer(
                 new_callable=mock.PropertyMock) as patched_aoc:
             d = ops.Downloader(
                 mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+            d._general_options.dry_run = False
             d._general_options.concurrency.transfer_threads = 1
             d._general_options.concurrency.disk_threads = 1
             opts = mock.MagicMock()
@@ -675,6 +696,7 @@ def test_worker_thread_transfer(
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
         opts = mock.MagicMock()
@@ -712,6 +734,7 @@ def test_worker_thread_transfer(
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
         opts = mock.MagicMock()
@@ -753,6 +776,7 @@ def test_worker_thread_transfer(
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.crypto_processes = 0
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
@@ -798,6 +822,7 @@ def test_worker_thread_disk():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.disk_threads = 1
 
         d._disk_queue = mock.MagicMock()
@@ -815,6 +840,7 @@ def test_worker_thread_disk():
             new_callable=mock.PropertyMock) as patched_tc:
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
         d._general_options.concurrency.disk_threads = 1
 
         d._disk_queue = mock.MagicMock()
@@ -841,6 +867,7 @@ def test_cleanup_temporary_files(tmpdir):
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._general_options.resume_file = pathlib.Path('abc')
     d._dd_map[0] = dd
     d._cleanup_temporary_files()
@@ -855,6 +882,7 @@ def test_cleanup_temporary_files(tmpdir):
     dd = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
     dd._allocate_disk_space()
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._dd_map[0] = dd
     d._cleanup_temporary_files()
@@ -871,6 +899,7 @@ def test_cleanup_temporary_files(tmpdir):
     dd.cleanup_all_temporary_files = mock.MagicMock()
     dd.cleanup_all_temporary_files.side_effect = Exception
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._dd_map[0] = dd
     d._cleanup_temporary_files()
@@ -879,6 +908,7 @@ def test_cleanup_temporary_files(tmpdir):
 
 def test_catalog_local_files_for_deletion(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._spec.options.delete_extraneous_destination = False
 
     d._catalog_local_files_for_deletion()
@@ -901,10 +931,16 @@ def test_delete_extraneous_files(tmpdir):
     fp = pathlib.Path(str(a))
 
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._spec.options.delete_extraneous_destination = True
     d._spec.destination.is_dir = True
     d._delete_after.add(fp)
 
+    d._general_options.dry_run = True
+    d._delete_extraneous_files()
+    assert fp.exists()
+
+    d._general_options.dry_run = False
     d._delete_extraneous_files()
     assert not fp.exists()
 
@@ -914,6 +950,7 @@ def test_delete_extraneous_files(tmpdir):
 
 def _create_downloader_for_start(td):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._cleanup_temporary_files = mock.MagicMock()
     d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
     d._initialize_transfer_threads = mock.MagicMock()
@@ -986,6 +1023,13 @@ def test_start(
 
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
+    d._check_download_conditions.return_value = ops.DownloadAction.Skip
+    d._general_options.dry_run = True
+    d.start()
+    assert d._pre_md5_skip_on_check.call_count == 0
+
+    patched_lb.side_effect = [[b]]
+    d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.CheckMd5
     d._download_sofar = -1
     with pytest.raises(RuntimeError):
@@ -1016,6 +1060,14 @@ def test_start(
     dd = d._transfer_queue.get()
     assert 'remote' not in dd.final_path.parts
 
+    b.properties.content_length = 0
+    patched_lb.side_effect = [[b]]
+    d = _create_downloader_for_start(tmpdir)
+    d._general_options.dry_run = True
+    d._check_download_conditions.return_value = ops.DownloadAction.Download
+    d.start()
+    assert d._transfer_queue.qsize() == 0
+
     # test exception count
     b = azure.storage.blob.models.Blob(name='name')
     b.properties.content_length = 1
@@ -1033,6 +1085,7 @@ def test_start(
 
 def test_start_exception():
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._run = mock.MagicMock(side_effect=RuntimeError('oops'))
     d._wait_for_transfer_threads = mock.MagicMock()
@@ -1047,6 +1100,7 @@ def test_start_exception():
 
 def test_start_keyboard_interrupt():
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._run = mock.MagicMock(side_effect=KeyboardInterrupt)
     d._wait_for_transfer_threads = mock.MagicMock()

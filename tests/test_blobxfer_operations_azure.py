@@ -259,7 +259,7 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     patched_em.encryption_metadata_exists.return_value = False
 
     i = 0
-    for file in asp.files(creds, options):
+    for file in asp.files(creds, options, False):
         i += 1
         assert pathlib.Path(file.name) == pathlib.Path('name')
         assert file.encryption_metadata is None
@@ -283,7 +283,7 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     patched_em.encryption_metadata_exists.return_value = False
 
     i = 0
-    for file in asp.files(creds, options):
+    for file in asp.files(creds, options, False):
         i += 1
         assert pathlib.Path(file.name) == pathlib.Path('remote/name')
         assert file.encryption_metadata is None
@@ -295,7 +295,7 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     asp.add_includes(['zzz'])
     patched_cisf.return_value = (True, f)
     patched_lf.side_effect = [[f]]
-    assert len(list(asp.files(creds, options))) == 0
+    assert len(list(asp.files(creds, options, True))) == 0
 
     # test no vio return
     with mock.patch(
@@ -305,7 +305,7 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
         asp = azops.SourcePath()
         asp.add_path_with_storage_account(p, 'sa')
         patched_lf.side_effect = [[f]]
-        assert len(list(asp.files(creds, options))) == 0
+        assert len(list(asp.files(creds, options, False))) == 0
 
     # test encrypted
     asp = azops.SourcePath()
@@ -317,7 +317,7 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     patched_em.convert_from_json = mock.MagicMock()
 
     i = 0
-    for file in asp.files(creds, options):
+    for file in asp.files(creds, options, True):
         i += 1
         assert pathlib.Path(file.name) == pathlib.Path('remote/name')
         assert file.encryption_metadata is not None
@@ -344,7 +344,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     patched_em.encryption_metadata_exists.return_value = False
 
     i = 0
-    for file in asp.files(creds, options):
+    for file in asp.files(creds, options, False):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is None
@@ -355,7 +355,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     asp.add_path_with_storage_account(p, 'sa')
     asp.add_includes(['zzz'])
     patched_lb.side_effect = [[b]]
-    assert len(list(asp.files(creds, options))) == 0
+    assert len(list(asp.files(creds, options, True))) == 0
 
     # test no vio return
     with mock.patch(
@@ -365,7 +365,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
         asp = azops.SourcePath()
         asp.add_path_with_storage_account(p, 'sa')
         patched_lb.side_effect = [[b]]
-        assert len(list(asp.files(creds, options))) == 0
+        assert len(list(asp.files(creds, options, False))) == 0
 
     be = azure.storage.blob.models.Blob(name='name')
     be.metadata = {'encryptiondata': {'a': 'b'}}
@@ -374,7 +374,7 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     patched_em.convert_from_json = mock.MagicMock()
 
     i = 0
-    for file in asp.files(creds, options):
+    for file in asp.files(creds, options, False):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is not None

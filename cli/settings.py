@@ -297,6 +297,8 @@ def merge_global_settings(config, cli_options):
             cli_options, config['options'], 'verbose', default=False),
         'quiet': _merge_setting(
             cli_options, config['options'], 'quiet', default=False),
+        'dry_run': _merge_setting(
+            cli_options, config['options'], 'dry_run', default=False),
         'concurrency': {
             'crypto_processes': _merge_setting(
                 cli_options, config['options']['concurrency'],
@@ -396,6 +398,7 @@ def create_general_options(config, action):
         ),
         verbose=config['options']['verbose'],
         quiet=config['options']['quiet'],
+        dry_run=config['options']['dry_run'],
         proxy=proxy,
     )
 

@@ -241,7 +241,7 @@ class General(object):
     def __init__(
             self, concurrency, log_file=None, progress_bar=True,
             resume_file=None, timeout=None, verbose=False, quiet=False,
-            proxy=None):
+            dry_run=False, proxy=None):
         """Ctor for General Options
         :param General self: this
         :param Concurrency concurrency: concurrency options
@@ -251,6 +251,7 @@ class General(object):
         :param Timeout timeout: timeout options
         :param bool verbose: verbose output
         :param bool quiet: quiet
+        :param bool dry_run: dry run
         :param HttpProxy proxy: proxy
         """
         if concurrency is None:
@@ -265,4 +266,5 @@ class General(object):
         self.timeout = timeout
         self.verbose = verbose
         self.quiet = quiet
+        self.dry_run = dry_run
         self.proxy = proxy

@@ -99,7 +99,7 @@ def test_localsourcepaths_files(tmpdir):
     a.add_excludes(['world.txt'])
     a.add_path(str(tmpdir))
     a_set = set()
-    for file in a.files():
+    for file in a.files(True):
         sfile = str(file.parent_path / file.relative_path)
         a_set.add(sfile)
 
@@ -118,7 +118,7 @@ def test_localsourcepaths_files(tmpdir):
     b.add_excludes(('world.txt',))
     b.add_excludes('**/blah.x')
     b.add_paths([pathlib.Path(str(tmpdir))])
-    for file in a.files():
+    for file in a.files(True):
         sfile = str(file.parent_path / file.relative_path)
         assert sfile in a_set
 
@@ -126,15 +126,24 @@ def test_localsourcepaths_files(tmpdir):
     assert upload.LocalSourcePath.is_stdin('/dev/stdin')
     assert not upload.LocalSourcePath.is_stdin('/')
 
+    a = upload.LocalSourcePath()
+    a.add_includes('z')
+    a.add_path(str(tmpdir) + '/abc/hello.txt')
+    a_set = set()
+    for file in a.files(True):
+        sfile = str(file.parent_path / file.relative_path)
+        a_set.add(sfile)
+    assert len(a_set) == 0
+
     c = upload.LocalSourcePath()
     c.add_path('-')
-    for file in c.files():
+    for file in c.files(False):
         assert file.use_stdin
 
     d = upload.LocalSourcePath()
     d.add_path(str(tmpdir.join('moo.cow')))
     i = 0
-    for file in d.files():
+    for file in d.files(True):
         assert str(file.parent_path.absolute()) == str(tmpdir)
         assert str(file.relative_path) == 'moo.cow'
         assert not file.use_stdin
@@ -144,7 +153,7 @@ def test_localsourcepaths_files(tmpdir):
     tmpdir.join('moo.cow2').ensure(file=True)
     d.add_path(str(tmpdir.join('moo.cow2')))
     i = 0
-    for file in d.files():
+    for file in d.files(True):
         i += 1
     assert i == 2
 

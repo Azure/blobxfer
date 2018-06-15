@@ -24,6 +24,7 @@ import blobxfer.operations.upload as ops
 
 def test_termination_check():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     assert not u.termination_check
     assert not u.termination_check_md5
@@ -69,6 +70,7 @@ def test_append_slice_suffix_to_name():
 
 def test_update_progress_bar():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     with mock.patch(
             'blobxfer.operations.progress.update_progress_bar') as patched_upb:
@@ -83,6 +85,7 @@ def test_update_progress_bar():
 
 def test_pre_md5_skip_on_check():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     src = mock.MagicMock()
     src.absolute_path = 'abspath'
@@ -99,6 +102,7 @@ def test_pre_md5_skip_on_check():
 
 def test_post_md5_skip_on_check():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     src = mock.MagicMock()
     src.absolute_path = 'abspath'
@@ -111,11 +115,13 @@ def test_post_md5_skip_on_check():
     u._upload_set.add(id)
     u._upload_total += 1
 
+    u._general_options.dry_run = True
     u._post_md5_skip_on_check(id, True)
     assert len(u._md5_map) == 0
     assert id not in u._upload_set
     assert u._upload_total == 0
 
+    u._general_options.dry_run = False
     u._md5_map[id] = (src, ase)
     u._upload_set.add(id)
     u._upload_total += 1
@@ -126,9 +132,21 @@ def test_post_md5_skip_on_check():
     assert u._upload_total == 1
     assert u._add_to_upload_queue.call_count == 1
 
+    u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = True
+    u._md5_map[id] = (src, ase)
+    u._upload_set.add(id)
+    u._upload_total += 1
+    u._add_to_upload_queue = mock.MagicMock()
+    u._post_md5_skip_on_check(id, False)
+    assert len(u._md5_map) == 0
+    assert id not in u._upload_set
+    assert u._upload_total == 0
+
 
 def test_check_for_uploads_from_md5():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._md5_offload = mock.MagicMock()
     u._post_md5_skip_on_check = mock.MagicMock()
 
@@ -146,6 +164,7 @@ def test_check_for_uploads_from_md5():
 
 def test_add_to_upload_queue():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._spec.options.chunk_size_bytes = 32
 
     src = mock.MagicMock()
@@ -166,7 +185,9 @@ def test_add_to_upload_queue():
 
 def test_initialize_disk_threads():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._general_options.concurrency.disk_threads = 1
+    u._general_options.concurrency.transfer_threads = 1
 
     try:
         u._initialize_disk_threads()
@@ -179,6 +200,8 @@ def test_initialize_disk_threads():
 
 def test_initialize_transfer_threads():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
+    u._general_options.concurrency.disk_threads = 1
     u._general_options.concurrency.transfer_threads = 1
 
     try:
@@ -192,6 +215,7 @@ def test_initialize_transfer_threads():
 
 def test_worker_thread_transfer():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._transfer_queue.put(
         (mock.MagicMock, mock.MagicMock, mock.MagicMock, mock.MagicMock)
     )
@@ -212,6 +236,7 @@ def test_worker_thread_transfer():
 
 def test_process_transfer():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._put_data = mock.MagicMock()
     u._update_progress_bar = mock.MagicMock()
 
@@ -264,6 +289,7 @@ def test_process_transfer():
 @mock.patch('blobxfer.operations.azure.blob.page.put_page')
 def test_put_data(pp, pfr, pb, cb, ab):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
@@ -325,6 +351,7 @@ def test_put_data(pp, pfr, pb, cb, ab):
 @mock.patch('time.sleep', return_value=None)
 def test_worker_thread_upload(ts):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._general_options.concurrency.transfer_threads = 1
 
     u._transfer_set = mock.MagicMock()
@@ -351,6 +378,7 @@ def test_worker_thread_upload(ts):
 @mock.patch('blobxfer.operations.azure.blob.page.create_blob')
 def test_prepare_upload(page_cb, cf, capd, cs, append_cb, cc):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -382,6 +410,7 @@ def test_prepare_upload(page_cb, cf, capd, cs, append_cb, cc):
 
 def test_process_upload_descriptor():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -418,6 +447,7 @@ def test_process_upload_descriptor():
 
     # test nothing
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     ud.all_operations_completed = False
     ud.next_offsets.return_value = (None, None)
     u._process_upload_descriptor(ud)
@@ -425,6 +455,7 @@ def test_process_upload_descriptor():
 
     # test encrypted
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
     offsets.num_bytes = 1
@@ -459,6 +490,7 @@ def test_process_upload_descriptor():
     ud.local_path = lp
 
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._prepare_upload = mock.MagicMock()
     ud.read_data.return_value = (False, offsets)
     u._process_upload_descriptor(ud)
@@ -470,6 +502,7 @@ def test_process_upload_descriptor():
 @mock.patch('blobxfer.operations.azure.blob.block.put_block_list')
 def test_finalize_block_blob(pbl):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -504,6 +537,7 @@ def test_finalize_block_blob(pbl):
 @mock.patch('blobxfer.operations.azure.blob.set_blob_md5')
 def test_set_blob_md5(sbm):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -533,6 +567,7 @@ def test_set_blob_md5(sbm):
 @mock.patch('blobxfer.operations.azure.blob.set_blob_metadata')
 def test_set_blob_metadata(sbm):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -560,6 +595,7 @@ def test_set_blob_metadata(sbm):
 @mock.patch('blobxfer.operations.azure.blob.page.resize_blob')
 def test_resize_blob(rb):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -585,6 +621,7 @@ def test_resize_blob(rb):
 
 def test_finalize_nonblock_blob():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -625,6 +662,7 @@ def test_finalize_nonblock_blob():
 @mock.patch('blobxfer.operations.azure.file.set_file_metadata')
 def test_finalize_azure_file(sfmeta, sfmd5):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -655,6 +693,7 @@ def test_finalize_azure_file(sfmeta, sfmd5):
 
 def test_finalize_upload():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -696,6 +735,7 @@ def test_finalize_upload():
 
 def test_get_destination_paths():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     paths = mock.MagicMock()
     paths.paths = [pathlib.Path('a/b')]
     u._spec.destinations = [paths]
@@ -712,6 +752,7 @@ def test_get_destination_paths():
 @mock.patch('blobxfer.operations.azure.blob.delete_blob')
 def test_delete_extraneous_files(db, lab, df, laf):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     # test no delete
     u._spec.options.delete_extraneous_destination = False
@@ -737,8 +778,14 @@ def test_delete_extraneous_files(db, lab, df, laf):
 
     laf.return_value = ['filename']
 
+    u._general_options.dry_run = True
     u._delete_extraneous_files()
     assert laf.call_count == 1
+    assert df.call_count == 0
+
+    u._general_options.dry_run = False
+    u._delete_extraneous_files()
+    assert laf.call_count == 2
     assert df.call_count == 1
 
     # test blob delete
@@ -759,14 +806,21 @@ def test_delete_extraneous_files(db, lab, df, laf):
     blob.name = 'blobname'
     lab.return_value = [blob]
 
+    u._general_options.dry_run = True
     u._delete_extraneous_files()
     assert lab.call_count == 1
+    assert db.call_count == 0
+
+    u._general_options.dry_run = False
+    u._delete_extraneous_files()
+    assert lab.call_count == 2
     assert db.call_count == 1
 
 
 @mock.patch('blobxfer.models.metadata.get_md5_from_metadata')
 def test_check_upload_conditions(gmfm):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -839,6 +893,7 @@ def test_check_upload_conditions(gmfm):
 @mock.patch('blobxfer.operations.azure.blob.get_blob_properties')
 def test_check_for_existing_remote(gbp, gfp):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
 
     sa = mock.MagicMock()
     sa.name = 'name'
@@ -899,6 +954,7 @@ def test_check_for_existing_remote(gbp, gfp):
 
 def test_generate_destination_for_source():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._check_for_existing_remote = mock.MagicMock()
 
     lp = mock.MagicMock()
@@ -980,6 +1036,7 @@ def test_vectorize_and_bind():
 
     # no vectorization
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Disabled
     u._check_upload_conditions = mock.MagicMock()
@@ -994,6 +1051,7 @@ def test_vectorize_and_bind():
 
     # stripe vectorization 1 slice
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._check_upload_conditions = mock.MagicMock()
     u._check_upload_conditions.return_value = ops.UploadAction.Upload
     u._spec.options.vectored_io.distribution_mode = \
@@ -1041,6 +1099,7 @@ def test_vectorize_and_bind():
 
     # replication single target
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Replica
     u._check_upload_conditions = mock.MagicMock()
@@ -1078,6 +1137,7 @@ def test_vectorize_and_bind():
 @mock.patch('blobxfer.operations.md5.LocalFileMd5Offload')
 def test_run(lfmo, urm, tmpdir):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._initialize_disk_threads = mock.MagicMock()
     u._initialize_transfer_threads = mock.MagicMock()
     u._general_options.concurrency.disk_threads = 1
@@ -1176,6 +1236,7 @@ def test_run(lfmo, urm, tmpdir):
 
     # regular execution
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._general_options.concurrency.disk_threads = 1
     u._general_options.concurrency.transfer_threads = 1
     u._general_options.concurrency.md5_processes = 1
@@ -1204,9 +1265,77 @@ def test_run(lfmo, urm, tmpdir):
         util.datetime_now() - datetime.timedelta(seconds=1)
     )
     u._run()
+    assert u._finalize_upload.call_count == 1
+
+    # regular execution, skip dry run
+    u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = True
+    u._general_options.concurrency.disk_threads = 1
+    u._general_options.concurrency.transfer_threads = 1
+    u._general_options.concurrency.md5_processes = 1
+    u._general_options.concurrency.crypto_processes = 0
+    u._general_options.resume_file = 'resume'
+    u._spec.options.store_file_properties.md5 = True
+    u._spec.skip_on.md5_match = True
+    u._spec.options.rsa_public_key = None
+    u._spec.options.chunk_size_bytes = 0
+    u._spec.options.one_shot_bytes = 0
+    u._spec.sources.can_rename.return_value = False
+    u._spec.options.rename = False
+
+    u._spec.options.vectored_io.distribution_mode = \
+        models.VectoredIoDistributionMode.Replica
+    u._check_upload_conditions = mock.MagicMock()
+    u._check_upload_conditions.return_value = ops.UploadAction.Skip
+    u._generate_destination_for_source = mock.MagicMock()
+    u._generate_destination_for_source.return_value = [
+        (sa, ase), (sa, ase2)
+    ]
+    u._spec.sources.files.return_value = [lp]
+    u._put_data = mock.MagicMock()
+    u._finalize_upload = mock.MagicMock()
+    u._upload_start_time = (
+        util.datetime_now() - datetime.timedelta(seconds=1)
+    )
+    u._run()
+    assert u._finalize_upload.call_count == 0
+
+    # regular execution, upload dry run
+    u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = True
+    u._general_options.concurrency.disk_threads = 1
+    u._general_options.concurrency.transfer_threads = 1
+    u._general_options.concurrency.md5_processes = 1
+    u._general_options.concurrency.crypto_processes = 0
+    u._general_options.resume_file = 'resume'
+    u._spec.options.store_file_properties.md5 = True
+    u._spec.skip_on.md5_match = True
+    u._spec.options.rsa_public_key = None
+    u._spec.options.chunk_size_bytes = 0
+    u._spec.options.one_shot_bytes = 0
+    u._spec.sources.can_rename.return_value = False
+    u._spec.options.rename = False
+
+    u._spec.options.vectored_io.distribution_mode = \
+        models.VectoredIoDistributionMode.Replica
+    u._check_upload_conditions = mock.MagicMock()
+    u._check_upload_conditions.return_value = ops.UploadAction.Upload
+    u._generate_destination_for_source = mock.MagicMock()
+    u._generate_destination_for_source.return_value = [
+        (sa, ase), (sa, ase2)
+    ]
+    u._spec.sources.files.return_value = [lp]
+    u._put_data = mock.MagicMock()
+    u._finalize_upload = mock.MagicMock()
+    u._upload_start_time = (
+        util.datetime_now() - datetime.timedelta(seconds=1)
+    )
+    u._run()
+    assert u._finalize_upload.call_count == 0
 
     # exception raise
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._general_options.concurrency.disk_threads = 1
     u._general_options.concurrency.transfer_threads = 1
     u._general_options.concurrency.md5_processes = 1
@@ -1238,6 +1367,7 @@ def test_run(lfmo, urm, tmpdir):
 
 def test_start():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    u._general_options.dry_run = False
     u._wait_for_transfer_threads = mock.MagicMock()
     u._wait_for_disk_threads = mock.MagicMock()
     u._md5_offload = mock.MagicMock()

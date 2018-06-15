@@ -193,6 +193,20 @@ def _disk_threads_option(f):
         callback=callback)(f)
 
 
+def _dry_run_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['dry_run'] = value
+        return value
+    return click.option(
+        '--dry-run',
+        expose_value=False,
+        is_flag=True,
+        default=False,
+        help='Dry run [False]',
+        callback=callback)(f)
+
+
 def _enable_azure_storage_logger_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -459,6 +473,7 @@ def common_options(f):
     f = _max_retries_option(f)
     f = _log_file_option(f)
     f = _enable_azure_storage_logger_option(f)
+    f = _dry_run_option(f)
     f = _disk_threads_option(f)
     f = _crypto_processes_option(f)
     f = _connect_timeout_option(f)

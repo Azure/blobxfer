@@ -204,11 +204,15 @@ class SyncCopy(object):
                     id = blobxfer.operations.synccopy.SyncCopy.\
                         create_deletion_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
-                        if self._general_options.verbose:
-                            logger.debug('deleting file: {}'.format(file))
-                        blobxfer.operations.azure.file.delete_file(
-                            sa.file_client, container, file)
-                        deleted += 1
+                        if self._general_options.dry_run:
+                            logger.info('[DRY RUN] deleting file: {}'.format(
+                                file))
+                        else:
+                            if self._general_options.verbose:
+                                logger.debug('deleting file: {}'.format(file))
+                            blobxfer.operations.azure.file.delete_file(
+                                sa.file_client, container, file)
+                            deleted += 1
             else:
                 blobs = blobxfer.operations.azure.blob.list_all_blobs(
                     sa.block_blob_client, container)
@@ -217,11 +221,16 @@ class SyncCopy(object):
                         create_deletion_id(
                             sa.block_blob_client, container, blob.name)
                     if id not in self._delete_exclude:
-                        if self._general_options.verbose:
-                            logger.debug('deleting blob: {}'.format(blob.name))
-                        blobxfer.operations.azure.blob.delete_blob(
-                            sa.block_blob_client, container, blob.name)
-                        deleted += 1
+                        if self._general_options.dry_run:
+                            logger.info('[DRY RUN] deleting blob: {}'.format(
+                                blob.name))
+                        else:
+                            if self._general_options.verbose:
+                                logger.debug('deleting blob: {}'.format(
+                                    blob.name))
+                            blobxfer.operations.azure.blob.delete_blob(
+                                sa.block_blob_client, container, blob.name)
+                            deleted += 1
             checked.add(key)
         logger.info('deleted {} extraneous blobs/files'.format(deleted))
 
@@ -715,6 +724,9 @@ class SyncCopy(object):
                             dst_ase._client, dst_ase.container, dst_ase.name)
                     )
                     self._delete_exclude.add(uid)
+                if self._general_options.dry_run:
+                    logger.info('[DRY RUN] skipping: {} -> {}'.format(
+                        src_ase.path, dst_ase.path))
 
     def _bind_sources_to_destination(self):
         # type: (SyncCopy) ->
@@ -728,7 +740,9 @@ class SyncCopy(object):
         seen = set()
         # iterate through source paths to download
         for src in self._spec.sources:
-            for src_ase in src.files(self._creds, self._spec.options):
+            for src_ase in src.files(
+                    self._creds, self._spec.options,
+                    self._general_options.dry_run):
                 # generate copy destinations for source
                 dest = [
                     dst_ase for dst_ase in
@@ -786,19 +800,25 @@ class SyncCopy(object):
         # initialize download threads
         self._initialize_transfer_threads()
         # iterate through source paths to download
+        processed_files = 0
         for src_ase, dst_ase in self._bind_sources_to_destination():
-            # add transfer to set
-            with self._transfer_lock:
-                self._transfer_set.add(
-                    blobxfer.operations.synccopy.SyncCopy.
-                    create_unique_transfer_operation_id(src_ase, dst_ase))
-                self._synccopy_total += 1
-                self._synccopy_bytes_total += src_ase.size
-                if blobxfer.util.is_not_empty(dst_ase.replica_targets):
-                    self._synccopy_bytes_total += (
-                        len(dst_ase.replica_targets) * src_ase.size
-                    )
-            self._add_to_transfer_queue(src_ase, dst_ase)
+            processed_files += 1
+            if self._general_options.dry_run:
+                logger.info('[DRY RUN] synccopy: {} -> {}'.format(
+                    src_ase.path, dst_ase.path))
+            else:
+                # add transfer to set
+                with self._transfer_lock:
+                    self._transfer_set.add(
+                        blobxfer.operations.synccopy.SyncCopy.
+                        create_unique_transfer_operation_id(src_ase, dst_ase))
+                    self._synccopy_total += 1
+                    self._synccopy_bytes_total += src_ase.size
+                    if blobxfer.util.is_not_empty(dst_ase.replica_targets):
+                        self._synccopy_bytes_total += (
+                            len(dst_ase.replica_targets) * src_ase.size
+                        )
+                self._add_to_transfer_queue(src_ase, dst_ase)
         # set remote files processed
         with self._transfer_lock:
             self._all_remote_files_processed = True
@@ -806,9 +826,10 @@ class SyncCopy(object):
                 self._synccopy_bytes_total / blobxfer.util.MEGABYTE
             )
             logger.debug(
-                ('{0} remote files processed, waiting for copy '
+                ('{0} remote files to sync, waiting for copy '
                  'completion of approx. {1:.4f} MiB').format(
-                     self._synccopy_total, synccopy_size_mib))
+                     processed_files, synccopy_size_mib))
+        del processed_files
         # wait for downloads to complete
         self._wait_for_transfer_threads(terminate=False)
         end_time = blobxfer.util.datetime_now()

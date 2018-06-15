@@ -30,6 +30,7 @@ from builtins import (  # noqa
     bytes, dict, int, list, object, range, ascii, chr, hex, input,
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
+import logging
 import re
 # non-stdlib imports
 import requests
@@ -43,6 +44,9 @@ import blobxfer.operations.azure.blob.block
 import blobxfer.operations.azure.blob.page
 import blobxfer.operations.azure.file
 import blobxfer.util
+
+# create logger
+logger = logging.getLogger(__name__)
 
 
 class StorageCredentials(object):
@@ -299,21 +303,24 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         """
         return self._path_map[blobxfer.util.normalize_azure_path(remote_path)]
 
-    def files(self, creds, options):
+    def files(self, creds, options, dry_run):
         # type: (SourcePath, StorageCredentials,
-        #        blobxfer.models.options.Download) -> StorageEntity
+        #        blobxfer.models.options.Download, bool) -> StorageEntity
         """Generator of Azure remote files or blobs
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param blobxfer.models.options.Download options: download options
+        :param bool dry_run: dry run
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
         if options.mode == blobxfer.models.azure.StorageModes.File:
-            for file in self._populate_from_list_files(creds, options):
+            for file in self._populate_from_list_files(
+                    creds, options, dry_run):
                 yield file
         else:
-            for blob in self._populate_from_list_blobs(creds, options):
+            for blob in self._populate_from_list_blobs(
+                    creds, options, dry_run):
                 yield blob
 
     def _convert_to_storage_entity_with_encryption_metadata(
@@ -416,12 +423,13 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 container, dir, file_snapshot)
             yield ase
 
-    def _populate_from_list_files(self, creds, options):
-        # type: (SourcePath, StorageCredentials, any) -> StorageEntity
+    def _populate_from_list_files(self, creds, options, dry_run):
+        # type: (SourcePath, StorageCredentials, Any, bool) -> StorageEntity
         """Internal generator for Azure remote files
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param object options: download or synccopy options
+        :param bool dry_run: dry run
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
@@ -453,6 +461,10 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     sa.file_client, cont, dir, options.recursive,
                     snapshot=snapshot):
                 if not self._inclusion_check(file.name):
+                    if dry_run:
+                        logger.info(
+                            '[DRY RUN] skipping due to filters: {}/{}'.format(
+                                cont, file.name))
                     continue
                 for ase in self._handle_vectored_io_stripe(
                         creds, options, store_raw_metadata, sa, file, True,
@@ -461,12 +473,13 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                         continue
                     yield ase
 
-    def _populate_from_list_blobs(self, creds, options):
-        # type: (SourcePath, StorageCredentials, any) -> StorageEntity
+    def _populate_from_list_blobs(self, creds, options, dry_run):
+        # type: (SourcePath, StorageCredentials, Any, bool) -> StorageEntity
         """Internal generator for Azure remote blobs
         :param SourcePath self: this
         :param StorageCredentials creds: storage creds
         :param object options: download or synccopy options
+        :param bool dry_run: dry run
         :rtype: StorageEntity
         :return: Azure storage entity object
         """
@@ -479,6 +492,10 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                     sa.block_blob_client, cont, dir, options.mode,
                     options.recursive):
                 if not self._inclusion_check(blob.name):
+                    if dry_run:
+                        logger.info(
+                            '[DRY RUN] skipping due to filters: {}/{}'.format(
+                                cont, blob.name))
                     continue
                 for ase in self._handle_vectored_io_stripe(
                         creds, options, is_synccopy, sa, blob,
