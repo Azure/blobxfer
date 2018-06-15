@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2018-06-15
+### Added
+- Support for `--dry-run` parameter for all operations. A dry run will
+log intent of an action and is a way to test the potential outcome of
+an operation. ([#74](https://github.com/Azure/blobxfer/issues/74))
+- `--connect-timeout` and `--read-timeout` options providing fine grained
+timeout control. The `--timeout` option is now deprecated.
+
+### Changed
+- Updated dependencies
+
+### Fixed
+- Further improve retry handling ([#75](https://github.com/Azure/blobxfer/issues/75))
+
 ## [1.2.1] - 2018-05-23
 ### Changed
 - Updated dependencies
@@ -349,7 +363,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.2.1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/Azure/blobxfer/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/Azure/blobxfer/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/Azure/blobxfer/compare/1.1.0...1.2.0
 [1.1.1]: https://github.com/Azure/blobxfer/compare/1.1.0...1.1.1
