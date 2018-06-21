@@ -13,11 +13,6 @@ environment:
     PYTHON_ARCH: "64"
     TOX_ENV: "py27"
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-    PYTHON: "C:\\Python35-x64"
-    PYTHON_VERSION: "3.5"
-    PYTHON_ARCH: "64"
-    TOX_ENV: "py35"
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
     PYTHON: "C:\\Python36-x64"
     PYTHON_VERSION: "3.6"
     PYTHON_ARCH: "64"
@@ -33,6 +28,7 @@ environment:
   DOCKER_IMAGE_TAG_PREFIX: "alfpark/blobxfer:"
 
 init:
+- choco install checksum
 - echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
 
 install:
@@ -96,7 +92,10 @@ after_test:
     sed -i -e "s/{EXE}/%BLOBXFER_ARTIFACT%/g" cli\\file_version_info.txt &&
     pyinstaller -F -n "%BLOBXFER_ARTIFACT%" -p blobxfer:cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --icon cli\\azure.ico --version-file cli\\file_version_info.txt --distpath bin cli\\cli.py &&
     pyi\\Scripts\\deactivate.bat &&
+    checksum "bin\\%BLOBXFER_ARTIFACT%" -t=sha256 > "bin\\%BLOBXFER_ARTIFACT%.sha256" &&
+    cat "bin\\%BLOBXFER_ARTIFACT%.sha256" &&
     appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%" &&
+    appveyor PushArtifact "bin\\%BLOBXFER_ARTIFACT%.sha256" &&
     bin\\%BLOBXFER_ARTIFACT% upload --remote-path %UPLOAD_PATH% --local-path bin\\%BLOBXFER_ARTIFACT% --strip-components 1 --file-md5 --overwrite
   )
 - ps: >-
@@ -104,8 +103,8 @@ after_test:
       Write-Host "Build is from a PR, not creating a Docker image"
       return
     }
-    if (!($env:PYTHON_VERSION -eq "3.5")) {
-      Write-Host "Python environment is not 3.5, not creating a Docker image"
+    if (!($env:PYTHON_VERSION -eq "3.6")) {
+      Write-Host "Python environment is not 3.6, not creating a Docker image"
       return
     }
 
@@ -147,7 +146,7 @@ deploy:
   description: 'blobxfer release'
   auth_token:
     secure: +f4N6Qsv3HvJyii0Bs+8qBx3YS7+7FJUWbFSiAdEIUDubFQnNkJgFnBw0Ew2SLkv
-  artifact: /.*\.exe/
+  artifact: /.*\.exe/,/.*\.exe.sha256/
   draft: true
   prerelease: true
   force_update: true
