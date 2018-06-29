@@ -51,8 +51,8 @@ command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 
 * `--mode` specifies the source Azure Storage mode. This defaults to `auto`
-which will target Azure Blob storage (any blob type). To upload to Azure File
-storage, set this option to `file`.
+which will source from Azure Blob storage (any blob type). To source from
+Azure File storage, set this option to `file`.
 * `--storage-account` for the source remote Azure path
 * `--remote-path` for the source remote Azure path. This must have, at
 the minimum, a container or file share name.
