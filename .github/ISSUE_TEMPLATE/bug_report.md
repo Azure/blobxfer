@@ -18,6 +18,9 @@ INSERT PARAMETER OUTPUT LOG HERE
 #### Actual Results
 
 #### Additional Logs
+Ensure that you execute your command with `-v --enable-azure-storage-logger`
+options.
+
 ```
 INSERT ADDITIONAL LOGS HERE
 ```

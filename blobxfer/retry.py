@@ -41,21 +41,24 @@ import urllib3
 
 # global defines
 _RETRYABLE_ERRNO_MAXRETRY = frozenset((
+    '[Errno {}]'.format(errno.ECONNABORTED),
     '[Errno {}]'.format(errno.ECONNRESET),
     '[Errno {}]'.format(errno.ECONNREFUSED),
-    '[Errno {}]'.format(errno.ECONNABORTED),
     '[Errno {}]'.format(errno.ENETRESET),
     '[Errno {}]'.format(errno.ETIMEDOUT),
 ))
 _RETRYABLE_ERRNO_PROTOCOL = frozenset((
+    '({},'.format(errno.ECONNABORTED),
     '({},'.format(errno.ECONNRESET),
     '({},'.format(errno.ECONNREFUSED),
-    '({},'.format(errno.ECONNABORTED),
     '({},'.format(errno.ENETRESET),
     '({},'.format(errno.ETIMEDOUT),
 ))
 _RETRYABLE_STRING_FALLBACK = frozenset((
     'connection aborted',
+    'connection reset',
+    'connection refused',
+    'network dropped',
     'timed out',
 ))
 
@@ -142,8 +145,8 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
                     else:
                         if any(x in msg for x in _RETRYABLE_ERRNO_PROTOCOL):
                             ret = True
-            else:
-                # fallback to string search
+            # fallback to string search
+            if not ret:
                 msg = str(exc).lower()
                 if any(x in msg for x in _RETRYABLE_STRING_FALLBACK):
                     ret = True
