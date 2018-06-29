@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.3.1] - 2018-06-29
+### Changed
+- Updated dependencies
+- Update Windows Docker image to use Python 3.6.6
+
+### Fixed
+- Always use generic string check fallback for retry ([#77](https://github.com/Azure/blobxfer/issues/77))
+
 ## [1.3.0] - 2018-06-15
 ### Added
 - Support for `--dry-run` parameter for all operations. A dry run will
@@ -363,7 +371,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.3.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.3.1...HEAD
+[1.3.1]: https://github.com/Azure/blobxfer/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Azure/blobxfer/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/Azure/blobxfer/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/Azure/blobxfer/compare/1.1.0...1.2.0
