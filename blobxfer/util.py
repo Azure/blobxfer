@@ -342,3 +342,24 @@ def parse_fileshare_or_file_snapshot_parameter(url):
             except (ValueError, OverflowError):
                 pass
     return url, None
+
+
+def explode_azure_storage_url(url):
+    # type: (str) -> Tuple[str, str, str, str, str]
+    """Explode Azure Storage URL into parts
+    :param url str: storage url
+    :rtype: tuple
+    :return: (sa, mode, ep, rpath, sas)
+    """
+    tmp = url.split('/')
+    host = tmp[2].split('.')
+    sa = host[0]
+    mode = host[1].lower()
+    ep = '.'.join(host[2:])
+    tmp = '/'.join(tmp[3:]).split('?')
+    rpath = tmp[0]
+    if len(tmp) > 1:
+        sas = tmp[1]
+    else:
+        sas = None
+    return sa, mode, ep, rpath, sas

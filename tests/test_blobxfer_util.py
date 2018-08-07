@@ -246,3 +246,21 @@ def test_parse_fileshare_or_file_snapshot_parameter():
     a = base + '?snapshot=abc'
     assert blobxfer.util.parse_fileshare_or_file_snapshot_parameter(a) == (
         a, None)
+
+
+def test_explode_azure_storage_url():
+    url = 'https://sa.blob.core.windows.net/cont/file'
+    sa, mode, ep, rpath, sas = blobxfer.util.explode_azure_storage_url(url)
+    assert sa == 'sa'
+    assert mode == 'blob'
+    assert ep == 'core.windows.net'
+    assert rpath == 'cont/file'
+    assert sas is None
+
+    url = 'https://sa2.file.core.usgovcloudapi.net/cont2/file2?sas'
+    sa, mode, ep, rpath, sas = blobxfer.util.explode_azure_storage_url(url)
+    assert sa == 'sa2'
+    assert mode == 'file'
+    assert ep == 'core.usgovcloudapi.net'
+    assert rpath == 'cont2/file2'
+    assert sas == 'sas'

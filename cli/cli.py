@@ -457,6 +457,20 @@ def _remote_path_option(f):
         callback=callback)(f)
 
 
+def _storage_url_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['storage_url'] = value
+        return value
+    return click.option(
+        '--storage-url',
+        expose_value=False,
+        default=None,
+        help='Azure Storage URL as source or destination (can include SAS)',
+        envvar='BLOBXFER_STORAGE_URL',
+        callback=callback)(f)
+
+
 def common_options(f):
     f = _verbose_option(f)
     f = _transfer_threads_option(f)
@@ -483,6 +497,7 @@ def common_options(f):
 
 def upload_download_options(f):
     f = _remote_path_option(f)
+    f = _storage_url_option(f)
     f = _storage_account_option(f)
     f = _local_resource_option(f)
     return f
@@ -905,6 +920,20 @@ def _sync_copy_dest_storage_account_option(f):
         callback=callback)(f)
 
 
+def _sync_copy_dest_storage_url_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sync_copy_dest_storage_url'] = value
+        return value
+    return click.option(
+        '--sync-copy-dest-storage-url',
+        expose_value=False,
+        default=None,
+        help='Azure Storage URL as destination (can include SAS)',
+        envvar='BLOBXFER_SYNC_COPY_DEST_STORAGE_URL',
+        callback=callback)(f)
+
+
 def upload_options(f):
     f = _stripe_chunk_size_bytes_option(f)
     f = _strip_components_option(f)
@@ -958,6 +987,7 @@ def download_options(f):
 
 
 def sync_copy_options(f):
+    f = _sync_copy_dest_storage_url_option(f)
     f = _sync_copy_dest_storage_account_option(f)
     f = _sync_copy_dest_sas_option(f)
     f = _sync_copy_dest_remote_path_option(f)

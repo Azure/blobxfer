@@ -61,6 +61,29 @@ def add_cli_options(cli_options, action):
     :param TransferAction action: action
     """
     cli_options['_action'] = action.name.lower()
+    # if url is present, convert to constituent options
+    if blobxfer.util.is_not_empty(cli_options['storage_url']):
+        if (blobxfer.util.is_not_empty(cli_options['storage_account']) or
+                blobxfer.util.is_not_empty(cli_options['mode']) or
+                blobxfer.util.is_not_empty(cli_options['endpoint']) or
+                blobxfer.util.is_not_empty(cli_options['remote_path'])):
+            raise ValueError(
+                'Specified both --storage-url and --storage-account, '
+                '--mode, --endpoint, or --remote-path')
+        cli_options['storage_account'], mode, \
+            cli_options['endpoint'], \
+            cli_options['remote_path'], \
+            sas = blobxfer.util.explode_azure_storage_url(
+                cli_options['storage_url'])
+        if blobxfer.util.is_not_empty(sas):
+            if blobxfer.util.is_not_empty(cli_options['sas']):
+                raise ValueError(
+                    'Specified both --storage-url with a SAS token and --sas')
+            cli_options['sas'] = sas
+        if mode == 'file':
+            cli_options['mode'] = mode
+        del mode
+        del sas
     storage_account = cli_options.get('storage_account')
     azstorage = {
         'endpoint': cli_options.get('endpoint')
@@ -106,6 +129,35 @@ def add_cli_options(cli_options, action):
             },
         }
     elif action == TransferAction.Synccopy:
+        # if url is present, convert to constituent options
+        if blobxfer.util.is_not_empty(
+                cli_options['sync_copy_dest_storage_url']):
+            if (blobxfer.util.is_not_empty(
+                    cli_options['sync_copy_dest_storage_account']) or
+                    blobxfer.util.is_not_empty(
+                        cli_options['sync_copy_dest_mode']) or
+                    blobxfer.util.is_not_empty(
+                        cli_options['sync_copy_dest_remote_path'])):
+                raise ValueError(
+                    'Specified both --sync-copy-dest-storage-url and '
+                    '--sync-copy-dest-storage-account, '
+                    '--sync-copy-dest-mode, or'
+                    '--sync-copy-dest-remote-path')
+            cli_options['sync_copy_dest_storage_account'], mode, _, \
+                cli_options['sync_copy_dest_remote_path'], sas = \
+                blobxfer.util.explode_azure_storage_url(
+                    cli_options['sync_copy_dest_storage_url'])
+            if blobxfer.util.is_not_empty(sas):
+                if blobxfer.util.is_not_empty(
+                        cli_options['sync_copy_dest_sas']):
+                    raise ValueError(
+                        'Specified both --sync-copy-dest-storage-url with '
+                        'a SAS token and --sync-copy-dest-sas')
+                cli_options['sync_copy_dest_sas'] = sas
+            if mode == 'file':
+                cli_options['dest_mode'] = mode
+            del mode
+            del sas
         sync_copy_dest_storage_account = cli_options.get(
             'sync_copy_dest_storage_account')
         sync_copy_dest_remote_path = cli_options.get(

@@ -14,16 +14,20 @@ Downloads remote Azure paths, which may contain many resources, to the
 local machine. This command requires at the minimum, the following options
 if invoked without a YAML configuration file:
 
-* `--mode` specifies the source Azure Storage mode. This defaults to `auto`
-which will target Azure Blob storage (any blob type). To source from Azure
-File storage, set this option to `file`.
-* `--storage-account` for the source remote Azure path
-* `--remote-path` for the source remote Azure path. This must have, at
-the minimum, a container or file share name.
-* `--local-path`
-
-Additionally, an authentication option for the storage account is required.
-Please see the Authentication sub-section below under Options.
+* Remote Azure Storage reference using one of two methods:
+    * URL-based via `--storage-url` or the environment variable
+      `BLOBXFER_STORAGE_URL`
+    * Components
+        * `--mode` specifies the source Azure Storage mode. This defaults
+          to `auto` which will target Azure Blob storage (any blob type).
+          To source from Azure File storage, set this option to `file`.
+        * `--remote-path` for the source remote Azure path. This must have,
+          at the minimum, a container or file share name.
+        * `--storage-account` storage account for the source remote Azure path
+          or the environment variable `BLOBXFER_STORAGE_ACCOUNT`
+* Local path to download files to with `--local-path`
+* An authentication option for the storage account is required. Please see
+the Authentication sub-section below under Options.
 
 ### `upload`
 Uploads local paths to a remote Azure path or set of remote Azure paths.
@@ -31,41 +35,55 @@ The local path may contain many resources on the local machine. This command
 requires at the minimum, the following options if invoked without a YAML
 configuration file:
 
-* `--mode` specifies the destination Azure Storage mode. This defaults to
-`auto` which will target Azure Blob storage (any blob type). To upload to
-Azure File storage, set this option to `file`.
-* `--local-path`
-* `--storage-account` for the destination remote Azure path
-* `--remote-path` for the destination remote Azure path. This must have,
-at the minimum, a container or file share name.
-
-Additionally, an authentication option for the storage account is required.
-Please see the Authentication sub-section below under Options.
-
-If piping from `stdin`, `--local-path` should be set to `-` as per
-convention.
+* Remote Azure Storage reference using one of two methods:
+    * URL-based via `--storage-url` or the environment variable
+      `BLOBXFER_STORAGE_URL`
+    * Components
+        * `--mode` specifies the destination Azure Storage mode. This
+          defaults to `auto` which will target Azure Blob storage (any blob
+          type). To upload to Azure File storage, set this option to `file`.
+        * `--remote-path` for the destination remote Azure path. This must
+          have, at the minimum, a container or file share name.
+        * `--storage-account` storage account for the destination remote
+          Azure path or the environment variable `BLOBXFER_STORAGE_ACCOUNT`
+* Local path to upload files from with `--local-path`
+    * If piping from `stdin`, `--local-path` should be set to `-` as per
+      convention.
+* An authentication option for the storage account is required. Please see
+the Authentication sub-section below under Options.
 
 ### `synccopy`
 Synchronously copies remote Azure paths to other remote Azure paths. This
 command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 
-* `--mode` specifies the source Azure Storage mode. This defaults to `auto`
-which will source from Azure Blob storage (any blob type). To source from
-Azure File storage, set this option to `file`.
-* `--storage-account` for the source remote Azure path
-* `--remote-path` for the source remote Azure path. This must have, at
-the minimum, a container or file share name.
-* `--sync-copy-dest-mode` for the destination mode. If `auto` is specified
-for this option, the destination mode will be set the same as the source
-`--mode`. These options need not be the same which allows for object-transform
-copy operations.
-* `--sync-copy-dest-remote-path` for the destination remote Azure path.
-This must have, at the minimum, a container or file share name.
-* `--sync-copy-dest-storage-account` for the destination remote Azure path
-
-Additionally, an authentication option for both storage accounts is required.
-Please see the `Authentication` and `Connection` sub-section below under the
+* Remote Azure Storage _source_ reference using one of two methods:
+    * URL-based via `--storage-url` or the environment variable
+      `BLOBXFER_STORAGE_URL`
+    * Components
+        * `--mode` specifies the source Azure Storage mode. This defaults
+          to `auto` which will source from Azure Blob storage (any blob
+          type). To source from Azure File storage, set this option to `file`.
+        * `--remote-path` for the source remote Azure path. This must have, at
+          the minimum, a container or file share name.
+        * `--storage-account` storage account for the source remote Azure path
+          or the environment variable `BLOBXFER_STORAGE_ACCOUNT`
+* Remote Azure Storage _destination_ reference using one of two methods:
+    * URL-based via `--sync-copy-dest-storage-url` or the environment variable
+      `BLOBXFER_SYNC_COPY_DEST_STORAGE_URL`
+    * Components
+        * `--sync-copy-dest-mode` for the destination mode. If `auto` is
+          specified for this option, the destination mode will be set the
+          same as the source `--mode`. These options need not be the same
+          which allows for object-transform copy operations.
+        * `--sync-copy-dest-remote-path` for the destination remote Azure
+          path. This must have, at the minimum, a container or file share
+          name.
+        * `--sync-copy-dest-storage-account` storage account for the
+          destination remote Azure path or the environment variable
+          `BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT`
+* An authentication option for both storage accounts is required. Please
+see the `Authentication` and `Connection` sub-section below under the
 next section.
 
 ## <a name="options"></a>Options
@@ -117,7 +135,12 @@ sensitive help.
 ### Authentication
 `blobxfer` supports both Storage Account access keys and Shared Access
 Signature (SAS) tokens. One type must be supplied with all commands in
-order to successfully authenticate against Azure Storage. These options are:
+order to successfully authenticate against Azure Storage. Note that if you
+are utilizing `--storage-url` or `--sync-copy-dest-storage-url` and the
+URL contains a SAS token, then you do not need to specify any of the
+following options.
+
+Authentication options are:
 
 * `--sas` is a shared access signature (SAS) token. This can can be
 optionally provided through an environment variable `BLOBXFER_SAS` instead.
@@ -172,12 +195,23 @@ in seconds, for the server to send a response.
 * `--storage-account` specifies the storage account to use. This can be
 optionally provided through an environment variable `BLOBXFER_STORAGE_ACCOUNT`
 instead.
+* `--storage-url` specifies the Azure Storage url to read entities from
+or to write entities to. This parameter can be used in-lieu of
+`--mode`, `--storage-account`, `--endpoint`, `--remote-path` and potentially
+`--sas` if a SAS token is supplied as part of the URL.
 * `--sync-copy-dest-storage-account` specifies the destination remote
 Azure storage account for the `synccopy` command. This can be optionally
 provided through an environment variable
 `BLOBXFER_SYNC_COPY_DEST_STORAGE_ACCOUNT` instead.
+* `--sync-copy-dest-mode` specifies the destination mode for `synccopy`
+operations.
 * `--sync-copy-dest-remote-path` specifies the destination remote Azure path
 under the synchronous copy destination storage account.
+* `--sync-copy-dest-storage-url` specifies the Azure Storage url to write
+entities to as part of `synccopy` operations. This parameter can be used
+in-lieu of `--sync-copy-dest-mode`, `--sync-copy-dest-storage-account`,
+`--sync-copy-remote-path` and potentially `--sync-copy-dest-sas` if a SAS
+token is supplied as part of the URL.
 * `--timeout` is the timeout value, in seconds, applied to both connect
 and read operations. This option is DEPRECATED. Please specify the connect
 timeout as `--connect-timeout` and the read timeout as `--read-timeout`

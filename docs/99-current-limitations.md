@@ -67,3 +67,8 @@ remote path of `mycontainer/mydir/` will not work as intended as, internally,
 Blob Storage or General Purpose V2 Storage accounts. Please see
 [this article](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
 for more information.
+* Synchronous copy operations are limited to transfers within the same Azure
+cloud (i.e., the source and destination `endpoint` must match). For example,
+you can synchonously copy within or between storage accounts in Azure
+Public cloud, e.g., `core.windows.net` but not between `core.windows.net`
+and `core.usgovcloudapi.net`.
