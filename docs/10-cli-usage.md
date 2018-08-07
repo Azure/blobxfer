@@ -352,7 +352,9 @@ if performing recursive directory upload or container/file share download.
 * If uploading via service-level SAS keys, the container or file share must
 already be created in Azure storage prior to upload. Account-level SAS keys
 with the signed resource type of `c` (i.e., container-level permission) is
-required for to allow conatiner or file share creation.
+required for to allow container or file share creation. Please see the
+[limitations](99-current-limitations.md) doc for more considerations when
+using SAS keys.
 * When uploading files as page blobs, the content is page boundary
 byte-aligned. The MD5 for the blob is computed using the final aligned data
 if the source is not page boundary byte-aligned. This enables these page

@@ -139,6 +139,34 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
     with pytest.raises(RuntimeError):
         ops.Downloader.ensure_local_destination(mock.MagicMock(), ds, False)
 
+    # no read access
+    sa = mock.MagicMock()
+    sa.can_read_object = False
+    creds = mock.MagicMock()
+    creds.get_storage_account.return_value = sa
+    ds = models.Specification(
+        download_options=options.Download(
+            check_file_md5=True,
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.File,
+            overwrite=True,
+            recursive=True,
+            rename=False,
+            restore_file_attributes=False,
+            rsa_private_key=None,
+            strip_components=0,
+        ),
+        skip_on_options=mock.MagicMock(),
+        local_destination_path=models.LocalDestinationPath(
+            str(downdir)
+        ),
+    )
+    ds.add_azure_source_path(asp)
+    patched_file.return_value = (True, mock.MagicMock())
+    with pytest.raises(RuntimeError):
+        ops.Downloader.ensure_local_destination(creds, ds, False)
+
 
 def test_check_download_conditions(tmpdir):
     ap = tmpdir.join('a')
@@ -1032,8 +1060,7 @@ def test_start(
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.CheckMd5
     d._download_sofar = -1
-    with pytest.raises(RuntimeError):
-        d.start()
+    d.start()
     d._download_terminate = True
     assert d._pre_md5_skip_on_check.call_count == 1
 
@@ -1041,8 +1068,7 @@ def test_start(
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Download
-    with pytest.raises(RuntimeError):
-        d.start()
+    d.start()
     d._download_terminate = True
     assert d._transfer_queue.qsize() == 1
     dd = d._transfer_queue.get()
@@ -1053,8 +1079,7 @@ def test_start(
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Download
     d._spec.options.strip_components = 1
-    with pytest.raises(RuntimeError):
-        d.start()
+    d.start()
     d._download_terminate = True
     assert d._transfer_queue.qsize() == 1
     dd = d._transfer_queue.get()
@@ -1077,8 +1102,7 @@ def test_start(
     d._spec.options.rename = True
     d._check_download_conditions.return_value = ops.DownloadAction.Skip
     d._exceptions = [RuntimeError('oops')]
-    with pytest.raises(RuntimeError):
-        d.start()
+    d.start()
     d._download_terminate = True
     assert d._pre_md5_skip_on_check.call_count == 0
 
@@ -1092,8 +1116,7 @@ def test_start_exception():
     d._cleanup_temporary_files = mock.MagicMock()
     d._md5_offload = mock.MagicMock()
 
-    with pytest.raises(RuntimeError):
-        d.start()
+    d.start()
     assert d._wait_for_transfer_threads.call_count == 1
     assert d._cleanup_temporary_files.call_count == 1
 

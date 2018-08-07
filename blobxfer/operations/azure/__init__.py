@@ -120,8 +120,18 @@ class StorageAccount(object):
         self.key = key
         self.endpoint = endpoint
         self.is_sas = StorageAccount._key_is_sas(self.key)
-        self.create_containers = self._container_creation_allowed()
+        self.can_create_containers = self._container_manipulation_allowed()
+        self.can_list_container_objects = (
+            self._credential_allows_container_list()
+        )
+        self.can_read_object = self._credential_allows_object_read()
+        self.can_write_object = self._credential_allows_object_write()
         if self.is_sas:
+            # ensure sas can work on objects
+            if not self._ensure_object_manipulation_allowed():
+                raise ValueError(
+                    'the provided SAS does not allow object-level access for '
+                    'account: {}'.format(self.name))
             # normalize sas keys
             if self.key.startswith('?'):
                 self.key = self.key[1:]
@@ -131,6 +141,13 @@ class StorageAccount(object):
                 raise ValueError(
                     ('specified storage account key is invalid for storage '
                      'account: {}').format(self.name))
+        logger.debug(
+            'credential: account={} endpoint={} is_sas={} '
+            'can_create_containers={} can_list_container_objects={} '
+            'can_read_object={} can_write_object={}'.format(
+                self.name, self.endpoint, self.is_sas,
+                self.can_create_containers, self.can_list_container_objects,
+                self.can_read_object, self.can_write_object))
         # create requests session for connection pooling
         self.session = requests.Session()
         self.session.mount(
@@ -188,12 +205,12 @@ class StorageAccount(object):
                 return True
         return False
 
-    def _container_creation_allowed(self):
-        # # type: (StorageAccount) -> bool
-        """Check if container creation is allowed
+    def _container_manipulation_allowed(self):
+        # type: (StorageAccount) -> bool
+        """Check if container manipulation is allowed
         :param StorageAccount self: this
         :rtype: bool
-        :return: if container creation is allowed
+        :return: if container manipulation is allowed
         """
         if self.is_sas:
             # search for account sas "c" resource
@@ -201,12 +218,94 @@ class StorageAccount(object):
             for part in sasparts:
                 tmp = part.split('=')
                 if tmp[0] == 'srt':
-                    if 'c' in tmp[1]:
-                        return True
+                    return 'c' in tmp[1]
+            # this is a sas without the srt parameter, so this must be
+            # a service-level sas which doesn't allow container manipulation
+            return False
         else:
-            # storage account key always allows container creation
+            # storage account key always allows container manipulation
             return True
-        return False
+
+    def _ensure_object_manipulation_allowed(self):
+        # type: (StorageAccount) -> bool
+        """Check if object manipulation is allowed
+        :param StorageAccount self: this
+        :rtype: bool
+        :return: if object manipulation is allowed
+        """
+        if self.is_sas:
+            # search for account sas "o" resource
+            sasparts = self.key.split('&')
+            for part in sasparts:
+                tmp = part.split('=')
+                if tmp[0] == 'srt':
+                    return 'o' in tmp[1]
+            # this is a sas without the srt parameter, so this must be
+            # a service-level sas which always allows object manipulation
+            return True
+        else:
+            # storage account key always allows object manipulation
+            return True
+
+    def _credential_allows_container_list(self):
+        # type: (StorageAccount) -> bool
+        """Check if container list is allowed
+        :param StorageAccount self: this
+        :rtype: bool
+        :return: if container list is allowed
+        """
+        if self.is_sas:
+            if self.can_create_containers:
+                # search for list permission
+                sasparts = self.key.split('&')
+                for part in sasparts:
+                    tmp = part.split('=')
+                    if tmp[0] == 'sp':
+                        return 'l' in tmp[1]
+            # sas is either service-level or doesn't allow container
+            # level manipulation
+            return False
+        else:
+            # storage account key always allows container list
+            return True
+
+    def _credential_allows_object_read(self):
+        # type: (StorageAccount) -> bool
+        """Check if object read is allowed
+        :param StorageAccount self: this
+        :rtype: bool
+        :return: if object read is allowed
+        """
+        if self.is_sas:
+            # search for read permission
+            sasparts = self.key.split('&')
+            for part in sasparts:
+                tmp = part.split('=')
+                if tmp[0] == 'sp':
+                    return 'r' in tmp[1]
+            return False
+        else:
+            # storage account key always allows object read
+            return True
+
+    def _credential_allows_object_write(self):
+        # type: (StorageAccount) -> bool
+        """Check if object write is allowed
+        :param StorageAccount self: this
+        :rtype: bool
+        :return: if object write is allowed
+        """
+        if self.is_sas:
+            # search for write permission
+            sasparts = self.key.split('&')
+            for part in sasparts:
+                tmp = part.split('=')
+                if tmp[0] == 'sp':
+                    return 'w' in tmp[1]
+            return False
+        else:
+            # storage account key always allows object write
+            return True
 
     def _create_clients(self, timeout, proxy):
         # type: (StorageAccount, blobxfer.models.options.Timeout,
@@ -438,6 +537,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         for _path in self._paths:
             rpath = str(_path)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
+            # ensure at least read permissions
+            if not sa.can_read_object:
+                raise RuntimeError(
+                    'unable to populate sources for remote path {} as '
+                    'credential for storage account {} does not permit read '
+                    'access'.format(rpath, sa.name))
             cont, dir = blobxfer.util.explode_azure_path(rpath)
             snapshot = None
             if dir is not None:
@@ -457,15 +562,36 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
             if snapshot is None:
                 _, cont, snapshot = \
                     blobxfer.operations.azure.file.parse_file_path(cont)
-            for file in blobxfer.operations.azure.file.list_files(
-                    sa.file_client, cont, dir, options.recursive,
-                    snapshot=snapshot):
+            if sa.can_list_container_objects:
+                for file in blobxfer.operations.azure.file.list_files(
+                        sa.file_client, cont, dir, options.recursive,
+                        snapshot=snapshot):
+                    if not self._inclusion_check(file.name):
+                        if dry_run:
+                            logger.info(
+                                '[DRY RUN] skipping due to filters: '
+                                '{}/{}'.format(cont, file.name))
+                        continue
+                    for ase in self._handle_vectored_io_stripe(
+                            creds, options, store_raw_metadata, sa, file, True,
+                            cont, dir=None, file_snapshot=snapshot):
+                        if ase is None:
+                            continue
+                        yield ase
+            else:
+                file = blobxfer.operations.azure.file.get_file_properties(
+                    sa.file_client, cont, dir, snapshot=snapshot)
+                if file is None:
+                    logger.error(
+                        'file {} not found in storage account {}'.format(
+                            rpath, sa.name))
+                    return
                 if not self._inclusion_check(file.name):
                     if dry_run:
                         logger.info(
                             '[DRY RUN] skipping due to filters: {}/{}'.format(
                                 cont, file.name))
-                    continue
+                    return
                 for ase in self._handle_vectored_io_stripe(
                         creds, options, store_raw_metadata, sa, file, True,
                         cont, dir=None, file_snapshot=snapshot):
@@ -486,20 +612,46 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         is_synccopy = isinstance(options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
-            cont, dir = blobxfer.util.explode_azure_path(rpath)
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
-            for blob in blobxfer.operations.azure.blob.list_blobs(
-                    sa.block_blob_client, cont, dir, options.mode,
-                    options.recursive):
+            # ensure at least read permissions
+            if not sa.can_read_object:
+                raise RuntimeError(
+                    'unable to populate sources for remote path {} as '
+                    'credential for storage account {} does not permit read '
+                    'access'.format(rpath, sa.name))
+            cont, dir = blobxfer.util.explode_azure_path(rpath)
+            if sa.can_list_container_objects:
+                for blob in blobxfer.operations.azure.blob.list_blobs(
+                        sa.block_blob_client, cont, dir, options.mode,
+                        options.recursive):
+                    if not self._inclusion_check(blob.name):
+                        if dry_run:
+                            logger.info(
+                                '[DRY RUN] skipping due to filters: '
+                                '{}/{}'.format(cont, blob.name))
+                        continue
+                    for ase in self._handle_vectored_io_stripe(
+                            creds, options, is_synccopy, sa, blob,
+                            False, cont):
+                        if ase is None:
+                            continue
+                        yield ase
+            else:
+                blob = blobxfer.operations.azure.blob.get_blob_properties(
+                    sa.block_blob_client, cont, dir, options.mode)
+                if blob is None:
+                    logger.error(
+                        'blob {} not found in storage account {}'.format(
+                            rpath, sa.name))
+                    return
                 if not self._inclusion_check(blob.name):
                     if dry_run:
                         logger.info(
                             '[DRY RUN] skipping due to filters: {}/{}'.format(
                                 cont, blob.name))
-                    continue
+                    return
                 for ase in self._handle_vectored_io_stripe(
-                        creds, options, is_synccopy, sa, blob,
-                        False, cont):
+                        creds, options, is_synccopy, sa, blob, False, cont):
                     if ase is None:
                         continue
                     yield ase

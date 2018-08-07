@@ -61,7 +61,7 @@ class StorageEntity(object):
         :param blobxfer.models.crypto.EncryptionMetadata ed:
             encryption metadata
         """
-        self._create_containers = None
+        self._can_create_containers = None
         self._client = None
         self._container = container
         self._name = None
@@ -80,14 +80,14 @@ class StorageEntity(object):
         self.replica_targets = None
 
     @property
-    def create_containers(self):
+    def can_create_containers(self):
         # type: (StorageEntity) -> bool
         """Create containers
         :param StorageEntity self: this
         :rtype: bool
         :return: create containers
         """
-        return self._create_containers
+        return self._can_create_containers
 
     @property
     def client(self):
@@ -314,7 +314,7 @@ class StorageEntity(object):
             self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
                 blob.metadata)
         self._vio = vio
-        self._create_containers = sa.create_containers
+        self._can_create_containers = sa.can_create_containers
         self._name = blob.name
         self._snapshot = blob.snapshot
         self._lmt = blob.properties.last_modified
@@ -352,7 +352,7 @@ class StorageEntity(object):
             self._fileattr = blobxfer.models.metadata.fileattr_from_metadata(
                 file.metadata)
         self._vio = vio
-        self._create_containers = sa.create_containers
+        self._can_create_containers = sa.can_create_containers
         if path is not None:
             self._name = str(pathlib.Path(path) / file.name)
         else:
@@ -374,7 +374,7 @@ class StorageEntity(object):
         :param str path: full path to file
         :param blobxfer.models.azure.StorageModes mode: storage mode
         """
-        self._create_containers = sa.create_containers
+        self._can_create_containers = sa.can_create_containers
         self._container = container
         self._name = path
         self._mode = mode

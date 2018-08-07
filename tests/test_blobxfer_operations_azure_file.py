@@ -238,12 +238,12 @@ def test_get_file_range():
 
 def test_create_share():
     ase = mock.MagicMock()
-    ase.create_containers = False
+    ase.can_create_containers = False
 
     ops.create_share(ase, None)
     assert ase.client.create_share.call_count == 0
 
-    ase.create_containers = True
+    ase.can_create_containers = True
     ase.client.account_name = 'sa'
     ase.container = 'cont'
 

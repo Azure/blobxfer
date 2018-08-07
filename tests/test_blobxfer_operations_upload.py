@@ -1000,6 +1000,15 @@ def test_generate_destination_for_source():
     assert b is not None
     assert u._check_for_existing_remote.call_count == 1
 
+    # check no-read permission
+    sa.can_read_object = False
+    u._spec.options.vectored_io.distribution_mode = \
+        models.VectoredIoDistributionMode.Disabled
+    a, b = next(u._generate_destination_for_source(lp))
+    assert a == sa
+    assert b is not None
+    assert u._check_for_existing_remote.call_count == 1  # should not change
+
 
 def test_vectorize_and_bind():
     ase = mock.MagicMock()
@@ -1049,6 +1058,13 @@ def test_vectorize_and_bind():
     assert b == lp
     assert c == ase
 
+    # sub-test no object write
+    sa.can_write_object = False
+    dest = [(sa, ase)]
+    with pytest.raises(RuntimeError):
+        a, b, c = next(u._vectorize_and_bind(lp, dest))
+    sa.can_write_object = True
+
     # stripe vectorization 1 slice
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = False
@@ -1067,6 +1083,13 @@ def test_vectorize_and_bind():
         assert c == ase
         i += 1
     assert i == 1
+
+    # sub-test no object write
+    sa.can_write_object = False
+    dest = [(sa, ase), (sa, ase2)]
+    with pytest.raises(RuntimeError):
+        a, b, c = next(u._vectorize_and_bind(lp, dest))
+    sa.can_write_object = True
 
     # stripe vectorization multi-slice
     u._spec.options.mode = azmodels.StorageModes.Block
@@ -1097,6 +1120,13 @@ def test_vectorize_and_bind():
         i += 1
     assert i == 2
 
+    # sub-test no object write
+    sa.can_write_object = False
+    dest = [(sa, ase), (sa, ase2)]
+    with pytest.raises(RuntimeError):
+        a, b, c = next(u._vectorize_and_bind(lp, dest))
+    sa.can_write_object = True
+
     # replication single target
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = False
@@ -1112,6 +1142,13 @@ def test_vectorize_and_bind():
     assert b == lp
     assert c == ase
     assert c.replica_targets is None
+
+    # sub-test no object write
+    sa.can_write_object = False
+    dest = [(sa, ase)]
+    with pytest.raises(RuntimeError):
+        a, b, c = next(u._vectorize_and_bind(lp, dest))
+    sa.can_write_object = True
 
     # replication multi-target md5
     dest = [(sa, ase), (sa, ase2)]
@@ -1390,5 +1427,4 @@ def test_start():
 
     # test other exception
     u._run.side_effect = RuntimeError()
-    with pytest.raises(RuntimeError):
-        u.start()
+    u.start()

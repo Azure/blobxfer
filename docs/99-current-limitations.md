@@ -2,6 +2,19 @@
 Please read this section carefully for any current known limitations to
 `blobxfer`.
 
+### SAS Keys (Tokens)
+* `blobxfer` is fundamentally limited in what operations it can perform
+if given a restricted scope SAS token. This is not a limitation with
+`blobxfer` itself, but with the permissions that are granted by the SAS
+token. The following are a few examples:
+    * Containers or file shares cannot be created if not given an
+      account-level SAS with the appropriate signed resource type.
+    * Objects cannot be listed within a container or file share if not given
+      an account-level SAS and instead an object-level SAS. Thus remote
+      paths associated with these SAS tokens must be an object.
+    * Skip-on processing cannot be performed for service-level SAS tokens
+      if not given sufficient read permission.
+
 ### Client-side Encryption
 * Client-side encryption is currently only available for block blobs and
 Azure Files.

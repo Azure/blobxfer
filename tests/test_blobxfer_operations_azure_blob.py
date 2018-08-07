@@ -162,12 +162,12 @@ def test_get_blob_range():
 
 def test_create_container():
     ase = mock.MagicMock()
-    ase.create_containers = False
+    ase.can_create_containers = False
 
     ops.create_container(ase, None)
     assert ase.client.create_container.call_count == 0
 
-    ase.create_containers = True
+    ase.can_create_containers = True
     ase.client.account_name = 'sa'
     ase.container = 'cont'
 

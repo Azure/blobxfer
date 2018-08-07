@@ -32,7 +32,7 @@ def test_azurestorageentity():
     blob.properties.blob_tier = 'Cool'
     ase.populate_from_blob(mock.MagicMock(), blob)
 
-    assert ase.create_containers is not None
+    assert ase.can_create_containers is not None
     assert ase.client is not None
     assert ase.name == 'name'
     assert ase.lmt == 'lmt'

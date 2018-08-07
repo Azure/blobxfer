@@ -160,6 +160,12 @@ class Downloader(object):
             if not blobxfer.util.is_none_or_empty(dir):
                 sa = creds.get_storage_account(
                     spec.sources[0].lookup_storage_account(rpath))
+                # ensure at least read permissions
+                if not sa.can_read_object:
+                    raise RuntimeError(
+                        'unable to prepare for remote path {} as credential '
+                        'for storage account {} does not permit read '
+                        'access'.format(rpath, sa.name))
                 if (spec.options.mode ==
                         blobxfer.models.azure.StorageModes.File):
                     if (blobxfer.operations.azure.file.check_if_single_file(
@@ -877,8 +883,6 @@ class Downloader(object):
                 self._wait_for_transfer_threads(terminate=True)
             finally:
                 self._cleanup_temporary_files()
-            if not isinstance(ex, KeyboardInterrupt):
-                raise
         finally:
             # shutdown processes
             if self._md5_offload is not None:

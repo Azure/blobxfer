@@ -928,7 +928,10 @@ class Uploader(object):
                     VectoredIoDistributionMode.Stripe):
                 ase = None
             else:
-                ase = self._check_for_existing_remote(sa, cont, name)
+                if sa.can_read_object:
+                    ase = self._check_for_existing_remote(sa, cont, name)
+                else:
+                    ase = None
             if ase is None:
                 # encryption metadata will be populated later, if required
                 ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
@@ -961,6 +964,11 @@ class Uploader(object):
             # check if vectorization is possible
             if slices == 1:
                 sa, ase = dest[0]
+                if not sa.can_write_object:
+                    raise RuntimeError(
+                        'unable to write to remote path {} as credential '
+                        'for storage account {} does not permit write '
+                        'access'.format(ase.path, sa.name))
                 action = self._check_upload_conditions(local_path, ase)
                 yield action, local_path, ase
                 return
@@ -972,6 +980,11 @@ class Uploader(object):
             slice_map = {}
             for i in range(0, slices):
                 sa, ase = dest[i % num_dest]
+                if not sa.can_write_object:
+                    raise RuntimeError(
+                        'unable to write to remote path {} as credential '
+                        'for storage account {} does not permit write '
+                        'access'.format(ase.path, sa.name))
                 name = blobxfer.operations.upload.Uploader.\
                     append_slice_suffix_to_name(ase.name, i)
                 sase = self._check_for_existing_remote(sa, ase.container, name)
@@ -1019,7 +1032,12 @@ class Uploader(object):
         elif (self._spec.options.vectored_io.distribution_mode ==
                 blobxfer.models.upload.VectoredIoDistributionMode.Replica):
             action_map = {}
-            for _, ase in dest:
+            for sa, ase in dest:
+                if not sa.can_write_object:
+                    raise RuntimeError(
+                        'unable to write to remote path {} as credential '
+                        'for storage account {} does not permit write '
+                        'access'.format(ase.path, sa.name))
                 action = self._check_upload_conditions(local_path, ase)
                 if action not in action_map:
                     action_map[action] = []
@@ -1048,7 +1066,12 @@ class Uploader(object):
                                 )
                         yield action, local_path, primary_ase
         else:
-            for _, ase in dest:
+            for sa, ase in dest:
+                if not sa.can_write_object:
+                    raise RuntimeError(
+                        'unable to write to remote path {} as credential '
+                        'for storage account {} does not permit write '
+                        'access'.format(ase.path, sa.name))
                 action = self._check_upload_conditions(local_path, ase)
                 yield action, local_path, ase
 
@@ -1213,12 +1236,8 @@ class Uploader(object):
                     'processes and threads (this may take a while)...')
             else:
                 logger.exception(ex)
-            try:
-                self._wait_for_transfer_threads(terminate=True)
-                self._wait_for_disk_threads(terminate=True)
-            finally:
-                if not isinstance(ex, KeyboardInterrupt):
-                    raise
+            self._wait_for_transfer_threads(terminate=True)
+            self._wait_for_disk_threads(terminate=True)
         finally:
             # shutdown processes
             if self._md5_offload is not None:

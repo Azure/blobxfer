@@ -95,25 +95,104 @@ def test_key_is_sas():
     assert a.is_sas
 
 
-def test_container_creation_allowed():
+def test_container_manipulation_allowed():
     to = mock.MagicMock()
     to.max_retries = None
 
     a = azops.StorageAccount(
         'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
-    assert a._container_creation_allowed()
+    assert a._container_manipulation_allowed()
 
     a = azops.StorageAccount(
         'name', '?sv=0&sr=1&sig=2', 'core.windows.net', 10, to, None)
-    assert not a._container_creation_allowed()
+    assert not a._container_manipulation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=a&sig=2', 'core.windows.net', 10, to, None)
-    assert not a._container_creation_allowed()
+        'name', '?sv=0&sr=1&srt=ao&sig=2', 'core.windows.net', 10, to, None)
+    assert not a._container_manipulation_allowed()
 
     a = azops.StorageAccount(
-        'name', '?sv=0&sr=1&srt=c&sig=2', 'core.windows.net', 10, to, None)
-    assert a._container_creation_allowed()
+        'name', '?sv=0&sr=1&srt=co&sig=2', 'core.windows.net', 10, to, None)
+    assert a._container_manipulation_allowed()
+
+
+def test_ensure_object_manipulation_allowed():
+    to = mock.MagicMock()
+    to.max_retries = None
+
+    with pytest.raises(ValueError):
+        azops.StorageAccount(
+            'name', '?sv=0&sr=1&srt=c&sig=2', 'core.windows.net', 10, to, None)
+
+    a = azops.StorageAccount(
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
+    assert a._ensure_object_manipulation_allowed()
+
+
+def test_credential_allows_container_list():
+    to = mock.MagicMock()
+    to.max_retries = None
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=l&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert a._credential_allows_container_list()
+    assert a.can_list_container_objects
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=r&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert not a._credential_allows_container_list()
+    assert not a.can_list_container_objects
+
+    a = azops.StorageAccount(
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_container_list()
+    assert a.can_list_container_objects
+
+
+def test_credential_allows_object_read():
+    to = mock.MagicMock()
+    to.max_retries = None
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=r&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=w&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert not a._credential_allows_object_read()
+    assert not a.can_read_object
+
+    a = azops.StorageAccount(
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+
+def test_credential_allows_object_write():
+    to = mock.MagicMock()
+    to.max_retries = None
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=w&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert a._credential_allows_object_write()
+    assert a.can_write_object
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=1&srt=co&sp=r&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert not a._credential_allows_object_write()
+    assert not a.can_write_object
+
+    a = azops.StorageAccount(
+        'name', 'AAAAAA==', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_write()
+    assert a.can_write_object
 
 
 @mock.patch('blobxfer.operations.azure.file.get_file_properties')
@@ -239,8 +318,10 @@ def test_azuresourcepath():
 
 @mock.patch('blobxfer.models.crypto.EncryptionMetadata')
 @mock.patch('blobxfer.operations.azure.file.list_files')
+@mock.patch('blobxfer.operations.azure.file.get_file_properties')
 @mock.patch('blobxfer.operations.azure.file.check_if_single_file')
-def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
+def test_azuresourcepath_files(
+        patched_cisf, patched_gfp, patched_lf, patched_em):
     p = 'cont/name'
     asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
@@ -248,7 +329,6 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     options = mock.MagicMock()
     options.mode = azmodels.StorageModes.File
     creds = mock.MagicMock()
-    creds.get_storage_account = mock.MagicMock()
     sa = mock.MagicMock()
     sa.file_client = mock.MagicMock()
     creds.get_storage_account.return_value = sa
@@ -258,6 +338,13 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     patched_em.encryption_metadata_exists = mock.MagicMock()
     patched_em.encryption_metadata_exists.return_value = False
 
+    # test no read access
+    sa.can_read_object = False
+    with pytest.raises(RuntimeError):
+        next(asp.files(creds, options, False))
+    sa.can_read_object = True
+
+    # test normal container path
     i = 0
     for file in asp.files(creds, options, False):
         i += 1
@@ -272,7 +359,6 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     options = mock.MagicMock()
     options.mode = azmodels.StorageModes.File
     creds = mock.MagicMock()
-    creds.get_storage_account = mock.MagicMock()
     sa = mock.MagicMock()
     sa.file_client = mock.MagicMock()
     creds.get_storage_account.return_value = sa
@@ -282,12 +368,50 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
     patched_em.encryption_metadata_exists = mock.MagicMock()
     patched_em.encryption_metadata_exists.return_value = False
 
+    # test normal subdir path
     i = 0
     for file in asp.files(creds, options, False):
         i += 1
         assert pathlib.Path(file.name) == pathlib.Path('remote/name')
         assert file.encryption_metadata is None
     assert i == 1
+
+    # test no container list perm
+    sa.can_list_container_objects = False
+    patched_gfp.side_effect = [f]
+    i = 0
+    for file in asp.files(creds, options, False):
+        i += 1
+        assert pathlib.Path(file.name) == pathlib.Path('remote/name')
+        assert file.encryption_metadata is None
+    assert i == 1
+
+    # test no container list perm, nonexistent
+    patched_gfp.side_effect = [None]
+    i = 0
+    for file in asp.files(creds, options, False):
+        i += 1
+    assert i == 0
+
+    # test no container list perm, filter dry run
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+    asp.add_includes(['zzz'])
+    patched_cisf.return_value = (True, f)
+    patched_gfp.side_effect = [f]
+    assert len(list(asp.files(creds, options, True))) == 0
+
+    # test no container list perm, no vio return
+    with mock.patch(
+            'blobxfer.operations.azure.SourcePath.'
+            '_handle_vectored_io_stripe') as patched_hvios:
+        patched_hvios.side_effect = [[None]]
+        asp = azops.SourcePath()
+        asp.add_path_with_storage_account(p, 'sa')
+        patched_gfp.side_effect = [f]
+        assert len(list(asp.files(creds, options, False))) == 0
+
+    sa.can_list_container_objects = True
 
     # test filter
     asp = azops.SourcePath()
@@ -326,7 +450,8 @@ def test_azuresourcepath_files(patched_cisf, patched_lf, patched_em):
 
 @mock.patch('blobxfer.models.crypto.EncryptionMetadata')
 @mock.patch('blobxfer.operations.azure.blob.list_blobs')
-def test_azuresourcepath_blobs(patched_lb, patched_em):
+@mock.patch('blobxfer.operations.azure.blob.get_blob_properties')
+def test_azuresourcepath_blobs(patched_gbp, patched_lb, patched_em):
     p = '/cont/remote/path'
     asp = azops.SourcePath()
     asp.add_path_with_storage_account(p, 'sa')
@@ -334,7 +459,6 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     options = mock.MagicMock()
     options.mode = azmodels.StorageModes.Auto
     creds = mock.MagicMock()
-    creds.get_storage_account = mock.MagicMock()
     sa = mock.MagicMock()
     sa.block_blob_client = mock.MagicMock()
     creds.get_storage_account.return_value = sa
@@ -343,12 +467,55 @@ def test_azuresourcepath_blobs(patched_lb, patched_em):
     patched_em.encryption_metadata_exists = mock.MagicMock()
     patched_em.encryption_metadata_exists.return_value = False
 
+    # test no read access
+    sa.can_read_object = False
+    with pytest.raises(RuntimeError):
+        next(asp.files(creds, options, False))
+    sa.can_read_object = True
+
+    # test normal path
     i = 0
     for file in asp.files(creds, options, False):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is None
     assert i == 1
+
+    # test no container list perm
+    sa.can_list_container_objects = False
+    patched_gbp.side_effect = [b]
+    i = 0
+    for file in asp.files(creds, options, False):
+        i += 1
+        assert file.name == 'name'
+        assert file.encryption_metadata is None
+    assert i == 1
+
+    # test no container list perm, nonexistent
+    patched_gbp.side_effect = [None]
+    i = 0
+    for file in asp.files(creds, options, False):
+        i += 1
+    assert i == 0
+
+    # test no container list perm, filter dry run
+    asp = azops.SourcePath()
+    asp.add_path_with_storage_account(p, 'sa')
+    asp.add_includes(['zzz'])
+    patched_gbp.side_effect = [b]
+    assert len(list(asp.files(creds, options, True))) == 0
+
+    # test no container list perm, no vio return
+    with mock.patch(
+            'blobxfer.operations.azure.SourcePath.'
+            '_handle_vectored_io_stripe') as patched_hvios:
+        patched_hvios.side_effect = [[None]]
+        asp = azops.SourcePath()
+        asp.add_path_with_storage_account(p, 'sa')
+        patched_gbp.side_effect = [b]
+        assert len(list(asp.files(creds, options, False))) == 0
+
+    sa.can_list_container_objects = True
 
     # test filter
     asp = azops.SourcePath()

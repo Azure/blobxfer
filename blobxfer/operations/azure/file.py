@@ -288,7 +288,7 @@ def create_share(ase, containers_created, timeout=None):
     :param int timeout: timeout
     """
     # check if auth allows create container
-    if not ase.create_containers:
+    if not ase.can_create_containers:
         return
     key = ase.client.account_name + ':file=' + ase.container
     if key in containers_created:

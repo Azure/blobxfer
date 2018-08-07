@@ -910,5 +910,4 @@ def test_start():
 
     # test other exception
     s._run.side_effect = RuntimeError()
-    with pytest.raises(RuntimeError):
-        s.start()
+    s.start()
