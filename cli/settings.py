@@ -117,8 +117,11 @@ def add_cli_options(cli_options, action):
                 'rsa_private_key': cli_options.get('rsa_private_key'),
                 'rsa_private_key_passphrase': cli_options.get(
                     'rsa_private_key_passphrase'),
-                'restore_file_attributes': cli_options.get(
-                    'file_attributes'),
+                'restore_file_properties': {
+                    'attributes': cli_options.get('file_attributes'),
+                    'lmt': cli_options.get('restore_file_lmt'),
+                    'md5': None,
+                },
                 'strip_components': cli_options.get('strip_components'),
                 'skip_on': {
                     'filesize_match': cli_options.get(
@@ -226,6 +229,7 @@ def add_cli_options(cli_options, action):
                     'stdin_as_page_blob_size'),
                 'store_file_properties': {
                     'attributes': cli_options.get('file_attributes'),
+                    'lmt': None,
                     'md5': cli_options.get('file_md5'),
                 },
                 'strip_components': cli_options.get('strip_components'),
@@ -500,6 +504,8 @@ def create_download_specifications(ctx_cli_options, config):
         # create specification
         conf_sod = conf_options.get('skip_on', {})
         cli_sod = cli_options['skip_on']
+        conf_rfp = conf_options.get('restore_file_properties', {})
+        cli_rfp = cli_options['restore_file_properties']
         ds = blobxfer.models.download.Specification(
             download_options=blobxfer.models.options.Download(
                 check_file_md5=_merge_setting(
@@ -518,9 +524,14 @@ def create_download_specifications(ctx_cli_options, config):
                     cli_options, conf_options, 'recursive', default=True),
                 rename=_merge_setting(
                     cli_options, conf_options, 'rename', default=False),
-                restore_file_attributes=_merge_setting(
-                    cli_options, conf_options, 'restore_file_attributes',
-                    default=False),
+                restore_file_properties=blobxfer.models.options.FileProperties(
+                    attributes=_merge_setting(
+                        cli_rfp, conf_rfp, 'attributes',
+                        default=False),
+                    lmt=_merge_setting(
+                        cli_rfp, conf_rfp, 'lmt', default=False),
+                    md5=None,
+                ),
                 rsa_private_key=rpk,
                 strip_components=_merge_setting(
                     cli_options, conf_options, 'strip_components',
@@ -749,6 +760,7 @@ def create_upload_specifications(ctx_cli_options, config):
                 store_file_properties=blobxfer.models.options.FileProperties(
                     attributes=_merge_setting(
                         cli_sfp, conf_sfp, 'attributes', default=False),
+                    lmt=None,
                     md5=_merge_setting(
                         cli_sfp, conf_sfp, 'md5', default=False),
                 ),

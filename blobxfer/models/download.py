@@ -40,6 +40,7 @@ except ImportError:  # noqa
     import pathlib
 import tempfile
 import threading
+import time
 # non-stdlib imports
 # local imports
 import blobxfer.models.azure
@@ -169,7 +170,7 @@ class Specification(object):
         if not self.options.check_file_md5 and self.skip_on.md5_match:
             raise ValueError(
                 'cannot specify skip on MD5 match without file MD5 enabled')
-        if (self.options.restore_file_attributes and
+        if (self.options.restore_file_properties.attributes and
                 not blobxfer.util.on_windows() and os.getuid() != 0):
             logger.warning('cannot set file uid/gid without root privileges')
         if self.options.chunk_size_bytes < 0:
@@ -215,6 +216,7 @@ class Descriptor(object):
         self._meta_lock = threading.Lock()
         self._hasher_lock = threading.Lock()
         self._resume_mgr = resume_mgr
+        self._restore_file_properties = options.restore_file_properties
         self._ase = ase
         # set path
         self.final_path = lpath
@@ -769,7 +771,8 @@ class Descriptor(object):
         """Restore file attributes for file
         :param Descriptor self: this
         """
-        if self._ase.file_attributes is None:
+        if (not self._restore_file_properties.attributes or
+                self._ase.file_attributes is None):
             return
         # set file uid/gid and mode
         if blobxfer.util.on_windows():  # noqa
@@ -784,6 +787,17 @@ class Descriptor(object):
                     self._ase.file_attributes.gid
                 )
 
+    def _restore_file_lmt(self):
+        # type: (Descriptor) -> None
+        """Restore file lmt for file
+        :param Descriptor self: this
+        """
+        if not self._restore_file_properties.lmt or self._ase.lmt is None:
+            return
+        # timestamp() func is not available in py27
+        ts = time.mktime(self._ase.lmt.timetuple())
+        os.utime(str(self.final_path), (ts, ts))
+
     def finalize_file(self):
         # type: (Descriptor) -> None
         """Finalize file for download
@@ -794,6 +808,7 @@ class Descriptor(object):
             self.final_path.unlink()
         else:
             self._restore_file_attributes()
+            self._restore_file_lmt()
         # update resume file
         self._update_resume_for_completed()
         with self._meta_lock:

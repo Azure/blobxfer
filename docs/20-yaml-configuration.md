@@ -134,7 +134,9 @@ download:
           overwrite: true
           recursive: true
           rename: false
-          restore_file_attributes: true
+          restore_file_properties:
+              attributes: true
+              lmt: true
           rsa_private_key: myprivatekey.pem
           rsa_private_key_passphrase: myoptionalpassword
           strip_components: 1
@@ -162,8 +164,11 @@ download:
     * `recursive` specifies if remote paths should be recursively searched for
       entities to download
     * `rename` will rename a single entity source path to the `destination`
-    * `restore_file_attributes` will restore POSIX file mode and ownership if
-      stored on the entity metadata
+    * `restore_file_properties` restores the following file properties if
+      enabled
+        * `attributes` will restore POSIX file mode and ownership if stored
+          on the entity metadata
+        * `lmt` will restore the last modified time of the file
     * `rsa_private_key` is the RSA private key PEM file to use to decrypt
       encrypted blobs or files
     * `rsa_private_key_passphrase` is the RSA private key passphrase, if

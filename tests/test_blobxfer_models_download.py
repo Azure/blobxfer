@@ -2,6 +2,7 @@
 """Tests for download models"""
 
 # stdlib imports
+import datetime
 import hashlib
 import hmac
 try:
@@ -13,6 +14,7 @@ try:
     import pathlib2 as pathlib
 except ImportError:  # noqa
     import pathlib
+import time
 import unittest
 # non-stdlib imports
 import pytest
@@ -67,7 +69,11 @@ def test_downloadspecification():
             overwrite=True,
             recursive=True,
             rename=False,
-            restore_file_attributes=False,
+            restore_file_properties=options.FileProperties(
+                attributes=False,
+                lmt=False,
+                md5=None,
+            ),
             rsa_private_key=None,
             strip_components=0,
         ),
@@ -102,7 +108,11 @@ def test_downloadspecification():
                 overwrite=True,
                 recursive=True,
                 rename=False,
-                restore_file_attributes=False,
+                restore_file_properties=options.FileProperties(
+                    attributes=False,
+                    lmt=False,
+                    md5=None,
+                ),
                 rsa_private_key=None,
                 strip_components=0,
             ),
@@ -124,7 +134,11 @@ def test_downloadspecification():
                 overwrite=True,
                 recursive=True,
                 rename=False,
-                restore_file_attributes=True,
+                restore_file_properties=options.FileProperties(
+                    attributes=True,
+                    lmt=False,
+                    md5=None,
+                ),
                 rsa_private_key=None,
                 strip_components=0,
             ),
@@ -858,6 +872,7 @@ def test_restore_file_attributes(tmpdir):
     opts = mock.MagicMock()
     opts.check_file_md5 = True
     opts.chunk_size_bytes = 16
+    opts.restore_file_properties.attributes = True
     ase = azmodels.StorageEntity('cont')
     ase._size = 32
     ase._fileattr = mock.MagicMock()
@@ -870,6 +885,31 @@ def test_restore_file_attributes(tmpdir):
     stat = lp.stat()
     assert str(oct(stat.st_mode)).replace('o', '') == \
         ase._fileattr.mode.replace('o', '')
+
+
+def test_restore_file_lmt(tmpdir):
+    lp = pathlib.Path(str(tmpdir.join('a')))
+    lp.touch(mode=0o666, exist_ok=False)
+    lp.exists()
+
+    ts = util.datetime_now() - datetime.timedelta(seconds=60)
+    ts_posix = time.mktime(ts.timetuple())
+
+    stat = lp.stat()
+    assert stat.st_mtime != ts_posix
+
+    opts = mock.MagicMock()
+    opts.check_file_md5 = True
+    opts.chunk_size_bytes = 16
+    opts.restore_file_properties.lmt = True
+    ase = azmodels.StorageEntity('cont')
+    ase._size = 32
+    ase._lmt = ts
+
+    d = models.Descriptor(lp, ase, opts, mock.MagicMock(), None)
+    d._restore_file_lmt()
+    stat = lp.stat()
+    assert stat.st_mtime == ts_posix
 
 
 def test_operations(tmpdir):

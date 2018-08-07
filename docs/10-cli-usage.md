@@ -124,6 +124,9 @@ to be output.
 recursively uploaded or downloaded.
 * `--remote-path` is the remote Azure path. This path must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
+* `--restore-file-lmt` will set the last access and modified times of a
+downloaded file to the modified time set in Azure storage. This option can
+only be applied to download operations.
 * `--resume-file` specifies the resume database to write to or read from.
 Resume files should be specific for a session.
 * `--show-config` will show the configuration for the execution. Use caution
@@ -310,9 +313,9 @@ blobxfer download --mode file --storage-account mystorageaccount --storage-accou
 blobxfer download --mode page --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-path /my/pageblobs --no-recursive --delete
 ```
 
-#### Resume Incomplete Downloads Matching an Include Pattern and Log to File and Restore POSIX File Attributes
+#### Resume Incomplete Downloads Matching an Include Pattern and Log to File and Restore POSIX File Attributes and Last Modified Time
 ```shell
-blobxfer download --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-path . --include '*.bin' --resume-file myresumefile.db --log-file blobxfer.log --file-attributes
+blobxfer download --storage-account mystorageaccount --storage-account-key "myaccesskey" --remote-path mycontainer --local-path . --include '*.bin' --resume-file myresumefile.db --log-file blobxfer.log --file-attributes --restore-file-lmt
 ```
 
 #### Download a Blob Snapshot

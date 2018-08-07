@@ -200,8 +200,9 @@ def output_parameters(general_options, spec):
             spec.options.strip_components))
         log.append('         compute file md5: {}'.format(
             spec.options.check_file_md5))
-        log.append('  restore file attributes: {}'.format(
-            spec.options.restore_file_attributes))
+        log.append('                  restore: attr={} lmt={}'.format(
+            spec.options.restore_file_properties.attributes,
+            spec.options.restore_file_properties.lmt))
         log.append('          rsa private key: {}'.format(
             'Loaded' if spec.options.rsa_private_key else 'None'))
         log.append('        local destination: {}'.format(

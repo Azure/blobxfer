@@ -176,6 +176,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -206,6 +207,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -236,6 +238,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -264,6 +267,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -292,6 +296,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -320,6 +325,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    lmt=None,
                     md5=True,
                 ),
                 strip_components=0,
@@ -347,6 +353,7 @@ def test_specification(tmpdir):
             stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
+                lmt=None,
                 md5=True,
             ),
             strip_components=0,

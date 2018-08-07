@@ -75,6 +75,7 @@ SkipOn = collections.namedtuple(
 FileProperties = collections.namedtuple(
     'FileProperties', [
         'attributes',
+        'lmt',
         'md5',
     ]
 )
@@ -104,7 +105,7 @@ Download = collections.namedtuple(
         'overwrite',
         'recursive',
         'rename',
-        'restore_file_attributes',
+        'restore_file_properties',
         'rsa_private_key',
         'strip_components',
     ]

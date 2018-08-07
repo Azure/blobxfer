@@ -711,6 +711,21 @@ def _rename_option(f):
         callback=callback)(f)
 
 
+def _restore_file_lmt_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['restore_file_lmt'] = value
+        return value
+    return click.option(
+        '--restore-file-lmt',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Set last modified time equal to the last modified property '
+        'in Azure Storage [false]',
+        callback=callback)(f)
+
+
 def _rsa_private_key_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -971,6 +986,7 @@ def download_options(f):
     f = _sas_option(f)
     f = _rsa_private_key_passphrase_option(f)
     f = _rsa_private_key_option(f)
+    f = _restore_file_lmt_option(f)
     f = _rename_option(f)
     f = _recursive_option(f)
     f = _overwrite_option(f)

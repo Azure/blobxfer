@@ -32,7 +32,11 @@ def test_output_parameters():
             overwrite=True,
             recursive=True,
             rename=False,
-            restore_file_attributes=False,
+            restore_file_properties=options.FileProperties(
+                attributes=False,
+                lmt=False,
+                md5=None,
+            ),
             rsa_private_key=None,
             strip_components=0,
         ),
@@ -60,6 +64,7 @@ def test_output_parameters():
             stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
+                lmt=None,
                 md5=True,
             ),
             strip_components=0,
