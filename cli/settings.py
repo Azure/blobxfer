@@ -80,6 +80,9 @@ def add_cli_options(cli_options, action):
                 raise ValueError(
                     'Specified both --storage-url with a SAS token and --sas')
             cli_options['sas'] = sas
+        if mode != 'blob' and mode != 'file':
+            raise ValueError(
+                'Invalid derived mode from --storage-url: {}'.format(mode))
         if mode == 'file':
             cli_options['mode'] = mode
         del mode
@@ -157,6 +160,10 @@ def add_cli_options(cli_options, action):
                         'Specified both --sync-copy-dest-storage-url with '
                         'a SAS token and --sync-copy-dest-sas')
                 cli_options['sync_copy_dest_sas'] = sas
+            if mode != 'blob' and mode != 'file':
+                raise ValueError(
+                    'Invalid derived destination mode from '
+                    '--sync-copy-dest-storage-url: {}'.format(mode))
             if mode == 'file':
                 cli_options['dest_mode'] = mode
             del mode

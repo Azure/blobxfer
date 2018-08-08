@@ -12,6 +12,12 @@ matrix:
       apt:
         packages:
         - pandoc
+  # disable python3.7 for now, pep479 stopiteration behavior change
+  # breaks tests
+  # use workaround below until travis supports 3.7
+#  - python: 3.7
+#    dist: xenial
+#    sudo: true
 #  - language: generic
 #    os: osx
 #    before_install:

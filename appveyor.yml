@@ -17,6 +17,13 @@ environment:
     PYTHON_VERSION: "3.6"
     PYTHON_ARCH: "64"
     TOX_ENV: "py36"
+  # disable python3.7 for now, pep479 stopiteration behavior change
+  # breaks tests
+#  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+#    PYTHON: "C:\\Python37-x64"
+#    PYTHON_VERSION: "3.7"
+#    PYTHON_ARCH: "64"
+#    TOX_ENV: "py37"
   BLOBXFER_STORAGE_ACCOUNT_KEY:
     secure: q5RpDPsMjUHNmZo14GkE08in19iEE/pjEhR+n5AkNmzf9T6Wy0RQY3npxpAWFVUQDOARMSai+uJM26J9Hz1B9iSHwJhg9cRd0Zit/3jPTmbj1UollNgfT658PPGqATmb
   BLOBXFER_STORAGE_ACCOUNT:

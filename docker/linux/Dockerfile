@@ -1,6 +1,6 @@
 # Dockerfile for Azure/blobxfer (Linux)
 
-FROM alpine:3.7
+FROM alpine:3.8
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ARG GIT_BRANCH

@@ -196,7 +196,8 @@ def test_credential_allows_object_write():
 
 
 @mock.patch('blobxfer.operations.azure.file.get_file_properties')
-def test_handle_vectored_io_stripe(patched_gfp):
+@mock.patch('blobxfer.operations.azure.blob.get_blob_properties')
+def test_handle_vectored_io_stripe(patched_gbp, patched_gfp):
     creds = mock.MagicMock()
     options = mock.MagicMock()
     options.mode = azmodels.StorageModes.Block
@@ -256,6 +257,9 @@ def test_handle_vectored_io_stripe(patched_gfp):
             ),
         ]
         options.mode = azmodels.StorageModes.Block
+        b0 = azure.storage.blob.models.Blob(name='path-bxslice-0')
+        b1 = azure.storage.blob.models.Blob(name='path-bxslice-1')
+        patched_gbp.side_effect = [b0, b1]
         i = 0
         for part in asp._handle_vectored_io_stripe(
                 creds, options, store_raw_metadata, sa, entity, is_file,
@@ -295,8 +299,9 @@ def test_handle_vectored_io_stripe(patched_gfp):
         ]
         options.mode = azmodels.StorageModes.File
         is_file = True
-        f = azure.storage.file.models.File(name='path-bxslice-1')
-        patched_gfp.side_effect = [f]
+        f0 = azure.storage.file.models.File(name='path-bxslice-0')
+        f1 = azure.storage.file.models.File(name='path-bxslice-1')
+        patched_gfp.side_effect = [f0, f1]
         i = 0
         for part in asp._handle_vectored_io_stripe(
                 creds, options, store_raw_metadata, sa, entity, is_file,

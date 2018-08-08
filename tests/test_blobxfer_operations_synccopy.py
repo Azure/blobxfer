@@ -881,11 +881,13 @@ def test_run(srm, gbr, gfr):
 
     # replica targets with mismatch
     s._synccopy_start_time = None
+    s._synccopy_total = 3
     dst_ase.replica_targets = [dst_ase]
     with pytest.raises(RuntimeError):
         s._run()
 
     # exception during worker thread
+    s._synccopy_total = 2
     dst_ase.replica_targets = None
     with pytest.raises(RuntimeError):
         s._process_synccopy_descriptor = mock.MagicMock()

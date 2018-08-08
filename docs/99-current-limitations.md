@@ -10,10 +10,11 @@ token. The following are a few examples:
     * Containers or file shares cannot be created if not given an
       account-level SAS with the appropriate signed resource type.
     * Objects cannot be listed within a container or file share if not given
-      an account-level SAS and instead an object-level SAS. Thus remote
-      paths associated with these SAS tokens must be an object.
-    * Skip-on processing cannot be performed for service-level SAS tokens
-      if not given sufficient read permission.
+      an account-level SAS or a container-level object SAS. If a
+      non-container object-level SAS is provided, remote
+      paths associated with these SAS tokens must be a single entity.
+    * Non-download skip-on processing cannot be performed for SAS tokens
+      without sufficient read permission.
 
 ### Client-side Encryption
 * Client-side encryption is currently only available for block blobs and
@@ -70,5 +71,5 @@ for more information.
 * Synchronous copy operations are limited to transfers within the same Azure
 cloud (i.e., the source and destination `endpoint` must match). For example,
 you can synchonously copy within or between storage accounts in Azure
-Public cloud, e.g., `core.windows.net` but not between `core.windows.net`
-and `core.usgovcloudapi.net`.
+Public cloud, e.g., `core.windows.net` but not between Azure clouds, e.g.,
+`core.windows.net` and `core.usgovcloudapi.net`.

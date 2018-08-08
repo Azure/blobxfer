@@ -34,18 +34,17 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage-blob==1.3.0',
-    'azure-storage-common==1.3.0',
-    'azure-storage-file==1.3.0',
+    'azure-storage-blob==1.3.1',
+    'azure-storage-file==1.3.1',
     'bitstring==3.1.5',
     'click==6.7',
-    'cryptography>=2.2.2',
+    'cryptography>=2.3',
     'future==0.16.0',
     'pathlib2==2.3.2;python_version<"3.5"',
     'python-dateutil==2.7.3',
     'requests==2.19.1',
-    'ruamel.yaml==0.15.41',
-    'scandir==1.7;python_version<"3.5"',
+    'ruamel.yaml==0.15.51',
+    'scandir==1.8;python_version<"3.5"',
 ]
 
 setup(
