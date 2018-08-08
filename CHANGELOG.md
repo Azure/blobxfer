@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2018-08-08
+### Added
+- Azure Storage URL support for the CLI via `--storage-url` and
+`--sync-copy-dest-storage-url` ([#79](https://github.com/Azure/blobxfer/issues/79)).
+Please see the usage docs for more information.
+- `--restore-file-lmt` option for download operations
+([#82](https://github.com/Azure/blobxfer/issues/82)). Please see the usage
+docs for more information.
+
+### Changed
+- **Breaking Change**: `restore_file_attributes` boolean property under
+`download` has been replaced with `restore_file_properties` map containing
+`attributes` and `lmt` for YAML configurations. This change was done to
+provide consistency with the `store_file_properties` map under `upload`.
+Please see the YAML configuration doc for more information.
+- Updated dependencies
+
+### Fixed
+- Fix and improve SAS handling to limit functionality based on SAS token
+scope and permissions ([#80](https://github.com/Azure/blobxfer/issues/80)).
+Please see the usage and limitations docs for more information.
+
 ## [1.3.1] - 2018-06-29
 ### Changed
 - Updated dependencies
@@ -371,7 +393,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.3.1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/Azure/blobxfer/compare/1.3.1...1.4.0
 [1.3.1]: https://github.com/Azure/blobxfer/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Azure/blobxfer/compare/1.2.1...1.3.0
 [1.2.1]: https://github.com/Azure/blobxfer/compare/1.2.0...1.2.1
