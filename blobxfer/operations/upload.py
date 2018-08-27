@@ -182,7 +182,8 @@ class Uploader(object):
         :rtype: str
         :return: unique id for the destination
         """
-        return ';'.join((client.primary_endpoint, container, name))
+        path = str(pathlib.PurePath(name))
+        return ';'.join((client.primary_endpoint, container, path))
 
     @staticmethod
     def append_slice_suffix_to_name(name, slice):
@@ -739,8 +740,8 @@ class Uploader(object):
         # list blobs for all destinations
         checked = set()
         deleted = 0
-        for sa, container, _, _ in self._get_destination_paths():
-            key = ';'.join((sa.name, sa.endpoint, container))
+        for sa, container, rel_dir, abs_dir in self._get_destination_paths():
+            key = ';'.join((sa.name, sa.endpoint, str(abs_dir)))
             if key in checked:
                 continue
             logger.debug(
@@ -753,7 +754,8 @@ class Uploader(object):
                 for file in files:
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(sa.file_client, container, file)
-                    if id not in self._delete_exclude:
+                    if id not in self._delete_exclude \
+                            and file.startswith(str(rel_dir)):
                         if self._general_options.dry_run:
                             logger.info('[DRY RUN] deleting file: {}'.format(
                                 file))
@@ -770,7 +772,8 @@ class Uploader(object):
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(
                             sa.block_blob_client, container, blob.name)
-                    if id not in self._delete_exclude:
+                    if id not in self._delete_exclude \
+                            and blob.name.startswith(str(rel_dir)):
                         if self._general_options.dry_run:
                             logger.info('[DRY RUN] deleting blob: {}'.format(
                                 blob.name))
