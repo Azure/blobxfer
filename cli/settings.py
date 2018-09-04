@@ -62,11 +62,11 @@ def add_cli_options(cli_options, action):
     """
     cli_options['_action'] = action.name.lower()
     # if url is present, convert to constituent options
-    if blobxfer.util.is_not_empty(cli_options['storage_url']):
-        if (blobxfer.util.is_not_empty(cli_options['storage_account']) or
-                blobxfer.util.is_not_empty(cli_options['mode']) or
-                blobxfer.util.is_not_empty(cli_options['endpoint']) or
-                blobxfer.util.is_not_empty(cli_options['remote_path'])):
+    if blobxfer.util.is_not_empty(cli_options.get('storage_url')):
+        if (blobxfer.util.is_not_empty(cli_options.get('storage_account')) or
+                blobxfer.util.is_not_empty(cli_options.get('mode')) or
+                blobxfer.util.is_not_empty(cli_options.get('endpoint')) or
+                blobxfer.util.is_not_empty(cli_options.get('remote_path'))):
             raise ValueError(
                 'Specified both --storage-url and --storage-account, '
                 '--mode, --endpoint, or --remote-path')
@@ -137,13 +137,13 @@ def add_cli_options(cli_options, action):
     elif action == TransferAction.Synccopy:
         # if url is present, convert to constituent options
         if blobxfer.util.is_not_empty(
-                cli_options['sync_copy_dest_storage_url']):
+                cli_options.get('sync_copy_dest_storage_url')):
             if (blobxfer.util.is_not_empty(
-                    cli_options['sync_copy_dest_storage_account']) or
+                    cli_options.get('sync_copy_dest_storage_account')) or
                     blobxfer.util.is_not_empty(
-                        cli_options['sync_copy_dest_mode']) or
+                        cli_options.get('sync_copy_dest_mode')) or
                     blobxfer.util.is_not_empty(
-                        cli_options['sync_copy_dest_remote_path'])):
+                        cli_options.get('sync_copy_dest_remote_path'))):
                 raise ValueError(
                     'Specified both --sync-copy-dest-storage-url and '
                     '--sync-copy-dest-storage-account, '
