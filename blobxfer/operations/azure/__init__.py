@@ -263,6 +263,10 @@ class StorageAccount(object):
                     tmp = part.split('=')
                     if tmp[0] == 'sr':
                         caccess = 'c' in tmp[1]
+                        break
+                    elif tmp[0] == 'si':
+                        # assume sas policies allow container list
+                        return True
             # search for list permission
             if caccess:
                 for part in sasparts:
@@ -289,6 +293,9 @@ class StorageAccount(object):
                 tmp = part.split('=')
                 if tmp[0] == 'sp':
                     return 'r' in tmp[1]
+                elif tmp[0] == 'si':
+                    # assume sas policies allow object read
+                    return True
             return False
         else:
             # storage account key always allows object read
@@ -308,6 +315,9 @@ class StorageAccount(object):
                 tmp = part.split('=')
                 if tmp[0] == 'sp':
                     return 'w' in tmp[1]
+                elif tmp[0] == 'si':
+                    # assume sas policies allow object write
+                    return True
             return False
         else:
             # storage account key always allows object write

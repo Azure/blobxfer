@@ -140,6 +140,11 @@ def test_credential_allows_container_list():
     assert a.can_list_container_objects
 
     a = azops.StorageAccount(
+        'name', '?sv=0&si=policy&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_container_list()
+    assert a.can_list_container_objects
+
+    a = azops.StorageAccount(
         'name', '?sv=0&sr=1&srt=co&sp=r&sig=2', 'core.windows.net', 10, to,
         None)
     assert not a._credential_allows_container_list()
@@ -162,6 +167,11 @@ def test_credential_allows_object_read():
     assert a.can_read_object
 
     a = azops.StorageAccount(
+        'name', '?sv=0&si=policy&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
         'name', '?sv=0&sr=1&srt=co&sp=w&sig=2', 'core.windows.net', 10, to,
         None)
     assert not a._credential_allows_object_read()
@@ -180,6 +190,11 @@ def test_credential_allows_object_write():
     a = azops.StorageAccount(
         'name', '?sv=0&sr=1&srt=co&sp=w&sig=2', 'core.windows.net', 10, to,
         None)
+    assert a._credential_allows_object_write()
+    assert a.can_write_object
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&si=policy&sig=2', 'core.windows.net', 10, to, None)
     assert a._credential_allows_object_write()
     assert a.can_write_object
 

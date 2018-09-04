@@ -16,6 +16,8 @@ token. The following are a few examples:
   paths associated with these SAS tokens must be a single entity.
 * Non-download skip-on processing cannot be performed for SAS tokens
   without sufficient read permission.
+* Because policy-based SASes cannot be introspected for permission scope,
+  `blobxfer` will assume permissions granting read, write, and list.
 
 ### Client-side Encryption
 * Client-side encryption is currently only available for block blobs and
