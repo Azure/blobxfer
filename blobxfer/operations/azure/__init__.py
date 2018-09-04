@@ -255,15 +255,21 @@ class StorageAccount(object):
         :return: if container list is allowed
         """
         if self.is_sas:
-            if self.can_create_containers:
-                # search for list permission
-                sasparts = self.key.split('&')
+            sasparts = self.key.split('&')
+            caccess = self.can_create_containers
+            # search for container signed resource for service level sas
+            if not caccess:
+                for part in sasparts:
+                    tmp = part.split('=')
+                    if tmp[0] == 'sr':
+                        caccess = 'c' in tmp[1]
+            # search for list permission
+            if caccess:
                 for part in sasparts:
                     tmp = part.split('=')
                     if tmp[0] == 'sp':
                         return 'l' in tmp[1]
-            # sas is either service-level or doesn't allow container
-            # level manipulation
+            # sas doesn't allow container level list
             return False
         else:
             # storage account key always allows container list
