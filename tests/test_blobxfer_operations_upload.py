@@ -770,22 +770,32 @@ def test_delete_extraneous_files(db, lab, df, laf):
     sa1.endpoint = 'ep'
     sa1.file_client.primary_endpoint = 'ep'
 
-    u._get_destination_paths = mock.MagicMock()
-    u._get_destination_paths.return_value = [
-        (sa1, 'cont', None, None),
-        (sa1, 'cont', None, None),
-    ]
-
     laf.return_value = ['filename']
 
-    u._general_options.dry_run = True
+    # test relative path failure
+    u._get_destination_paths = mock.MagicMock()
+    u._get_destination_paths.return_value = [
+        (sa1, 'cont', 'vpath', ''),
+    ]
     u._delete_extraneous_files()
     assert laf.call_count == 1
     assert df.call_count == 0
 
-    u._general_options.dry_run = False
+    # test actual delete
+    u._get_destination_paths = mock.MagicMock()
+    u._get_destination_paths.return_value = [
+        (sa1, 'cont', '', ''),
+        (sa1, 'cont', '', ''),
+    ]
+
+    u._general_options.dry_run = True
     u._delete_extraneous_files()
     assert laf.call_count == 2
+    assert df.call_count == 0
+
+    u._general_options.dry_run = False
+    u._delete_extraneous_files()
+    assert laf.call_count == 3
     assert df.call_count == 1
 
     # test blob delete
@@ -797,23 +807,33 @@ def test_delete_extraneous_files(db, lab, df, laf):
     sa1.endpoint = 'ep'
     sa1.block_blob_client.primary_endpoint = 'ep'
 
-    u._get_destination_paths = mock.MagicMock()
-    u._get_destination_paths.return_value = [
-        (sa1, 'cont', None, None),
-    ]
-
     blob = mock.MagicMock()
     blob.name = 'blobname'
     lab.return_value = [blob]
 
-    u._general_options.dry_run = True
+    # test relative path failure
+    u._get_destination_paths = mock.MagicMock()
+    u._get_destination_paths.return_value = [
+        (sa1, 'cont', 'vpath', ''),
+    ]
     u._delete_extraneous_files()
     assert lab.call_count == 1
     assert db.call_count == 0
 
-    u._general_options.dry_run = False
+    # test actual delete
+    u._get_destination_paths = mock.MagicMock()
+    u._get_destination_paths.return_value = [
+        (sa1, 'cont', '', ''),
+    ]
+
+    u._general_options.dry_run = True
     u._delete_extraneous_files()
     assert lab.call_count == 2
+    assert db.call_count == 0
+
+    u._general_options.dry_run = False
+    u._delete_extraneous_files()
+    assert lab.call_count == 3
     assert db.call_count == 1
 
 

@@ -740,8 +740,8 @@ class Uploader(object):
         # list blobs for all destinations
         checked = set()
         deleted = 0
-        for sa, container, _, _ in self._get_destination_paths():
-            key = ';'.join((sa.name, sa.endpoint, container))
+        for sa, container, vpath, dpath in self._get_destination_paths():
+            key = ';'.join((sa.name, sa.endpoint, str(dpath)))
             if key in checked:
                 continue
             logger.debug(
@@ -752,6 +752,10 @@ class Uploader(object):
                 files = blobxfer.operations.azure.file.list_all_files(
                     sa.file_client, container)
                 for file in files:
+                    try:
+                        pathlib.Path(file).relative_to(vpath)
+                    except ValueError:
+                        continue
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(sa.file_client, container, file)
                     if id not in self._delete_exclude:
@@ -768,6 +772,10 @@ class Uploader(object):
                 blobs = blobxfer.operations.azure.blob.list_all_blobs(
                     sa.block_blob_client, container)
                 for blob in blobs:
+                    try:
+                        pathlib.Path(blob.name).relative_to(vpath)
+                    except ValueError:
+                        continue
                     id = blobxfer.operations.upload.Uploader.\
                         create_destination_id(
                             sa.block_blob_client, container, blob.name)
