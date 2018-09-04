@@ -182,7 +182,8 @@ class Uploader(object):
         :rtype: str
         :return: unique id for the destination
         """
-        return ';'.join((client.primary_endpoint, container, name))
+        path = str(pathlib.PurePath(name))
+        return ';'.join((client.primary_endpoint, container, path))
 
     @staticmethod
     def append_slice_suffix_to_name(name, slice):
