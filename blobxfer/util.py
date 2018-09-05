@@ -50,6 +50,7 @@ import future.utils
 
 # global defines
 MEGABYTE = 1048576
+_ON_LINUX = platform.system() == 'Linux'
 _ON_WINDOWS = platform.system() == 'Windows'
 _REGISTERED_LOGGER_HANDLERS = []
 _PAGEBLOB_BOUNDARY = 512
@@ -62,6 +63,15 @@ def on_python2():
     :return: if on Python2
     """
     return future.utils.PY2
+
+
+def on_linux():  # noqa
+    # type: (None) -> bool
+    """Execution on Linux
+    :rtype: bool
+    :return: if on Linux
+    """
+    return _ON_LINUX
 
 
 def on_windows():  # noqa

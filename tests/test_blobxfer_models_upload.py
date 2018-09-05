@@ -73,6 +73,10 @@ def test_localpath(tmpdir):
     assert lp.gid == stat.st_gid
 
 
+def _resolve_pypath(path):
+    return str(pathlib.Path(str(path)).resolve())
+
+
 def test_localsourcepaths_files(tmpdir):
     tmpdir.mkdir('abc')
     tmpdir.join('moo.cow').write('z')
@@ -108,9 +112,9 @@ def test_localsourcepaths_files(tmpdir):
 
     assert not a.can_rename()
     assert len(a.paths) == 1
-    assert str(abcpath.join('blah.x')) in a_set
-    assert str(defpath.join('world.txt')) in a_set
-    assert str(defpath.join('moo.cow')) not in a_set
+    assert _resolve_pypath(abcpath.join('blah.x')) in a_set
+    assert _resolve_pypath(defpath.join('world.txt')) in a_set
+    assert _resolve_pypath(defpath.join('moo.cow')) not in a_set
 
     b = upload.LocalSourcePath()
     b.add_includes(['moo.cow', '*blah*'])

@@ -124,31 +124,37 @@ def test_downloadspecification():
             local_destination_path=models.LocalDestinationPath('dest'),
         )
 
-    with pytest.raises(ValueError):
-        ds = models.Specification(
-            download_options=options.Download(
-                check_file_md5=True,
-                chunk_size_bytes=-1,
-                delete_extraneous_destination=False,
-                mode=azmodels.StorageModes.Auto,
-                overwrite=True,
-                recursive=True,
-                rename=False,
-                restore_file_properties=options.FileProperties(
-                    attributes=True,
-                    lmt=False,
-                    md5=None,
+    if util.on_windows():
+        patch_func = 'time.sleep'
+    else:
+        patch_func = 'os.getuid'
+    with mock.patch(patch_func) as patched_getuid:
+        patched_getuid.return_value = 1
+        with pytest.raises(ValueError):
+            ds = models.Specification(
+                download_options=options.Download(
+                    check_file_md5=True,
+                    chunk_size_bytes=-1,
+                    delete_extraneous_destination=False,
+                    mode=azmodels.StorageModes.Auto,
+                    overwrite=True,
+                    recursive=True,
+                    rename=False,
+                    restore_file_properties=options.FileProperties(
+                        attributes=True,
+                        lmt=False,
+                        md5=None,
+                    ),
+                    rsa_private_key=None,
+                    strip_components=0,
                 ),
-                rsa_private_key=None,
-                strip_components=0,
-            ),
-            skip_on_options=options.SkipOn(
-                filesize_match=True,
-                lmt_ge=False,
-                md5_match=True,
-            ),
-            local_destination_path=models.LocalDestinationPath('dest'),
-        )
+                skip_on_options=options.SkipOn(
+                    filesize_match=True,
+                    lmt_ge=False,
+                    md5_match=True,
+                ),
+                local_destination_path=models.LocalDestinationPath('dest'),
+            )
 
 
 def test_downloaddescriptor(tmpdir):
@@ -261,7 +267,7 @@ def test_set_final_path_view():
 
 
 @unittest.skipIf(
-    util.on_python2() or util.on_windows(), 'fallocate does not exist')
+    util.on_python2() or not util.on_linux(), 'fallocate does not exist')
 def test_downloaddescriptor_allocate_disk_space_via_seek(tmpdir):
     fp = pathlib.Path(str(tmpdir.join('fp')))
     opts = mock.MagicMock()
