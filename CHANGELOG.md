@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2018-09-17
+### Added
+- Mac OS binary build
+
+### Changed
+- CI/CD pipeline changed to Azure DevOps (VSTS)
+- Windows binaries are now signed
+
+### Fixed
+- Fix CLI settings retrieval
+- Fix `--delete` on Windows ([#84](https://github.com/Azure/blobxfer/issues/84))
+- Scope `--delete` on remote path ([#85](https://github.com/Azure/blobxfer/issues/85))
+- Fix various SAS permission regressions from the previous release
+
 ## [1.4.0] - 2018-08-08
 ### Added
 - Azure Storage URL support for the CLI via `--storage-url` and
@@ -393,7 +407,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.0...HEAD
+[1.5.0]: https://github.com/Azure/blobxfer/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Azure/blobxfer/compare/1.3.1...1.4.0
 [1.3.1]: https://github.com/Azure/blobxfer/compare/1.3.0...1.3.1
 [1.3.0]: https://github.com/Azure/blobxfer/compare/1.2.1...1.3.0
