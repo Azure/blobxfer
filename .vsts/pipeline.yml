@@ -181,6 +181,7 @@ phases:
           echo "##vso[task.setvariable variable=GIT_TAG;]${GIT_TAG}"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]${ARTIFACT_CLI}"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]${ARTIFACT_UPLOAD_PATH}"
+          apt-get update
           apt-get install -y pandoc
           pip install pypandoc
         displayName: Pre-build Environment (Tagged Release)

@@ -6,7 +6,7 @@ except ImportError:  # noqa
     from distutils.core import setup
 import sys
 
-if sys.argv[-1] == 'sdist' or sys.argv[-1] == 'bdist_wheel':
+if 'sdist' in sys.argv or 'bdist_wheel' in sys.argv:
     try:
         import pypandoc
         long_description = pypandoc.convert(
