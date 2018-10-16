@@ -140,6 +140,18 @@ def test_credential_allows_container_list():
     assert a.can_list_container_objects
 
     a = azops.StorageAccount(
+        'name', '?sv=0&sr=s&sp=l&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert a._credential_allows_container_list()
+    assert a.can_list_container_objects
+
+    a = azops.StorageAccount(
+        'name', '?sv=0&sr=f&sp=rl&sig=2', 'core.windows.net', 10, to,
+        None)
+    assert not a._credential_allows_container_list()
+    assert not a.can_list_container_objects
+
+    a = azops.StorageAccount(
         'name', '?sv=0&si=policy&sig=2', 'core.windows.net', 10, to, None)
     assert a._credential_allows_container_list()
     assert a.can_list_container_objects

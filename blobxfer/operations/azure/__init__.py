@@ -262,7 +262,7 @@ class StorageAccount(object):
                 for part in sasparts:
                     tmp = part.split('=')
                     if tmp[0] == 'sr':
-                        caccess = 'c' in tmp[1]
+                        caccess = 'c' in tmp[1] or 's' in tmp[1]
                         break
                     elif tmp[0] == 'si':
                         # assume sas policies allow container list
