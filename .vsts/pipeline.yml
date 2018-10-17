@@ -7,10 +7,10 @@ jobs:
     strategy:
       maxParallel: 1
       matrix:
-        Python36:
-          python.version: '3.6'
-          PYENV_VERSION: '3.6.6'
-          PYTOX_ENV: 'py36'
+        Python37:
+          python.version: '3.7'
+          PYENV_VERSION: '3.7.1'
+          PYTOX_ENV: 'py37'
     steps:
       - task: InstallPython@1
         inputs:
@@ -47,7 +47,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.6'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
       - powershell: |
           git tag -l --points-at $env:BUILD_SOURCEVERSION | Tee-Object -Variable gitTag
           $gitTag -match "^([\d\.])+"
@@ -65,7 +65,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.6'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
       - powershell: |
           $artifactCliPath = "bin\\" + $env:ARTIFACT_CLI
           echo "##vso[task.setvariable variable=ARTIFACT_CLI_PATH;]$artifactCliPath"
@@ -122,10 +122,10 @@ jobs:
     strategy:
       maxParallel: 1
       matrix:
-        Python36:
-          python.version: '3.6'
-          PYENV_VERSION: '3.6.6'
-          PYTOX_ENV: 'py36'
+        Python37:
+          python.version: '3.7'
+          PYENV_VERSION: '3.7.1'
+          PYTOX_ENV: 'py37'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -175,7 +175,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.6'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
       - script: |
           GIT_TAG=$(git tag -l --points-at $BUILD_SOURCEVERSION)
           ARTIFACT_CLI="blobxfer-${GIT_TAG}-linux-x86_64"
@@ -189,7 +189,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.6'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
       - template: ./pyenv.yml
       - script: |
           set -e
@@ -230,10 +230,10 @@ jobs:
     strategy:
       maxParallel: 1
       matrix:
-        Python36:
-          python.version: '3.6'
-          PYENV_VERSION: '3.6.6'
-          PYTOX_ENV: 'py36'
+        Python37:
+          python.version: '3.7'
+          PYENV_VERSION: '3.7.1'
+          PYTOX_ENV: 'py37'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -282,7 +282,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.6'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
       - script: |
           GIT_TAG=$(git tag -l --points-at $BUILD_SOURCEVERSION)
           ARTIFACT_CLI="blobxfer-${GIT_TAG}-mac-x86_64"
@@ -293,7 +293,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.6'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
       - template: ./pyenv.yml
       - script: |
           set -e

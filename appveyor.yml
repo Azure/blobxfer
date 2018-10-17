@@ -17,11 +17,16 @@ environment:
     PYTHON_VERSION: "3.4"
     PYTHON_ARCH: "64"
     TOX_ENV: "py34"
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
     PYTHON: "C:\\Python35-x64"
     PYTHON_VERSION: "3.5"
     PYTHON_ARCH: "64"
     TOX_ENV: "py35"
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+    PYTHON: "C:\\Python36-x64"
+    PYTHON_VERSION: "3.6"
+    PYTHON_ARCH: "64"
+    TOX_ENV: "py36"
 
 init:
 - echo %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%
