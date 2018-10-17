@@ -20,7 +20,8 @@ from Azure Blob and File Storage
 * Supports ingress, egress and synchronization of entire directories,
 containers and file shares
 * YAML configuration driven execution support
-* Resume support
+* Fine-grained resume support including resuming a broken operation
+within a file or object
 * Vectored IO support
     * `stripe` mode allows striping a single file across multiple blobs (even
       to multiple storage accounts) to break through single blob or fileshare
