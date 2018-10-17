@@ -389,7 +389,6 @@ def merge_global_settings(config, cli_options):
         }
     }
     config['options'] = options
-    cli_options = cli_options[action]
 
 
 def create_azure_storage_credentials(config, general_options):

@@ -391,7 +391,7 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         """Ctor for SourcePath
         :param SourcePath self: this
         """
-        super(SourcePath, self).__init__()
+        super().__init__()
         self._path_map = {}
 
     def add_path_with_storage_account(self, remote_path, storage_account):
@@ -680,7 +680,7 @@ class DestinationPath(blobxfer.models._BaseSourcePaths):
         """Ctor for SourcePath
         :param SourcePath self: this
         """
-        super(DestinationPath, self).__init__()
+        super().__init__()
         self._path_map = {}
 
     def add_path_with_storage_account(self, remote_path, storage_account):

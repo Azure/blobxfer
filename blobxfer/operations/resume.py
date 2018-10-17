@@ -76,15 +76,18 @@ class _BaseResumeManager(object):
         :param _BaseResumeManager self: this
         """
         self.close()
-        try:
-            if not blobxfer.util.on_python2() and blobxfer.util.on_windows():
-                for ext in ('.bak', '.dat', '.dir'):
-                    fp = pathlib.Path(str(self._resume_file) + ext)
-                    fp.unlink()
-            else:
+        if self._resume_file.exists():  # noqa
+            try:
                 self._resume_file.unlink()
-        except OSError as e:
-            logger.warning('could not unlink resume db: {}'.format(e))
+            except OSError as e:
+                logger.warning('could not unlink resume db: {}'.format(e))
+        for ext in ('.bak', '.dat', '.dir'):  # noqa
+            fp = pathlib.Path(str(self._resume_file) + ext)
+            if fp.exists():
+                try:
+                    fp.unlink()
+                except OSError as e:
+                    logger.warning('could not unlink resume db: {}'.format(e))
 
     @contextlib.contextmanager
     def datalock(self, acquire=True):
@@ -143,7 +146,7 @@ class DownloadResumeManager(_BaseResumeManager):
         :param DownloadResumeManager self: this
         :param pathlib.Path resume_file: resume file
         """
-        super(DownloadResumeManager, self).__init__(resume_file)
+        super().__init__(resume_file)
 
     def add_or_update_record(
             self, final_path, ase, chunk_size, next_integrity_chunk,
@@ -194,7 +197,7 @@ class UploadResumeManager(_BaseResumeManager):
         :param UploadResumeManager self: this
         :param pathlib.Path resume_file: resume file
         """
-        super(UploadResumeManager, self).__init__(resume_file)
+        super().__init__(resume_file)
 
     def add_or_update_record(
             self, local_path, ase, chunk_size, total_chunks, completed_chunks,
@@ -246,7 +249,7 @@ class SyncCopyResumeManager(_BaseResumeManager):
         :param SyncCopyResumeManager self: this
         :param pathlib.Path resume_file: resume file
         """
-        super(SyncCopyResumeManager, self).__init__(resume_file)
+        super().__init__(resume_file)
 
     def add_or_update_record(
             self, dst_ase, src_block_list, offset, chunk_size, total_chunks,

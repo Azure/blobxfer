@@ -123,8 +123,7 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
         :param LocalFileMd5Offload self: this
         :param int num_workers: number of worker processes
         """
-        super(LocalFileMd5Offload, self).__init__(
-            self._worker_process, num_workers, 'MD5')
+        super().__init__(self._worker_process, num_workers, 'MD5')
 
     def _worker_process(self):
         # type: (LocalFileMd5Offload) -> None

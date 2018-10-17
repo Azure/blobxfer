@@ -42,6 +42,7 @@ except ImportError:  # noqa
     from scandir import scandir as scandir
 import platform
 import re
+import sys
 # non-stdlib imports
 import dateutil.parser
 import dateutil.tz
@@ -81,6 +82,15 @@ def on_windows():  # noqa
     :return: if on Windows
     """
     return _ON_WINDOWS
+
+
+def py_ver():  # noqa
+    # type: (None) -> Tuple[int, int]
+    """Python version
+    :rtype tuple
+    :return: version info tuple
+    """
+    return sys.version_info
 
 
 def setup_logger(logger, logfile):  # noqa

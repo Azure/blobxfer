@@ -235,8 +235,7 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
         :param CryptoOffload self: this
         :param int num_workers: number of worker processes
         """
-        super(CryptoOffload, self).__init__(
-            self._worker_process, num_workers, 'Crypto')
+        super().__init__(self._worker_process, num_workers, 'Crypto')
 
     def _worker_process(self):
         # type: (CryptoOffload) -> None

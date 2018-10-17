@@ -241,13 +241,13 @@ def test_handle_vectored_io_stripe(patched_gbp, patched_gfp):
     # test not first slice
     with mock.patch(
             'blobxfer.models.metadata.vectored_io_from_metadata',
-            return_value=md.VectoredStripe(
+            side_effect=[md.VectoredStripe(
                 next='nextpr',
                 offset_start=0,
                 slice_id=1,
                 total_size=10,
                 total_slices=10,
-            )):
+            )]):
         for part in asp._handle_vectored_io_stripe(
                 creds, options, store_raw_metadata, sa, entity, is_file,
                 container, dir=None):
@@ -271,12 +271,7 @@ def test_handle_vectored_io_stripe(patched_gbp, patched_gfp):
                 total_slices=2,
             ),
             md.VectoredStripe(
-                next=md.VectoredNextEntry(
-                    storage_account_name='sa1',
-                    endpoint='core.windows.net',
-                    container='cont',
-                    name='path-bxslice-1',
-                ),
+                next=None,
                 offset_start=1,
                 slice_id=1,
                 total_size=2,
@@ -312,12 +307,7 @@ def test_handle_vectored_io_stripe(patched_gbp, patched_gfp):
                 total_slices=2,
             ),
             md.VectoredStripe(
-                next=md.VectoredNextEntry(
-                    storage_account_name='sa1',
-                    endpoint='core.windows.net',
-                    container='cont',
-                    name='path-bxslice-1',
-                ),
+                next=None,
                 offset_start=1,
                 slice_id=1,
                 total_size=2,

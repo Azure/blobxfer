@@ -189,8 +189,8 @@ def test_list_all_files():
 def test_list_files_directory(patched_cisf):
     _file = azure.storage.file.models.File(name='name')
     client = mock.MagicMock()
-    client.list_directories_and_files.return_value = [_file]
-    client.get_file_properties.return_value = _file
+    client.list_directories_and_files.side_effect = [[_file]]
+    client.get_file_properties.side_effect = [_file]
 
     i = 0
     for file in ops.list_files(client, 'dir', '', True):
@@ -201,7 +201,7 @@ def test_list_files_directory(patched_cisf):
     _dir = azure.storage.file.models.Directory(name='dirname')
     _file = azure.storage.file.models.File(name='dirname/name')
     client = mock.MagicMock()
-    client.list_directories_and_files.side_effect = [[_dir, _file]]
+    client.list_directories_and_files.side_effect = [[_dir], [_file]]
     client.get_file_properties.side_effect = [_file]
 
     i = 0
