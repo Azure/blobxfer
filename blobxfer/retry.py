@@ -162,7 +162,9 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
                     azure.storage.common.models.LocationMode.SECONDARY):
                 return True
             # response code 408 is a timeout and should be retried
-            if status == 408:
+            # response code 429 is too many requests (throttle)
+            # TODO use "Retry-After" header for backoff amount
+            if status == 408 or status == 429:
                 return True
             return False
         elif status >= 500:

@@ -32,6 +32,11 @@ are not artificially blocked.
 Chunk sizing refers to the `chunk_size_bytes` option and the meaning of which
 varies upon the context of uploading or downloading.
 
+## Timeouts
+`blobxfer` uses two timeout values, a connect timeout and a read timeout.
+The read timeout should be set to something that is reasonably large
+enough to transmit each chunk given your bandwidth limitations.
+
 ### Uploads
 For uploads, chunk sizes correspond to the maximum amount of data to transfer
 with a single request. The Azure Storage service imposes maximums depending

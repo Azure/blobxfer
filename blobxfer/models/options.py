@@ -46,9 +46,9 @@ import blobxfer.util
 logger = logging.getLogger(__name__)
 # global defines
 if sys.version_info >= (3, 5):  # noqa
-    _DEFAULT_REQUESTS_TIMEOUT = (10, 100)
+    _DEFAULT_REQUESTS_TIMEOUT = (10, 200)
 else:  # noqa
-    _DEFAULT_REQUESTS_TIMEOUT = (10, 19)
+    _DEFAULT_REQUESTS_TIMEOUT = (10, 31)
 
 # named tuples
 HttpProxy = collections.namedtuple(
