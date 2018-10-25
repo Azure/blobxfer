@@ -14,7 +14,7 @@ DEPENDENCIES=(
     https://github.com/scott-griffiths/bitstring/raw/master/LICENSE
     click
     https://github.com/pallets/click
-    https://github.com/pallets/click/raw/master/LICENSE
+    https://github.com/pallets/click/raw/master/LICENSE.rst
     cryptography
     https://github.com/pyca/cryptography
     https://github.com/pyca/cryptography/raw/master/LICENSE.BSD
@@ -32,7 +32,7 @@ DEPENDENCIES=(
     https://github.com/requests/requests/raw/master/LICENSE
     ruamel.yaml
     https://bitbucket.org/ruamel/yaml
-    https://bitbucket.org/ruamel/yaml/raw/8d3f84d78aff534cbc881fa509ade31a5edc451d/LICENSE
+    https://bitbucket.org/ruamel/yaml/raw/2f052c9df9775530dc37ae3027fa789e3cbc6fc9/LICENSE
 )
 DEPLEN=${#DEPENDENCIES[@]}
 
