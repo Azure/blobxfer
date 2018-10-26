@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.5.3] - 2018-10-26
+### Changed
+- Binary builds are now built against Python 3.7.1
+- Windows Docker image uses Python 3.7.1
+- Timeouts were modified along with retries on 429
+- Updated dependencies
+
+### Fixed
+- Fix SAS permission scope derivation on file shares
+([#88](https://github.com/Azure/blobxfer/issues/88))
+- Fix Python 3.7 compatibility issues
+
 ## [1.5.0] - 2018-09-17
 ### Added
 - Mac OS binary build
@@ -407,7 +419,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.3...HEAD
+[1.5.3]: https://github.com/Azure/blobxfer/compare/1.5.0...1.5.3
 [1.5.0]: https://github.com/Azure/blobxfer/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Azure/blobxfer/compare/1.3.1...1.4.0
 [1.3.1]: https://github.com/Azure/blobxfer/compare/1.3.0...1.3.1
