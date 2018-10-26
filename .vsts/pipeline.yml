@@ -177,15 +177,14 @@ jobs:
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
           in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
       - script: |
+          set -e
+          set -o pipefail
           GIT_TAG=$(git tag -l --points-at $BUILD_SOURCEVERSION)
           ARTIFACT_CLI="blobxfer-${GIT_TAG}-linux-x86_64"
           ARTIFACT_UPLOAD_PATH="releases/${GIT_TAG}"
           echo "##vso[task.setvariable variable=GIT_TAG;]${GIT_TAG}"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]${ARTIFACT_CLI}"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]${ARTIFACT_UPLOAD_PATH}"
-          sudo apt-get update
-          sudo apt-get install -y pandoc
-          pip install pypandoc
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),

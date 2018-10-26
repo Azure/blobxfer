@@ -7,12 +7,7 @@ except ImportError:  # noqa
 import sys
 
 if 'sdist' in sys.argv or 'bdist_wheel' in sys.argv:
-    try:
-        import pypandoc
-        long_description = pypandoc.convert(
-            'README.md', 'rst').replace('\r', '')
-    except (ImportError, IOError):
-        long_description = open('README.md', 'r', 'utf-8').read()
+    long_description = open('README.md', 'r', 'utf-8').read()
 else:
     long_description = ''
 
@@ -57,6 +52,7 @@ setup(
     url='https://github.com/Azure/blobxfer',
     license='MIT',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     packages=packages,
     package_data={'blobxfer': ['LICENSE']},
     package_dir={'blobxfer': 'blobxfer', 'blobxfer_cli': 'cli'},
