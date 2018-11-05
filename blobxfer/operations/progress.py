@@ -31,7 +31,6 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import logging
-import os
 import platform
 import sys
 # non-stdlib imports
@@ -99,7 +98,7 @@ def update_progress_bar(
                  optext, '>' * int(done * 30), done * 100, rate, fprog, rtext)
         )
     if files_sofar == total_files:
-        sys.stdout.write(os.linesep)
+        sys.stdout.write('\n')
     sys.stdout.flush()
 
 
@@ -227,7 +226,7 @@ def output_parameters(general_options, spec):
         log.append('              access tier: {}'.format(
             spec.options.access_tier))
     log.append(sep)
-    log = os.linesep.join(log)
+    log = '\n'.join(log)
     if blobxfer.util.is_not_empty(general_options.log_file):
         print(log)
-    logger.info('{}{}'.format(os.linesep, log))
+    logger.info('\n{}'.format(log))
