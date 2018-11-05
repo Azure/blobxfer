@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.5.4] - 2018-11-05
+### Changed
+- Version ranges added in dependencies
+- Updated dependencies
+
+### Fixed
+- Fix spacing in console/log output in Windows
+
 ## [1.5.3] - 2018-10-26
 ### Changed
 - Binary builds are now built against Python 3.7.1
@@ -419,7 +427,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.3...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.4...HEAD
+[1.5.4]: https://github.com/Azure/blobxfer/compare/1.5.3...1.5.4
 [1.5.3]: https://github.com/Azure/blobxfer/compare/1.5.0...1.5.3
 [1.5.0]: https://github.com/Azure/blobxfer/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/Azure/blobxfer/compare/1.3.1...1.4.0
