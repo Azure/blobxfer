@@ -46,6 +46,12 @@ _RETRYABLE_ERRNO_MAXRETRY = frozenset((
     '[Errno {}]'.format(errno.ECONNREFUSED),
     '[Errno {}]'.format(errno.ENETRESET),
     '[Errno {}]'.format(errno.ETIMEDOUT),
+    # Windows errors
+    '[WinError {}]'.format(errno.ECONNABORTED),
+    '[WinError {}]'.format(errno.ECONNRESET),
+    '[WinError {}]'.format(errno.ECONNREFUSED),
+    '[WinError {}]'.format(errno.ENETRESET),
+    '[WinError {}]'.format(errno.ETIMEDOUT),
 ))
 _RETRYABLE_ERRNO_PROTOCOL = frozenset((
     '({},'.format(errno.ECONNABORTED),
