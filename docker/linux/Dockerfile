@@ -10,6 +10,8 @@ RUN apk update \
     && apk add --update --no-cache musl \
         musl build-base python3 python3-dev libressl-dev libffi-dev \
         ca-certificates git \
+    && python3 -m pip install --upgrade pip \
+    && pip3 install --upgrade setuptools \
     && git clone -b $GIT_BRANCH --single-branch --depth 5 https://github.com/Azure/blobxfer.git /blobxfer \
     && cd /blobxfer \
     && git checkout $GIT_COMMIT \
