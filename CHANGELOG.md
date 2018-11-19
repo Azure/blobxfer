@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.5.5] - 2018-11-19
+### Changed
+- Updated dependencies
+
+### Fixed
+- More coverage for Windows retries
+
 ## [1.5.4] - 2018-11-05
 ### Changed
 - Version ranges added in dependencies
@@ -427,7 +434,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.4...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.5...HEAD
+[1.5.5]: https://github.com/Azure/blobxfer/compare/1.5.4...1.5.5
 [1.5.4]: https://github.com/Azure/blobxfer/compare/1.5.3...1.5.4
 [1.5.3]: https://github.com/Azure/blobxfer/compare/1.5.0...1.5.3
 [1.5.0]: https://github.com/Azure/blobxfer/compare/1.4.0...1.5.0
