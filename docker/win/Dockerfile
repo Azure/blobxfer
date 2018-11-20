@@ -21,7 +21,7 @@ RUN git clone -b $Env:GIT_BRANCH --single-branch --depth 5 https://github.com/Az
 RUN python -m compileall C:\Python\Lib\site-packages ; \
     exit 0
 
-FROM microsoft/nanoserver:sac2016
+FROM mcr.microsoft.com/windows/nanoserver:sac2016
 
 COPY --from=0 /Python /Python
 COPY --from=0 /blobxfer/THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.txt
