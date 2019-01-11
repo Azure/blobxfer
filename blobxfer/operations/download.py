@@ -419,8 +419,9 @@ class Downloader(object):
         dd = blobxfer.models.download.Descriptor(
             lpath, rfile, self._spec.options, self._general_options,
             self._resume)
-        if dd.entity.is_encrypted:
-            with self._transfer_lock:
+        with self._transfer_lock:
+            self._transfer_cc[dd.final_path] = 0
+            if dd.entity.is_encrypted:
                 self._dd_map[str(dd.final_path)] = dd
         # add download descriptor to queue
         self._transfer_queue.put(dd)
@@ -565,10 +566,13 @@ class Downloader(object):
         if offsets is None:
             self._transfer_queue.put(dd)
             return
+        # ensure forthcoming disk operation is accounted for
+        with self._disk_operation_lock:
+            self._disk_set.add(
+                blobxfer.operations.download.Downloader.
+                create_unique_disk_operation_id(dd, offsets))
         # check if there are too many concurrent connections
         with self._transfer_lock:
-            if dd.final_path not in self._transfer_cc:
-                self._transfer_cc[dd.final_path] = 0
             self._transfer_cc[dd.final_path] += 1
             cc_xfer = self._transfer_cc[dd.final_path]
         if cc_xfer <= _MAX_SINGLE_OBJECT_CONCURRENCY:
@@ -585,10 +589,6 @@ class Downloader(object):
         if cc_xfer > _MAX_SINGLE_OBJECT_CONCURRENCY:
             self._transfer_queue.put(dd)
         # enqueue data for processing
-        with self._disk_operation_lock:
-            self._disk_set.add(
-                blobxfer.operations.download.Downloader.
-                create_unique_disk_operation_id(dd, offsets))
         self._disk_queue.put((dd, offsets, data))
 
     def _process_data(self, dd, offsets, data):
