@@ -9,18 +9,19 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.1'
-          PYTOX_ENV: 'py37'
+          PYENV_VERSION: '3.7.2'
+          PYTOX_ENV: 'python3.7'
     steps:
       - task: InstallPython@1
         inputs:
           version: 'python==$(PYENV_VERSION)'
       - powershell: |
           gci env:* | sort-object name
+          python --version
           python -m pip install --upgrade pip
-          pip install --upgrade setuptools wheel
-          pip install codecov tox
-          pip list --format=columns --outdated
+          python -m pip install --upgrade setuptools wheel
+          python -m pip install codecov tox
+          python -m pip list --format=columns --outdated
         displayName: Fetch Dependencies
       - powershell: |
           tox -e $env:PYTOX_ENV
@@ -28,11 +29,11 @@ jobs:
       - powershell: |
           if($env:BUILD_SOURCEBRANCHNAME -eq "master")
           {
-            $dockerTag = "latest"
+            echo "##vso[task.setvariable variable=DOCKER_TAG;]latest"
           }
           else
           {
-            $dockerTag = $env:BUILD_SOURCEBRANCHNAME
+            echo "##vso[task.setvariable variable=DOCKER_TAG;]$env:BUILD_SOURCEBRANCHNAME"
           }
           $artifactCli = "blobxfer-" + $env:BUILD_SOURCEBRANCHNAME + "-" + $env:BUILD_BUILDID + "-win-amd64.exe"
           $artifactUploadPath = "builds/" + $env:BUILD_SOURCEBRANCHNAME
@@ -43,7 +44,6 @@ jobs:
           echo "##vso[task.setvariable variable=BUILDVER_TUPLE;]$buildverTuple"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]$artifactCli"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]$artifactUploadPath"
-          echo "##vso[task.setvariable variable=DOCKER_TAG;]$dockerTag"
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
@@ -76,7 +76,7 @@ jobs:
           (Get-Content $fileverInfo).replace('{BUILDVER_DOTTED}', $env:BUILDVER_DOTTED) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{BRANCH_GITSHA1}', $branchGitSha1) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{EXE}', $env:ARTIFACT_CLI) | Set-Content $fileverInfo
-          pip install virtualenv
+          python -m pip install virtualenv
           python -m virtualenv pyi
         displayName: Pre-build
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
@@ -113,7 +113,7 @@ jobs:
           docker build --build-arg GIT_BRANCH=$env:BUILD_SOURCEBRANCHNAME --build-arg GIT_COMMIT=$env:BUILD_SOURCEVERSION -t $cliImage .
           docker push $cliImage
           popd
-        displayName: Docker build
+        displayName: Docker Build
         condition: and(succeeded(), ne(variables['DOCKER_TAG'], ''))
 
   - job: Linux
@@ -124,7 +124,7 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.1'
+          PYENV_VERSION: '3.7.2'
           PYTOX_ENV: 'py37'
     steps:
       - task: UsePythonVersion@0
@@ -167,11 +167,16 @@ jobs:
       - script: |
           set -e
           set -o pipefail
+          if [ "$BUILD_SOURCEBRANCHNAME" == "master" ]; then
+            echo "##vso[task.setvariable variable=DOCKER_TAG;]latest"
+          else
+            echo "##vso[task.setvariable variable=DOCKER_TAG;]${BUILD_SOURCEBRANCHNAME}"
+          fi
           ARTIFACT_CLI="blobxfer-${BUILD_SOURCEBRANCHNAME}-${BUILD_BUILDID}-linux-x86_64"
           ARTIFACT_UPLOAD_PATH="builds/${BUILD_SOURCEBRANCHNAME}"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]${ARTIFACT_CLI}"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]${ARTIFACT_UPLOAD_PATH}"
-          echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH"
+          echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH DOCKER_TAG=$DOCKER_TAG"
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
@@ -185,6 +190,8 @@ jobs:
           echo "##vso[task.setvariable variable=GIT_TAG;]${GIT_TAG}"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]${ARTIFACT_CLI}"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]${ARTIFACT_UPLOAD_PATH}"
+          echo "##vso[task.setvariable variable=DOCKER_TAG;]$gitTag"
+          echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH DOCKER_TAG=$DOCKER_TAG GIT_TAG=$GIT_TAG"
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
@@ -193,7 +200,6 @@ jobs:
       - script: |
           set -e
           set -o pipefail
-          echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH GIT_TAG=$GIT_TAG"
           ARTIFACT_CLI_PATH="bin/${ARTIFACT_CLI}"
           $PIP install virtualenv
           $PYTHON -m virtualenv -p $PYTHON pyi
@@ -216,6 +222,19 @@ jobs:
           pathtoPublish: bin
           artifactName: Blobxfer-Linux
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
+      - script: |
+          set -e
+          set -o pipefail
+          docker version
+          docker login -u="$(docker.username)" -p="$(docker.password)"
+          cliImage="alfpark/blobxfer:$DOCKER_TAG"
+          echo "Building Docker image: $cliImage"
+          pushd docker/linux
+          docker build --build-arg GIT_BRANCH=$BUILD_SOURCEBRANCHNAME --build-arg GIT_COMMIT=$BUILD_SOURCEVERSION -t $cliImage .
+          docker push $cliImage
+          popd
+        displayName: Docker Build
+        condition: and(succeeded(), ne(variables['DOCKER_TAG'], ''))
       - task: PyPIPublisher@0
         inputs:
           pypiConnection: PyPI
@@ -231,7 +250,7 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.1'
+          PYENV_VERSION: '3.7.2'
           PYTOX_ENV: 'py37'
     steps:
       - task: UsePythonVersion@0

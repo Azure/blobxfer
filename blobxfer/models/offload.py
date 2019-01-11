@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 class _MultiprocessOffload(object):
     def __init__(self, target, num_workers, description=None):
         # type: (_MultiprocessOffload, function, int, str) -> None
-        """Ctor for Crypto Offload
+        """Ctor for Multiprocess Offload
         :param _MultiprocessOffload self: this
         :param function target: target function for process
         :param int num_workers: number of worker processes
@@ -121,7 +121,7 @@ class _MultiprocessOffload(object):
 
     def initialize_check_thread(self, check_func):
         # type: (_MultiprocessOffload, function) -> None
-        """Initialize the crypto done queue check thread
+        """Initialize the multiprocess done queue check thread
         :param Downloader self: this
         :param function check_func: check function
         """
