@@ -65,6 +65,7 @@ def test_downloadspecification():
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -104,6 +105,34 @@ def test_downloadspecification():
                 check_file_md5=False,
                 chunk_size_bytes=4194304,
                 delete_extraneous_destination=False,
+                max_single_object_concurrency=8,
+                mode=azmodels.StorageModes.Auto,
+                overwrite=True,
+                recursive=True,
+                rename=False,
+                restore_file_properties=options.FileProperties(
+                    attributes=False,
+                    lmt=False,
+                    md5=None,
+                ),
+                rsa_private_key=None,
+                strip_components=0,
+            ),
+            skip_on_options=options.SkipOn(
+                filesize_match=True,
+                lmt_ge=False,
+                md5_match=True,
+            ),
+            local_destination_path=models.LocalDestinationPath('dest'),
+        )
+
+    with pytest.raises(ValueError):
+        ds = models.Specification(
+            download_options=options.Download(
+                check_file_md5=True,
+                chunk_size_bytes=4194304,
+                delete_extraneous_destination=False,
+                max_single_object_concurrency=0,
                 mode=azmodels.StorageModes.Auto,
                 overwrite=True,
                 recursive=True,
@@ -136,6 +165,7 @@ def test_downloadspecification():
                     check_file_md5=True,
                     chunk_size_bytes=-1,
                     delete_extraneous_destination=False,
+                    max_single_object_concurrency=8,
                     mode=azmodels.StorageModes.Auto,
                     overwrite=True,
                     recursive=True,

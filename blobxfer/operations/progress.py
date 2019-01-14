@@ -132,10 +132,11 @@ def output_parameters(general_options, spec):
     if isinstance(spec, blobxfer.models.download.Specification):
         log.append('       transfer direction: {}'.format('Azure -> local'))
         log.append(
-            ('                  workers: disk={} xfer={} md5={} '
+            ('                  workers: disk={} xfer={} (msoc={}) md5={} '
              'crypto={}').format(
                  general_options.concurrency.disk_threads,
                  general_options.concurrency.transfer_threads,
+                 spec.options.max_single_object_concurrency,
                  general_options.concurrency.md5_processes
                  if spec.options.check_file_md5 else 0,
                  general_options.concurrency.crypto_processes))

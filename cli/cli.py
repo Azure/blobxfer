@@ -640,6 +640,20 @@ def _include_option(f):
         callback=callback)(f)
 
 
+def _max_single_object_concurrency(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['max_single_object_concurrency'] = value
+        return value
+    return click.option(
+        '--max-single-object-concurrency',
+        expose_value=False,
+        type=int,
+        default=None,
+        help='Maximum single object concurrency [8]',
+        callback=callback)(f)
+
+
 def _mode_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -991,6 +1005,7 @@ def download_options(f):
     f = _recursive_option(f)
     f = _overwrite_option(f)
     f = _mode_option(f)
+    f = _max_single_object_concurrency(f)
     f = _include_option(f)
     f = _file_md5_option(f)
     f = _file_attributes(f)

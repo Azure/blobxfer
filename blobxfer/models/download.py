@@ -175,6 +175,10 @@ class Specification(object):
             logger.warning('cannot set file uid/gid without root privileges')
         if self.options.chunk_size_bytes < 0:
             raise ValueError('chunk size cannot be negative')
+        if self.options.max_single_object_concurrency < 1:
+            raise ValueError(
+                'must specify a positive value for max single object '
+                'concurrency')
 
     def add_azure_source_path(self, source):
         # type: (Specification, blobxfer.operations.azure.SourcePath) -> None

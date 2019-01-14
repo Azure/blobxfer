@@ -101,6 +101,7 @@ Download = collections.namedtuple(
         'check_file_md5',
         'chunk_size_bytes',
         'delete_extraneous_destination',
+        'max_single_object_concurrency',
         'mode',
         'overwrite',
         'recursive',

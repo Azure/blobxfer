@@ -113,6 +113,8 @@ def add_cli_options(cli_options, action):
                 'check_file_md5': cli_options.get('file_md5'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
                 'delete_extraneous_destination': cli_options.get('delete'),
+                'max_single_object_concurrency': cli_options.get(
+                    'max_single_object_concurrency'),
                 'mode': cli_options.get('mode'),
                 'overwrite': cli_options.get('overwrite'),
                 'recursive': cli_options.get('recursive'),
@@ -523,6 +525,9 @@ def create_download_specifications(ctx_cli_options, config):
                 delete_extraneous_destination=_merge_setting(
                     cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
+                max_single_object_concurrency=_merge_setting(
+                    cli_options, conf_options,
+                    'max_single_object_concurrency', default=8),
                 mode=mode,
                 overwrite=_merge_setting(
                     cli_options, conf_options, 'overwrite', default=True),

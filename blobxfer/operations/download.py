@@ -56,8 +56,6 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
-# global defines
-_MAX_SINGLE_OBJECT_CONCURRENCY = 8
 
 
 class DownloadAction(enum.Enum):
@@ -575,7 +573,7 @@ class Downloader(object):
         with self._transfer_lock:
             self._transfer_cc[dd.final_path] += 1
             cc_xfer = self._transfer_cc[dd.final_path]
-        if cc_xfer <= _MAX_SINGLE_OBJECT_CONCURRENCY:
+        if cc_xfer <= self._spec.options.max_single_object_concurrency:
             self._transfer_queue.put(dd)
         # issue get range
         if dd.entity.mode == blobxfer.models.azure.StorageModes.File:
@@ -586,7 +584,7 @@ class Downloader(object):
                 dd.entity, offsets)
         with self._transfer_lock:
             self._transfer_cc[dd.final_path] -= 1
-        if cc_xfer > _MAX_SINGLE_OBJECT_CONCURRENCY:
+        if cc_xfer > self._spec.options.max_single_object_concurrency:
             self._transfer_queue.put(dd)
         # enqueue data for processing
         self._disk_queue.put((dd, offsets, data))

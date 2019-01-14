@@ -130,6 +130,7 @@ download:
           check_file_md5: true
           chunk_size_bytes: 16777216
           delete_extraneous_destination: false
+          max_single_object_concurrency: 8
           mode: auto
           overwrite: true
           recursive: true
@@ -159,6 +160,8 @@ download:
     * `delete_extraneous_destination` will cleanup any files locally that are
       not found on the remote. Note that this interacts with include and
       exclude filters.
+    * `max_single_object_concurrency` is the maximum number of concurrent
+      transfers per object
     * `mode` is the operating mode
     * `overwrite` specifies clobber behavior
     * `recursive` specifies if remote paths should be recursively searched for

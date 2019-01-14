@@ -28,6 +28,7 @@ def test_output_parameters():
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,

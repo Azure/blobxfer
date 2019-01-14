@@ -42,6 +42,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -77,6 +78,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -105,6 +107,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
             recursive=True,
@@ -133,6 +136,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
             recursive=True,
@@ -165,6 +169,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
             recursive=True,
@@ -199,6 +204,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=False,
             recursive=True,
@@ -233,6 +239,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -264,6 +271,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -292,6 +300,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -329,6 +338,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
             recursive=True,
@@ -789,10 +799,8 @@ def test_worker_thread_transfer(
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [dd]
         patched_tc.side_effect = [False, True]
-        msoc = ops._MAX_SINGLE_OBJECT_CONCURRENCY
-        ops._MAX_SINGLE_OBJECT_CONCURRENCY = 0
+        d._spec.options.max_single_object_concurrency = 0
         d._worker_thread_transfer()
-        ops._MAX_SINGLE_OBJECT_CONCURRENCY = msoc
         assert len(d._disk_set) == 1
         a, b, c = d._disk_queue.get()
         d._process_data(a, b, c)
@@ -806,6 +814,7 @@ def test_worker_thread_transfer(
         d._general_options.dry_run = False
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
+        d._spec.options.max_single_object_concurrency = 8
         opts = mock.MagicMock()
         opts.check_file_md5 = False
         opts.chunk_size_bytes = 16
@@ -850,6 +859,7 @@ def test_worker_thread_transfer(
         d._general_options.concurrency.crypto_processes = 0
         d._general_options.concurrency.transfer_threads = 1
         d._general_options.concurrency.disk_threads = 1
+        d._spec.options.max_single_object_concurrency = 8
         opts = mock.MagicMock()
         opts.check_file_md5 = False
         opts.chunk_size_bytes = 16
