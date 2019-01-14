@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2019-01-14
+### Added
+- Configurable max single object concurrency control for downloads via
+`--max-single-object-concurrency`
+
+### Changed
+- Updated dependencies
+- Binary builds are now built against Python 3.7.2
+- Windows Docker image uses Python 3.7.2
+
+### Fixed
+- Premature download termination under single object concurrency control
+([#89](https://github.com/Azure/blobxfer/issues/89))
+
 ## [1.5.5] - 2018-11-19
 ### Changed
 - Updated dependencies
@@ -434,7 +448,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.5.5...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.6.0...HEAD
+[1.6.0]: https://github.com/Azure/blobxfer/compare/1.5.5...1.6.0
 [1.5.5]: https://github.com/Azure/blobxfer/compare/1.5.4...1.5.5
 [1.5.4]: https://github.com/Azure/blobxfer/compare/1.5.3...1.5.4
 [1.5.3]: https://github.com/Azure/blobxfer/compare/1.5.0...1.5.3
