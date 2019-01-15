@@ -190,7 +190,7 @@ jobs:
           echo "##vso[task.setvariable variable=GIT_TAG;]${GIT_TAG}"
           echo "##vso[task.setvariable variable=ARTIFACT_CLI;]${ARTIFACT_CLI}"
           echo "##vso[task.setvariable variable=ARTIFACT_UPLOAD_PATH;]${ARTIFACT_UPLOAD_PATH}"
-          echo "##vso[task.setvariable variable=DOCKER_TAG;]$gitTag"
+          echo "##vso[task.setvariable variable=DOCKER_TAG;]${GIT_TAG}"
           echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH DOCKER_TAG=$DOCKER_TAG GIT_TAG=$GIT_TAG"
         displayName: Pre-build Environment (Tagged Release)
         condition: >

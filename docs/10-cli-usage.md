@@ -166,6 +166,8 @@ document for more information regarding concurrency options.
 * `--crypto-processes` is the number of decryption offload processes to spawn.
 `0` will in-line the decryption routine with the main thread.
 * `--disk-threads` is the number of threads to create for disk I/O.
+* `--max-single-object-concurrency` is the maximum number of concurrent
+operations that can be applied to a single object during download.
 * `--md5-processes` is the number of MD5 offload processes to spawn for
 comparing files with `skip_on` `md5_match`.
 * `--transfer-threads` is the number of threads to create for transferring
