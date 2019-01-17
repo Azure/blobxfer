@@ -418,7 +418,7 @@ class Downloader(object):
             lpath, rfile, self._spec.options, self._general_options,
             self._resume)
         with self._transfer_lock:
-            self._transfer_cc[dd.final_path] = 0
+            self._transfer_cc[dd.entity.path] = 0
             if dd.entity.is_encrypted:
                 self._dd_map[str(dd.final_path)] = dd
         # add download descriptor to queue
@@ -558,7 +558,7 @@ class Downloader(object):
                 self._transfer_set.remove(
                     blobxfer.operations.download.Downloader.
                     create_unique_transfer_operation_id(dd.entity))
-                self._transfer_cc.pop(dd.final_path, None)
+                self._transfer_cc.pop(dd.entity.path, None)
             return
         # re-enqueue for other threads to download
         if offsets is None:
@@ -571,8 +571,8 @@ class Downloader(object):
                 create_unique_disk_operation_id(dd, offsets))
         # check if there are too many concurrent connections
         with self._transfer_lock:
-            self._transfer_cc[dd.final_path] += 1
-            cc_xfer = self._transfer_cc[dd.final_path]
+            self._transfer_cc[dd.entity.path] += 1
+            cc_xfer = self._transfer_cc[dd.entity.path]
         if cc_xfer <= self._spec.options.max_single_object_concurrency:
             self._transfer_queue.put(dd)
         # issue get range
@@ -583,7 +583,7 @@ class Downloader(object):
             data = blobxfer.operations.azure.blob.get_blob_range(
                 dd.entity, offsets)
         with self._transfer_lock:
-            self._transfer_cc[dd.final_path] -= 1
+            self._transfer_cc[dd.entity.path] -= 1
         if cc_xfer > self._spec.options.max_single_object_concurrency:
             self._transfer_queue.put(dd)
         # enqueue data for processing

@@ -654,14 +654,12 @@ def test_process_download_descriptor_vio(tmpdir):
         key = ops.Downloader.create_unique_transfer_operation_id(ase)
         d._transfer_set.add(key)
         d._dd_map[str(lp)] = mock.MagicMock()
-        d._transfer_cc[dd.final_path] = mock.MagicMock()
 
         d._process_download_descriptor(dd)
         assert dd.finalize_file.call_count == 0
 
         d._transfer_set.add(key)
         d._dd_map[str(lp)] = mock.MagicMock()
-        d._transfer_cc[dd.final_path] = mock.MagicMock()
         d._process_download_descriptor(dd)
         assert dd.finalize_file.call_count == 1
 
@@ -794,7 +792,7 @@ def test_worker_thread_transfer(
         dd.finalize_file = mock.MagicMock()
         dd.perform_chunked_integrity_check = mock.MagicMock()
         d._dd_map[str(lp)] = mock.MagicMock()
-        d._transfer_cc[dd.final_path] = 0
+        d._transfer_cc[dd.entity.path] = 0
         d._transfer_set.add(key)
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [dd]
@@ -838,7 +836,7 @@ def test_worker_thread_transfer(
         d._crypto_offload = mock.MagicMock()
         d._crypto_offload.add_decrypt_chunk = mock.MagicMock()
         d._dd_map[str(lp)] = dd
-        d._transfer_cc[dd.final_path] = 0
+        d._transfer_cc[dd.entity.path] = 0
         d._transfer_set.add(key)
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [dd]
@@ -883,7 +881,7 @@ def test_worker_thread_transfer(
         dd.mark_unchecked_chunk_decrypted = mock.MagicMock()
         patched_acdd.return_value = b'0' * 16
         d._dd_map[str(lp)] = mock.MagicMock()
-        d._transfer_cc[dd.final_path] = 0
+        d._transfer_cc[dd.entity.path] = 0
         d._transfer_set.add(key)
         d._transfer_queue = mock.MagicMock()
         d._transfer_queue.get.side_effect = [dd, dd]
