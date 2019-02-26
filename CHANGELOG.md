@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2019-02-26
+### Added
+- Support ability to set the Cache Control property
+([#91](https://github.com/Azure/blobxfer/issues/91))
+
+### Changed
+- Updated dependencies
+- Linux Docker image based on Alpine 3.9
+
+### Fixed
+- Invalid key with vectorized IO and single object concurrency control
+
 ## [1.6.0] - 2019-01-14
 ### Added
 - Configurable max single object concurrency control for downloads via
@@ -448,7 +460,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.6.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.7.0...HEAD
+[1.7.0]: https://github.com/Azure/blobxfer/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/Azure/blobxfer/compare/1.5.5...1.6.0
 [1.5.5]: https://github.com/Azure/blobxfer/compare/1.5.4...1.5.5
 [1.5.4]: https://github.com/Azure/blobxfer/compare/1.5.3...1.5.4
