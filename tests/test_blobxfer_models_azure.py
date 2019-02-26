@@ -72,32 +72,35 @@ def test_azurestorageentity():
     assert ase.name == blob.name
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Append)
+        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Append, 'cc')
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.Append
+    assert ase.cache_control == 'cc'
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Block)
+        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Block, None)
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.Block
+    assert ase.cache_control is None
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.File)
+        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.File, None)
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.File
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Page)
+        mock.MagicMock(), 'cont', 'path', azmodels.StorageModes.Page, None)
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.Page
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path.vhdx', azmodels.StorageModes.Auto)
+        mock.MagicMock(), 'cont', 'path.vhdx', azmodels.StorageModes.Auto,
+        None)
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.Page
 
     ase.populate_from_local(
-        mock.MagicMock(), 'cont', 'path.bin', azmodels.StorageModes.Auto)
+        mock.MagicMock(), 'cont', 'path.bin', azmodels.StorageModes.Auto, None)
     assert ase.from_local
     assert ase.mode == azmodels.StorageModes.Block
 

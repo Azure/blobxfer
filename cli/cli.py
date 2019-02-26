@@ -613,6 +613,19 @@ def _file_attributes(f):
         callback=callback)(f)
 
 
+def _file_cache_control_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['file_cache_control'] = value
+        return value
+    return click.option(
+        '--file-cache-control',
+        expose_value=False,
+        default=None,
+        help='Store Cache Control value',
+        callback=callback)(f)
+
+
 def _file_md5_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -981,6 +994,7 @@ def upload_options(f):
     f = _mode_option(f)
     f = _include_option(f)
     f = _file_md5_option(f)
+    f = _file_cache_control_option(f)
     f = _file_attributes(f)
     f = _exclude_option(f)
     f = _endpoint_option(f)

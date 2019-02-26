@@ -220,6 +220,7 @@ upload:
           stdin_as_page_blob_size: 0
           store_file_properties:
               attributes: true
+              cache_control: 'max-age=3600'
               md5: true
           strip_components: 1
           vectored_io:
@@ -262,6 +263,7 @@ upload:
       `mode` is `page`
     * `store_file_properties` stores the following file properties if enabled
         * `attributes` will store POSIX file mode and ownership
+        * `cache_control` sets the Cache Control property
         * `md5` will store the MD5 of the file
     * `strip_components` is the number of leading path components to strip
       from the local path

@@ -49,6 +49,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -85,6 +86,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=True,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -114,6 +116,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -143,6 +146,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=True,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -176,6 +180,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -211,6 +216,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -246,6 +252,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -278,6 +285,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -307,6 +315,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -345,6 +354,7 @@ def test_check_download_conditions(tmpdir):
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),

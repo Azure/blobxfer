@@ -534,8 +534,8 @@ def test_finalize_block_blob(pbl):
     assert pbl.call_count == 3
 
 
-@mock.patch('blobxfer.operations.azure.blob.set_blob_md5')
-def test_set_blob_md5(sbm):
+@mock.patch('blobxfer.operations.azure.blob.set_blob_properties')
+def test_set_blob_properties(sbp):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = False
 
@@ -560,8 +560,15 @@ def test_set_blob_md5(sbm):
     ud.must_compute_md5 = True
     ud.md5.digest.return_value = b'md5'
 
-    u._set_blob_md5(ud)
-    assert sbm.call_count == 2
+    u._set_blob_properties(ud)
+    assert sbp.call_count == 2
+
+    ud.requires_non_encrypted_md5_put = False
+    ud.must_compute_md5 = False
+    ase.cache_control = 'cc'
+
+    u._set_blob_properties(ud)
+    assert sbp.call_count == 4
 
 
 @mock.patch('blobxfer.operations.azure.blob.set_blob_metadata')
@@ -643,12 +650,12 @@ def test_finalize_nonblock_blob():
     ud.requires_non_encrypted_md5_put = True
     ud.requires_resize.return_value = (False, None)
 
-    u._set_blob_md5 = mock.MagicMock()
+    u._set_blob_properties = mock.MagicMock()
     u._set_blob_metadata = mock.MagicMock()
     u._resize_blob = mock.MagicMock()
 
     u._finalize_nonblock_blob(ud, {'a': 0})
-    assert u._set_blob_md5.call_count == 1
+    assert u._set_blob_properties.call_count == 1
     assert u._set_blob_metadata.call_count == 1
     assert u._resize_blob.call_count == 0
 
@@ -658,9 +665,9 @@ def test_finalize_nonblock_blob():
     assert u._resize_blob.call_count == 1
 
 
-@mock.patch('blobxfer.operations.azure.file.set_file_md5')
+@mock.patch('blobxfer.operations.azure.file.set_file_properties')
 @mock.patch('blobxfer.operations.azure.file.set_file_metadata')
-def test_finalize_azure_file(sfmeta, sfmd5):
+def test_finalize_azure_file(sfmeta, sfp):
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = False
 
@@ -687,8 +694,15 @@ def test_finalize_azure_file(sfmeta, sfmd5):
     ud.requires_non_encrypted_md5_put = True
 
     u._finalize_azure_file(ud, {'a': 0})
-    assert sfmd5.call_count == 2
+    assert sfp.call_count == 2
     assert sfmeta.call_count == 2
+
+    ud.requires_non_encrypted_md5_put = False
+    ud.must_compute_md5 = False
+    ase.cache_control = 'cc'
+
+    u._finalize_azure_file(ud, {'a': 0})
+    assert sfp.call_count == 4
 
 
 def test_finalize_upload():

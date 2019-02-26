@@ -35,6 +35,7 @@ def test_output_parameters():
             rename=False,
             restore_file_properties=options.FileProperties(
                 attributes=False,
+                cache_control=None,
                 lmt=False,
                 md5=None,
             ),
@@ -65,6 +66,7 @@ def test_output_parameters():
             stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
+                cache_control='cc',
                 lmt=None,
                 md5=True,
             ),

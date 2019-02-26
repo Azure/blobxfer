@@ -92,6 +92,7 @@ def create_blob(ase, data, md5, metadata, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name),
             content_md5=md5,
+            cache_control=ase.cache_control,
         ),
         metadata=metadata,
         validate_content=False,  # integrity is enforced with HTTPS
@@ -126,7 +127,8 @@ def put_block(ase, offsets, data, timeout=None):
         timeout=timeout)  # noqa
 
 
-def put_block_list(ase, last_block_num, md5, metadata, timeout=None):
+def put_block_list(
+        ase, last_block_num, md5, metadata, timeout=None):
     # type: (blobxfer.models.azure.StorageEntity, bytes, str, dict,
     #        int) -> None
     """Create block blob from blocks
@@ -148,6 +150,7 @@ def put_block_list(ase, last_block_num, md5, metadata, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name),
             content_md5=md5,
+            cache_control=ase.cache_control,
         ),
         metadata=metadata,
         validate_content=False,  # integrity is enforced with HTTPS

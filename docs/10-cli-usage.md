@@ -271,7 +271,7 @@ Vectored IO operations
 
 ### Other
 * `--access-tier` sets the
-[access tier](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
+[access tier](https://docs.microsoft.com/azure/storage/blobs/storage-blob-storage-tiers)
 of the object (block blobs only) for upload and synccopy operations. If this
 is not specified, which is the default, then no access tier is actively set
 for the object which then inherits from whatever the default access tier is
@@ -284,6 +284,12 @@ is deleted) at the remote destination path on uploads and at the local
 resource on downloads. This actions occur after the transfer has taken place,
 similarly to rsync's delete after option. Note that this interacts with other
 filters such as `--include` and `--exclude`.
+* `--file-cache-control` sets the
+[cache control](https://docs.microsoft.com/azure/cdn/cdn-manage-expiration-of-blob-content)
+property on the destination entity on upload operations. Note that if an
+existing file is not uploaded due to a skip option, but a cache control
+setting differs, the target is not updated. To override this behavior,
+either delete the target object or do not specify a skip condition.
 * `--one-shot-bytes` controls the number of bytes to "one shot" a block
 Blob upload. The maximum value that can be specified is 256MiB. This may
 be useful when using account-level SAS keys and enforcing non-overwrite

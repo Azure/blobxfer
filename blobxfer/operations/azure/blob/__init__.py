@@ -227,9 +227,9 @@ def create_container(ase, containers_created, timeout=None):
     containers_created.add(key)
 
 
-def set_blob_md5(ase, md5, timeout=None):
+def set_blob_properties(ase, md5, timeout=None):
     # type: (blobxfer.models.azure.StorageEntity, str, int) -> None
-    """Set blob properties MD5
+    """Set blob properties
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
     :param str md5: md5 as base64
     :param int timeout: timeout
@@ -240,6 +240,7 @@ def set_blob_md5(ase, md5, timeout=None):
         content_settings=azure.storage.blob.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(ase.name),
             content_md5=md5,
+            cache_control=ase.cache_control,
         ),
         timeout=timeout)  # noqa
 

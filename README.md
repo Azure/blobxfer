@@ -47,6 +47,7 @@ copy
 * Rsync-like delete support
 * No clobber support in either direction
 * Automatic content type tagging
+* Support for setting the Cache Control property of blobs and files
 * File logging support
 * Support for HTTP proxies
 

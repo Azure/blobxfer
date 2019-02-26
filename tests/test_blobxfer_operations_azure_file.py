@@ -292,10 +292,10 @@ def test_put_file_range():
     assert ops.put_file_range(ase, mock.MagicMock(), b'\0') is None
 
 
-def test_set_file_md5():
+def test_set_file_properties():
     ase = mock.MagicMock()
     ase.name = 'a/b/c.bin'
-    assert ops.set_file_md5(ase, 'md5') is None
+    assert ops.set_file_properties(ase, 'md5') is None
 
 
 def test_set_file_metadata():

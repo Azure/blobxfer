@@ -238,6 +238,7 @@ def add_cli_options(cli_options, action):
                     'stdin_as_page_blob_size'),
                 'store_file_properties': {
                     'attributes': cli_options.get('file_attributes'),
+                    'cache_control': cli_options.get('file_cache_control'),
                     'lmt': None,
                     'md5': cli_options.get('file_md5'),
                 },
@@ -539,6 +540,7 @@ def create_download_specifications(ctx_cli_options, config):
                     attributes=_merge_setting(
                         cli_rfp, conf_rfp, 'attributes',
                         default=False),
+                    cache_control=None,
                     lmt=_merge_setting(
                         cli_rfp, conf_rfp, 'lmt', default=False),
                     md5=None,
@@ -771,6 +773,8 @@ def create_upload_specifications(ctx_cli_options, config):
                 store_file_properties=blobxfer.models.options.FileProperties(
                     attributes=_merge_setting(
                         cli_sfp, conf_sfp, 'attributes', default=False),
+                    cache_control=_merge_setting(
+                        cli_sfp, conf_sfp, 'cache_control', default=None),
                     lmt=None,
                     md5=_merge_setting(
                         cli_sfp, conf_sfp, 'md5', default=False),

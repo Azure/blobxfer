@@ -70,6 +70,7 @@ class StorageEntity(object):
         self._size = None
         self._snapshot = None
         self._md5 = None
+        self._cache_control = None
         self._encryption = ed
         self._from_local = False
         self._append_create = True
@@ -167,6 +168,25 @@ class StorageEntity(object):
         :return: snapshot of entity
         """
         return self._snapshot
+
+    @property
+    def cache_control(self):
+        # type: (StorageEntity) -> str
+        """Cache control
+        :param StorageEntity self: this
+        :rtype: str
+        :return: cache control of entity
+        """
+        return self._cache_control
+
+    @cache_control.setter
+    def cache_control(self, value):
+        # type: (StorageEntity, str) -> None
+        """Set cache control
+        :param StorageEntity self: this
+        :param str value: value
+        """
+        self._cache_control = value
 
     @property
     def md5(self):
@@ -320,6 +340,7 @@ class StorageEntity(object):
         self._lmt = blob.properties.last_modified
         self._size = blob.properties.content_length
         self._md5 = blob.properties.content_settings.content_md5
+        self._cache_control = blob.properties.content_settings.cache_control
         if blob.properties.blob_type == BlobTypes.AppendBlob:
             self._mode = StorageModes.Append
             self._client = sa.append_blob_client
@@ -361,23 +382,26 @@ class StorageEntity(object):
         self._lmt = file.properties.last_modified
         self._size = file.properties.content_length
         self._md5 = file.properties.content_settings.content_md5
+        self._cache_control = file.properties.content_settings.cache_control
         self._mode = StorageModes.File
         self._client = sa.file_client
 
-    def populate_from_local(self, sa, container, path, mode):
+    def populate_from_local(self, sa, container, path, mode, cache_control):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount
-        #        str, str, blobxfer.models.azure.StorageModes) -> None
+        #        str, str, blobxfer.models.azure.StorageModes, str) -> None
         """Populate properties from local
         :param StorageEntity self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
         :param str container: container
         :param str path: full path to file
         :param blobxfer.models.azure.StorageModes mode: storage mode
+        :param str cache_control: cache control
         """
         self._can_create_containers = sa.can_create_containers
         self._container = container
         self._name = path
         self._mode = mode
+        self._cache_control = cache_control
         self._from_local = True
         if mode == StorageModes.Append:
             self._client = sa.append_blob_client

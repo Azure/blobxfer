@@ -616,17 +616,20 @@ class Uploader(object):
                 blobxfer.operations.azure.blob.block.put_block_list(
                     ase, ud.last_block_num, digest, metadata)
 
-    def _set_blob_md5(self, ud):
+    def _set_blob_properties(self, ud):
         # type: (Uploader, blobxfer.models.upload.Descriptor) -> None
-        """Set blob MD5
+        """Set blob properties (md5, cache control)
         :param Uploader self: this
         :param blobxfer.models.upload.Descriptor ud: upload descriptor
         """
-        digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-        blobxfer.operations.azure.blob.set_blob_md5(ud.entity, digest)
+        if ud.requires_non_encrypted_md5_put:
+            digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
+        else:
+            digest = None
+        blobxfer.operations.azure.blob.set_blob_properties(ud.entity, digest)
         if blobxfer.util.is_not_empty(ud.entity.replica_targets):
             for ase in ud.entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_md5(ase, digest)
+                blobxfer.operations.azure.blob.set_blob_properties(ase, digest)
 
     def _set_blob_metadata(self, ud, metadata):
         # type: (Uploader, blobxfer.models.upload.Descriptor, dict) -> None
@@ -664,8 +667,9 @@ class Uploader(object):
         if needs_resize:
             self._resize_blob(ud, final_size)
         # set md5 page blob property if required
-        if ud.requires_non_encrypted_md5_put:
-            self._set_blob_md5(ud)
+        if (ud.requires_non_encrypted_md5_put or
+                ud.entity.cache_control is not None):
+            self._set_blob_properties(ud)
         # set metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             self._set_blob_metadata(ud, metadata)
@@ -680,10 +684,15 @@ class Uploader(object):
         # set md5 file property if required
         if ud.requires_non_encrypted_md5_put:
             digest = blobxfer.util.base64_encode_as_string(ud.md5.digest())
-            blobxfer.operations.azure.file.set_file_md5(ud.entity, digest)
+        else:
+            digest = None
+        if digest is not None or ud.entity.cache_control is not None:
+            blobxfer.operations.azure.file.set_file_properties(
+                ud.entity, digest)
             if blobxfer.util.is_not_empty(ud.entity.replica_targets):
                 for ase in ud.entity.replica_targets:
-                    blobxfer.operations.azure.file.set_file_md5(ase, digest)
+                    blobxfer.operations.azure.file.set_file_properties(
+                        ase, digest)
         # set file metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             blobxfer.operations.azure.file.set_file_metadata(
@@ -894,6 +903,10 @@ class Uploader(object):
                 ase.populate_from_file(sa, fp, dir)
             else:
                 ase.populate_from_blob(sa, fp)
+                # always overwrite cache control with option
+                ase.cache_control = (
+                    self._spec.options.store_file_properties.cache_control
+                )
                 # overwrite tier with specified storage tier
                 if ase.mode == blobxfer.models.azure.StorageModes.Block:
                     ase.access_tier = self._spec.options.access_tier
@@ -945,7 +958,8 @@ class Uploader(object):
                 # encryption metadata will be populated later, if required
                 ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 ase.populate_from_local(
-                    sa, cont, name, self._spec.options.mode)
+                    sa, cont, name, self._spec.options.mode,
+                    self._spec.options.store_file_properties.cache_control)
                 if ase.mode == blobxfer.models.azure.StorageModes.Block:
                     ase.access_tier = self._spec.options.access_tier
             yield sa, ase
@@ -1002,7 +1016,8 @@ class Uploader(object):
                     sase = blobxfer.models.azure.StorageEntity(
                         ase.container, ed=None)
                     sase.populate_from_local(
-                        sa, ase.container, name, self._spec.options.mode)
+                        sa, ase.container, name, self._spec.options.mode,
+                        self._spec.options.store_file_properties.cache_control)
                     if sase.mode == blobxfer.models.azure.StorageModes.Block:
                         sase.access_tier = self._spec.options.access_tier
                 slice_map[i] = sase

@@ -180,6 +180,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control='cc',
                     lmt=None,
                     md5=True,
                 ),
@@ -211,6 +212,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control='cc',
                     lmt=None,
                     md5=True,
                 ),
@@ -242,6 +244,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control='cc',
                     lmt=None,
                     md5=True,
                 ),
@@ -271,6 +274,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control='cc',
                     lmt=None,
                     md5=True,
                 ),
@@ -300,6 +304,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control='cc',
                     lmt=None,
                     md5=True,
                 ),
@@ -329,6 +334,7 @@ def test_specification(tmpdir):
                 stdin_as_page_blob_size=0,
                 store_file_properties=options.FileProperties(
                     attributes=True,
+                    cache_control=None,
                     lmt=None,
                     md5=True,
                 ),
@@ -357,6 +363,7 @@ def test_specification(tmpdir):
             stdin_as_page_blob_size=0,
             store_file_properties=options.FileProperties(
                 attributes=True,
+                cache_control=None,
                 lmt=None,
                 md5=True,
             ),

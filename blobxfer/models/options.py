@@ -75,6 +75,7 @@ SkipOn = collections.namedtuple(
 FileProperties = collections.namedtuple(
     'FileProperties', [
         'attributes',
+        'cache_control',
         'lmt',
         'md5',
     ]

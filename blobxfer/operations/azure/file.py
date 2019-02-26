@@ -368,9 +368,9 @@ def put_file_range(ase, offsets, data, timeout=None):
         timeout=timeout)
 
 
-def set_file_md5(ase, md5, timeout=None):
+def set_file_properties(ase, md5, timeout=None):
     # type: (blobxfer.models.azure.StorageEntity, str, int) -> None
-    """Set file properties MD5
+    """Set file properties
     :param blobxfer.models.azure.StorageEntity ase: Azure StorageEntity
     :param str md5: md5 as base64
     :param int timeout: timeout
@@ -383,6 +383,7 @@ def set_file_md5(ase, md5, timeout=None):
         content_settings=azure.storage.file.models.ContentSettings(
             content_type=blobxfer.util.get_mime_type(fpath),
             content_md5=md5,
+            cache_control=ase.cache_control,
         ),
         timeout=timeout)
 

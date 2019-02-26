@@ -487,17 +487,18 @@ class SyncCopy(object):
                 blobxfer.operations.azure.blob.block.put_block_list(
                     ase, sd.last_block_num, digest, metadata)
 
-    def _set_blob_md5(self, sd, digest):
+    def _set_blob_properties(self, sd, digest):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor, str) -> None
-        """Set blob MD5
+        """Set blob properties (md5, cache control)
         :param SyncCopy self: this
         :param blobxfer.models.synccopy.Descriptor sd: synccopy descriptor
         :param str digest: md5 digest
         """
-        blobxfer.operations.azure.blob.set_blob_md5(sd.dst_entity, digest)
+        blobxfer.operations.azure.blob.set_blob_properties(
+            sd.dst_entity, digest)
         if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
             for ase in sd.dst_entity.replica_targets:
-                blobxfer.operations.azure.blob.set_blob_md5(ase, digest)
+                blobxfer.operations.azure.blob.set_blob_properties(ase, digest)
 
     def _set_blob_metadata(self, sd, metadata):
         # type: (SyncCopy, blobxfer.models.synccopy.Descriptor, dict) -> None
@@ -523,8 +524,9 @@ class SyncCopy(object):
         :param str digest: md5 digest
         """
         # set md5 page blob property if required
-        if blobxfer.util.is_not_empty(digest):
-            self._set_blob_md5(sd, digest)
+        if (blobxfer.util.is_not_empty(digest) or
+                sd.dst_entity.cache_control is not None):
+            self._set_blob_properties(sd, digest)
         # set metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             self._set_blob_metadata(sd, metadata)
@@ -538,12 +540,15 @@ class SyncCopy(object):
         :param dict metadata: metadata dict
         :param str digest: md5 digest
         """
-        # set md5 file property if required
-        if blobxfer.util.is_not_empty(digest):
-            blobxfer.operations.azure.file.set_file_md5(sd.dst_entity, digest)
+        # set file properties if required
+        if (blobxfer.util.is_not_empty(digest) or
+                sd.dst_entity.cache_control is not None):
+            blobxfer.operations.azure.file.set_file_properties(
+                sd.dst_entity, digest)
             if blobxfer.util.is_not_empty(sd.dst_entity.replica_targets):
                 for ase in sd.dst_entity.replica_targets:
-                    blobxfer.operations.azure.file.set_file_md5(ase, digest)
+                    blobxfer.operations.azure.file.set_file_properties(
+                        ase, digest)
         # set file metadata if needed
         if blobxfer.util.is_not_empty(metadata):
             blobxfer.operations.azure.file.set_file_metadata(
@@ -705,7 +710,8 @@ class SyncCopy(object):
             dst_ase = self._check_for_existing_remote(sa, cont, name, dst_mode)
             if dst_ase is None:
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
-                dst_ase.populate_from_local(sa, cont, name, dst_mode)
+                dst_ase.populate_from_local(
+                    sa, cont, name, dst_mode, src_ase.cache_control)
                 dst_ase.size = src_ase.size
             # overwrite tier with specified storage tier
             if (dst_mode == blobxfer.models.azure.StorageModes.Block and

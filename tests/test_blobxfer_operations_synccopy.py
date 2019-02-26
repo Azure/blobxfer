@@ -470,8 +470,8 @@ def test_finalize_block_blob(pbl):
     assert pbl.call_count == 2
 
 
-@mock.patch('blobxfer.operations.azure.blob.set_blob_md5')
-def test_set_blob_md5(sbm):
+@mock.patch('blobxfer.operations.azure.blob.set_blob_properties')
+def test_set_blob_properties(sbp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
 
@@ -486,8 +486,8 @@ def test_set_blob_md5(sbm):
     sd = mock.MagicMock()
     sd.dst_entity = ase
 
-    s._set_blob_md5(sd, mock.MagicMock())
-    assert sbm.call_count == 2
+    s._set_blob_properties(sd, mock.MagicMock())
+    assert sbp.call_count == 2
 
 
 @mock.patch('blobxfer.operations.azure.blob.set_blob_metadata')
@@ -514,17 +514,17 @@ def test_finalize_nonblock_blob():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
 
-    s._set_blob_md5 = mock.MagicMock()
+    s._set_blob_properties = mock.MagicMock()
     s._set_blob_metadata = mock.MagicMock()
 
     s._finalize_nonblock_blob(mock.MagicMock(), {'a': 0}, 'digest')
-    assert s._set_blob_md5.call_count == 1
+    assert s._set_blob_properties.call_count == 1
     assert s._set_blob_metadata.call_count == 1
 
 
-@mock.patch('blobxfer.operations.azure.file.set_file_md5')
+@mock.patch('blobxfer.operations.azure.file.set_file_properties')
 @mock.patch('blobxfer.operations.azure.file.set_file_metadata')
-def test_finalize_azure_file(sfmeta, sfmd5):
+def test_finalize_azure_file(sfmeta, sfp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
 
@@ -539,7 +539,7 @@ def test_finalize_azure_file(sfmeta, sfmd5):
     sd.dst_entity = ase
 
     s._finalize_azure_file(sd, {'a': 0}, 'md5')
-    assert sfmd5.call_count == 2
+    assert sfp.call_count == 2
     assert sfmeta.call_count == 2
 
 
