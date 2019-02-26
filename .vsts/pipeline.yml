@@ -11,6 +11,7 @@ jobs:
           python.version: '3.7'
           PYENV_VERSION: '3.7.2'
           PYTOX_ENV: 'python3.7'
+          VENV_VERSION: '16.2.0'
     steps:
       - task: InstallPython@1
         inputs:
@@ -76,7 +77,7 @@ jobs:
           (Get-Content $fileverInfo).replace('{BUILDVER_DOTTED}', $env:BUILDVER_DOTTED) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{BRANCH_GITSHA1}', $branchGitSha1) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{EXE}', $env:ARTIFACT_CLI) | Set-Content $fileverInfo
-          python -m pip install virtualenv
+          python -m pip install virtualenv==$env:VENV_VERSION
           python -m virtualenv pyi
         displayName: Pre-build
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
@@ -126,6 +127,7 @@ jobs:
           python.version: '3.7'
           PYENV_VERSION: '3.7.2'
           PYTOX_ENV: 'py37'
+          VENV_VERSION: '16.2.0'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -201,7 +203,7 @@ jobs:
           set -e
           set -o pipefail
           ARTIFACT_CLI_PATH="bin/${ARTIFACT_CLI}"
-          $PIP install virtualenv
+          $PIP install virtualenv==${VENV_VERSION}
           $PYTHON -m virtualenv -p $PYTHON pyi
           /bin/bash -c \
           "set -e; source pyi/bin/activate; \
@@ -252,6 +254,7 @@ jobs:
           python.version: '3.7'
           PYENV_VERSION: '3.7.2'
           PYTOX_ENV: 'py37'
+          VENV_VERSION: '16.2.0'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -318,7 +321,7 @@ jobs:
           set -o pipefail
           echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH GIT_TAG=$GIT_TAG"
           ARTIFACT_CLI_PATH="bin/${ARTIFACT_CLI}"
-          $PIP install virtualenv
+          $PIP install virtualenv==${VENV_VERSION}
           $PYTHON -m virtualenv -p $PYTHON pyi
           /bin/bash -c \
           "set -e; source pyi/bin/activate; \

@@ -1,6 +1,6 @@
 # Dockerfile for Azure/blobxfer (Linux)
 
-FROM alpine:3.8
+FROM alpine:3.9
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ARG GIT_BRANCH
@@ -8,7 +8,7 @@ ARG GIT_COMMIT
 
 RUN apk update \
     && apk add --update --no-cache musl \
-        musl build-base python3 python3-dev libressl-dev libffi-dev \
+        musl build-base python3 python3-dev openssl-dev libffi-dev \
         ca-certificates git \
     && python3 -m pip install --upgrade pip \
     && pip3 install --upgrade setuptools \
@@ -21,7 +21,7 @@ RUN apk update \
     && cp LICENSE /BLOBXFER_LICENSE.txt \
     && cd / \
     && rm -rf blobxfer \
-    && apk del --purge build-base python3-dev libressl-dev libffi-dev git \
+    && apk del --purge build-base python3-dev openssl-dev libffi-dev git \
     && rm /var/cache/apk/*
 
 ENTRYPOINT ["blobxfer"]
