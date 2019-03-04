@@ -77,7 +77,14 @@ jobs:
           (Get-Content $fileverInfo).replace('{BUILDVER_DOTTED}', $env:BUILDVER_DOTTED) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{BRANCH_GITSHA1}', $branchGitSha1) | Set-Content $fileverInfo
           (Get-Content $fileverInfo).replace('{EXE}', $env:ARTIFACT_CLI) | Set-Content $fileverInfo
-          python -m pip install virtualenv==$env:VENV_VERSION
+          if(Test-Path env:VENV_VERSION)
+          {
+            python -m pip install virtualenv==$env:VENV_VERSION
+          }
+          else
+          {
+            python -m pip install virtualenv
+          }
           python -m virtualenv pyi
         displayName: Pre-build
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
@@ -203,7 +210,11 @@ jobs:
           set -e
           set -o pipefail
           ARTIFACT_CLI_PATH="bin/${ARTIFACT_CLI}"
-          $PIP install virtualenv==${VENV_VERSION}
+          if [ -z "$VENV_VERSION" ]; then
+            $PIP install virtualenv
+          else
+            $PIP install virtualenv==${VENV_VERSION}
+          fi
           $PYTHON -m virtualenv -p $PYTHON pyi
           /bin/bash -c \
           "set -e; source pyi/bin/activate; \
@@ -321,7 +332,11 @@ jobs:
           set -o pipefail
           echo "ARTIFACT_CLI=$ARTIFACT_CLI ARTIFACT_UPLOAD_PATH=$ARTIFACT_UPLOAD_PATH GIT_TAG=$GIT_TAG"
           ARTIFACT_CLI_PATH="bin/${ARTIFACT_CLI}"
-          $PIP install virtualenv==${VENV_VERSION}
+          if [ -z "$VENV_VERSION" ]; then
+            $PIP install virtualenv
+          else
+            $PIP install virtualenv==${VENV_VERSION}
+          fi
           $PYTHON -m virtualenv -p $PYTHON pyi
           /bin/bash -c \
           "set -e; source pyi/bin/activate; \
