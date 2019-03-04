@@ -485,6 +485,7 @@ def test_azuresourcepath_blobs(patched_gbp, patched_lb, patched_em):
     sa.block_blob_client = mock.MagicMock()
     creds.get_storage_account.return_value = sa
     b = azure.storage.blob.models.Blob(name='name')
+    b.metadata = {}
     patched_lb.side_effect = [[b]]
     patched_em.encryption_metadata_exists = mock.MagicMock()
     patched_em.encryption_metadata_exists.return_value = False
@@ -502,6 +503,16 @@ def test_azuresourcepath_blobs(patched_gbp, patched_lb, patched_em):
         assert file.name == 'name'
         assert file.encryption_metadata is None
     assert i == 1
+
+    # test normal path with metadata vdir sep
+    b.metadata[azops._METADATA_VIRTUAL_DIRECTORY] = 'true'
+    patched_lb.side_effect = [[b]]
+    i = 0
+    for file in asp.files(creds, options, False):
+        i += 1
+    assert i == 0
+
+    b.metadata = {}
 
     # test no container list perm
     sa.can_list_container_objects = False

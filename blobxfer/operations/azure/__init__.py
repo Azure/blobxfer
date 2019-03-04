@@ -47,6 +47,8 @@ import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
+# global defines
+_METADATA_VIRTUAL_DIRECTORY = 'hdi_isfolder'
 
 
 class StorageCredentials(object):
@@ -640,6 +642,14 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                 for blob in blobxfer.operations.azure.blob.list_blobs(
                         sa.block_blob_client, cont, dir, options.mode,
                         options.recursive):
+                    # check for virtual directory placeholder
+                    if not is_synccopy:
+                        try:
+                            if (blob.metadata[
+                                    _METADATA_VIRTUAL_DIRECTORY] == 'true'):
+                                continue
+                        except KeyError:
+                            pass
                     if not self._inclusion_check(blob.name):
                         if dry_run:
                             logger.info(

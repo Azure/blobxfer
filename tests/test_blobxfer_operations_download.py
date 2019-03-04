@@ -1102,6 +1102,7 @@ def test_start(
 
     b = azure.storage.blob.models.Blob(name='remote/path/name')
     b.properties.content_length = 1
+    b.metadata = {}
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Skip
@@ -1156,6 +1157,7 @@ def test_start(
 
     # test exception count
     b = azure.storage.blob.models.Blob(name='name')
+    b.metadata = {}
     b.properties.content_length = 1
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
