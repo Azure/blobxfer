@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.7.1] - 2019-03-04
+### Changed
+- Updated dependencies
+
+### Fixed
+- Directories created with [blobfuse](https://github.com/Azure/azure-storage-fuse)
+would conflict with files nested under these directories due to zero-byte
+blobs acting as virtual directory placeholders
+([#92](https://github.com/Azure/blobxfer/issues/92)). These blobs are
+now skipped for download operations.
+
 ## [1.7.0] - 2019-02-26
 ### Added
 - Support ability to set the Cache Control property
@@ -460,7 +471,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.7.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.7.1...HEAD
+[1.7.1]: https://github.com/Azure/blobxfer/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/Azure/blobxfer/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/Azure/blobxfer/compare/1.5.5...1.6.0
 [1.5.5]: https://github.com/Azure/blobxfer/compare/1.5.4...1.5.5
