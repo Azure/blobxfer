@@ -94,7 +94,9 @@ optionally provided through an environment variable `BLOBXFER_CONFIG_FILE`.
 is the maximum length of data to transfer per request. For uploads, this
 corresponds to one of block size for append and block blobs, page size for
 page blobs, or file chunk for files. Only block blobs can have a block size
-of up to 100MiB, all others have a maximum of 4MiB.
+of up to 100MiB, all others have a maximum of 4MiB. Please see the
+[performance considerations](98-performance-considerations.md) document
+for important information regarding this option.
 * `--dry-run` will not perform any actual download, upload or synccopy
 operations and instead will log intent.
 * `--enable-azure-storage-logger` enables the Azure Storage logger.

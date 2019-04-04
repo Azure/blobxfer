@@ -30,7 +30,11 @@ are not artificially blocked.
 
 ## Chunk Sizing
 Chunk sizing refers to the `chunk_size_bytes` option and the meaning of which
-varies upon the context of uploading or downloading.
+varies upon the context of uploading or downloading. To ensure that
+[high-throughput block blob](https://azure.microsoft.com/blog/high-throughput-with-azure-blob-storage/)
+upload speeds are enabled (only for block blobs), your chunk size should be
+greater than 4MiB. With default chunk sizes, this behavior should be enabled
+automatically.
 
 ## Timeouts
 `blobxfer` uses two timeout values, a connect timeout and a read timeout.
@@ -49,10 +53,11 @@ For block blobs, setting the chunk size to something greater than 4MiB will
 not only allow you larger file sizes (recall that the maximum number of
 blocks for a block blob is 50000, thus at 100MiB blocks, you can create a
 4.768TiB block blob object) but will allow you to amortize larger portions of
-data transfer over each request/response overhead. `blobxfer` can
-automatically select the proper block size given your file, but will not
-automatically tune the chunk size as that depends upon your system and
-network characteristics.
+data transfer over each request/response overhead. Additionally, this will
+activate HTBB (please see chunk size above) for high throughput transfers.
+`blobxfer` can automatically select the proper block size given your file,
+but will not automatically tune the chunk size as that depends upon your
+system, network characteristics, and source storage scalability targets.
 
 ### Downloads
 For downloads, chunk sizes correspond to the maximum amount of data to
@@ -66,6 +71,11 @@ Additionally, disk write performance is typically lower than disk read
 performance so you need to ensure that the number of `disk_threads` is not
 set to a very large number to prevent thrashing and highly random write
 patterns.
+
+### Synccopy
+For sync copy sources which are block blobs, the block size will determine
+the chunk size. Thus, block blobs with block sizes which fall below the
+HTBB chunk size cut off will not be eligible for HTBB throughput speeds.
 
 ## Azure File Share Performance
 File share performance can be "slow" or become a bottleneck, especially for
