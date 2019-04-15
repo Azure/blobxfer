@@ -36,6 +36,7 @@ def test_output_parameters():
             restore_file_properties=options.FileProperties(
                 attributes=False,
                 cache_control=None,
+                content_type=None,
                 lmt=False,
                 md5=None,
             ),
@@ -67,6 +68,39 @@ def test_output_parameters():
             store_file_properties=options.FileProperties(
                 attributes=True,
                 cache_control='cc',
+                content_type='ct',
+                lmt=None,
+                md5=True,
+            ),
+            strip_components=0,
+            vectored_io=None,
+        ),
+        skip_on_options=options.SkipOn(
+            filesize_match=True,
+            lmt_ge=False,
+            md5_match=True,
+        ),
+        local_source_path=mock.MagicMock()
+    )
+    ops.output_parameters(go, spec)
+    assert util.is_not_empty(go.log_file)
+
+    spec = modelsul.Specification(
+        upload_options=options.Upload(
+            access_tier='cool',
+            chunk_size_bytes=4194304,
+            delete_extraneous_destination=False,
+            mode=azmodels.StorageModes.Auto,
+            one_shot_bytes=0,
+            overwrite=True,
+            recursive=True,
+            rename=False,
+            rsa_public_key=None,
+            stdin_as_page_blob_size=0,
+            store_file_properties=options.FileProperties(
+                attributes=True,
+                cache_control=None,
+                content_type=None,
                 lmt=None,
                 md5=True,
             ),

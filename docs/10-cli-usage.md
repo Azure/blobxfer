@@ -287,9 +287,15 @@ resource on downloads. This actions occur after the transfer has taken place,
 similarly to rsync's delete after option. Note that this interacts with other
 filters such as `--include` and `--exclude`.
 * `--file-cache-control` sets the
-[cache control](https://docs.microsoft.com/azure/cdn/cdn-manage-expiration-of-blob-content)
+[CacheControl](https://docs.microsoft.com/azure/cdn/cdn-manage-expiration-of-blob-content)
 property on the destination entity on upload operations. Note that if an
-existing file is not uploaded due to a skip option, but a cache control
+existing file is not uploaded due to a skip option, but the cache control
+setting differs, the target is not updated. To override this behavior,
+either delete the target object or do not specify a skip condition.
+* `--file-content-type` sets the `ContentType`
+property on the destination entity on upload operations. By default, if this
+option is not specified, the content type is guessed from the file. Note that
+if an existing file is not uploaded due to a skip option, but the content type
 setting differs, the target is not updated. To override this behavior,
 either delete the target object or do not specify a skip condition.
 * `--one-shot-bytes` controls the number of bytes to "one shot" a block

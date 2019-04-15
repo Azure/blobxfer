@@ -221,6 +221,7 @@ upload:
           store_file_properties:
               attributes: true
               cache_control: 'max-age=3600'
+              content_type: 'text/javascript; charset=utf-8'
               md5: true
           strip_components: 1
           vectored_io:
@@ -263,7 +264,8 @@ upload:
       `mode` is `page`
     * `store_file_properties` stores the following file properties if enabled
         * `attributes` will store POSIX file mode and ownership
-        * `cache_control` sets the Cache Control property
+        * `cache_control` sets the CacheControl property
+        * `content_type` sets the ContentType property
         * `md5` will store the MD5 of the file
     * `strip_components` is the number of leading path components to strip
       from the local path

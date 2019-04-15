@@ -903,13 +903,17 @@ class Uploader(object):
                 ase.populate_from_file(sa, fp, dir)
             else:
                 ase.populate_from_blob(sa, fp)
-                # always overwrite cache control with option
-                ase.cache_control = (
-                    self._spec.options.store_file_properties.cache_control
-                )
                 # overwrite tier with specified storage tier
                 if ase.mode == blobxfer.models.azure.StorageModes.Block:
                     ase.access_tier = self._spec.options.access_tier
+            # always overwrite cache control/content type with option
+            ase.cache_control = (
+                self._spec.options.store_file_properties.cache_control
+            )
+            ase.content_type = (
+                self._spec.options.store_file_properties.content_type or
+                blobxfer.util.get_mime_type(ase.name)
+            )
         else:
             ase = None
         return ase
@@ -959,7 +963,9 @@ class Uploader(object):
                 ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 ase.populate_from_local(
                     sa, cont, name, self._spec.options.mode,
-                    self._spec.options.store_file_properties.cache_control)
+                    self._spec.options.store_file_properties.cache_control,
+                    self._spec.options.store_file_properties.content_type,
+                )
                 if ase.mode == blobxfer.models.azure.StorageModes.Block:
                     ase.access_tier = self._spec.options.access_tier
             yield sa, ase
@@ -1017,7 +1023,9 @@ class Uploader(object):
                         ase.container, ed=None)
                     sase.populate_from_local(
                         sa, ase.container, name, self._spec.options.mode,
-                        self._spec.options.store_file_properties.cache_control)
+                        self._spec.options.store_file_properties.cache_control,
+                        self._spec.options.store_file_properties.content_type,
+                    )
                     if sase.mode == blobxfer.models.azure.StorageModes.Block:
                         sase.access_tier = self._spec.options.access_tier
                 slice_map[i] = sase

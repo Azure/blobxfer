@@ -73,6 +73,7 @@ def test_downloadspecification():
             restore_file_properties=options.FileProperties(
                 attributes=False,
                 cache_control=None,
+                content_type=None,
                 lmt=False,
                 md5=None,
             ),
@@ -114,6 +115,7 @@ def test_downloadspecification():
                 restore_file_properties=options.FileProperties(
                     attributes=False,
                     cache_control=None,
+                    content_type=None,
                     lmt=False,
                     md5=None,
                 ),
@@ -142,6 +144,7 @@ def test_downloadspecification():
                 restore_file_properties=options.FileProperties(
                     attributes=False,
                     cache_control=None,
+                    content_type=None,
                     lmt=False,
                     md5=None,
                 ),
@@ -176,6 +179,7 @@ def test_downloadspecification():
                     restore_file_properties=options.FileProperties(
                         attributes=True,
                         cache_control=None,
+                        content_type=None,
                         lmt=False,
                         md5=None,
                     ),

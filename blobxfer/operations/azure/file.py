@@ -342,7 +342,8 @@ def create_file(ase, timeout=None):
         file_name=fpath,
         content_length=ase.size,
         content_settings=azure.storage.file.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(fpath)
+            content_type=ase.content_type,
+            cache_control=ase.cache_control,
         ),
         timeout=timeout)
 
@@ -381,7 +382,7 @@ def set_file_properties(ase, md5, timeout=None):
         directory_name=dir,
         file_name=fpath,
         content_settings=azure.storage.file.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(fpath),
+            content_type=ase.content_type,
             content_md5=md5,
             cache_control=ase.cache_control,
         ),

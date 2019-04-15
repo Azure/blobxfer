@@ -39,6 +39,7 @@ except ImportError:  # noqa
 from azure.storage.blob.models import _BlobTypes as BlobTypes
 # local imports
 import blobxfer.models.metadata
+import blobxfer.util
 
 
 # enums
@@ -78,6 +79,7 @@ class StorageEntity(object):
         self._fileattr = None
         self._raw_metadata = None
         self._access_tier = None
+        self._content_type = None
         self.replica_targets = None
 
     @property
@@ -318,6 +320,25 @@ class StorageEntity(object):
         """
         self._access_tier = value
 
+    @property
+    def content_type(self):
+        # type: (StorageEntity) -> str
+        """Return content type
+        :param StorageEntity self: this
+        :rtype: str
+        :return: content type
+        """
+        return self._content_type
+
+    @content_type.setter
+    def content_type(self, value):
+        # type: (StorageEntity, str) -> None
+        """Set content type
+        :param StorageEntity self: this
+        :param str value: value
+        """
+        self._content_type = value
+
     def populate_from_blob(self, sa, blob, vio=None, store_raw_metadata=False):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.blob.models.Blob) -> None
@@ -341,6 +362,7 @@ class StorageEntity(object):
         self._size = blob.properties.content_length
         self._md5 = blob.properties.content_settings.content_md5
         self._cache_control = blob.properties.content_settings.cache_control
+        self._content_type = blob.properties.content_settings.content_type
         if blob.properties.blob_type == BlobTypes.AppendBlob:
             self._mode = StorageModes.Append
             self._client = sa.append_blob_client
@@ -383,12 +405,15 @@ class StorageEntity(object):
         self._size = file.properties.content_length
         self._md5 = file.properties.content_settings.content_md5
         self._cache_control = file.properties.content_settings.cache_control
+        self._content_type = file.properties.content_settings.content_type
         self._mode = StorageModes.File
         self._client = sa.file_client
 
-    def populate_from_local(self, sa, container, path, mode, cache_control):
+    def populate_from_local(
+            self, sa, container, path, mode, cache_control, content_type):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount
-        #        str, str, blobxfer.models.azure.StorageModes, str) -> None
+        #        str, str, blobxfer.models.azure.StorageModes, str,
+        #        str) -> None
         """Populate properties from local
         :param StorageEntity self: this
         :param blobxfer.operations.azure.StorageAccount sa: storage account
@@ -396,12 +421,14 @@ class StorageEntity(object):
         :param str path: full path to file
         :param blobxfer.models.azure.StorageModes mode: storage mode
         :param str cache_control: cache control
+        :param str content_type: content type
         """
         self._can_create_containers = sa.can_create_containers
         self._container = container
         self._name = path
         self._mode = mode
         self._cache_control = cache_control
+        self._content_type = content_type or blobxfer.util.get_mime_type(path)
         self._from_local = True
         if mode == StorageModes.Append:
             self._client = sa.append_blob_client

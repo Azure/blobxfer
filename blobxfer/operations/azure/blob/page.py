@@ -34,6 +34,7 @@ import logging
 import azure.storage.blob
 # local imports
 import blobxfer.retry
+import blobxfer.util
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -86,7 +87,7 @@ def create_blob(ase, timeout=None):
         blob_name=ase.name,
         content_length=blobxfer.util.page_align_content_length(ase.size),
         content_settings=azure.storage.blob.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(ase.name)
+            content_type=ase.content_type,
         ),
         timeout=timeout)  # noqa
 

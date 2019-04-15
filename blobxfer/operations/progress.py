@@ -216,10 +216,16 @@ def output_parameters(general_options, spec):
             spec.options.one_shot_bytes))
         log.append('         strip components: {}'.format(
             spec.options.strip_components))
+        if spec.options.store_file_properties.content_type is not None:
+            ct = '\'{}\''.format(
+                spec.options.store_file_properties.content_type)
+        else:
+            ct = '<mime>'
         log.append(
-            '         store properties: attr={} cc=\'{}\' md5={}'.format(
+            '         store properties: attr={} cc=\'{}\' ct={} '
+            'md5={}'.format(
                 spec.options.store_file_properties.attributes,
-                spec.options.store_file_properties.cache_control or '',
+                spec.options.store_file_properties.cache_control or '', ct,
                 spec.options.store_file_properties.md5))
         log.append('           rsa public key: {}'.format(
             'Loaded' if spec.options.rsa_public_key else 'None'))

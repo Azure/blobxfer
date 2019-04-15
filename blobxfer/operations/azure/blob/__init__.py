@@ -238,7 +238,7 @@ def set_blob_properties(ase, md5, timeout=None):
         container_name=ase.container,
         blob_name=ase.name,
         content_settings=azure.storage.blob.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_type=ase.content_type,
             content_md5=md5,
             cache_control=ase.cache_control,
         ),

@@ -90,7 +90,7 @@ def create_blob(ase, data, md5, metadata, timeout=None):
         blob_name=ase.name,
         blob=data,
         content_settings=azure.storage.blob.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_type=ase.content_type,
             content_md5=md5,
             cache_control=ase.cache_control,
         ),
@@ -148,7 +148,7 @@ def put_block_list(
         blob_name=ase.name,
         block_list=block_list,
         content_settings=azure.storage.blob.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(ase.name),
+            content_type=ase.content_type,
             content_md5=md5,
             cache_control=ase.cache_control,
         ),

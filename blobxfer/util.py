@@ -51,6 +51,7 @@ import future.utils
 
 # global defines
 MEGABYTE = 1048576
+_DEFAULT_MIME_TYPE = 'application/octet-stream'
 _ON_LINUX = platform.system() == 'Linux'
 _ON_WINDOWS = platform.system() == 'Windows'
 _REGISTERED_LOGGER_HANDLERS = []
@@ -229,7 +230,8 @@ def get_mime_type(filename):
     :rtype: str
     :rturn: string of form 'class/type' for MIME content-type header
     """
-    return (mimetypes.guess_type(filename)[0] or 'application/octet-stream')
+    # TODO extract encoding for ContentEncoding property
+    return mimetypes.guess_type(filename)[0] or _DEFAULT_MIME_TYPE
 
 
 def base64_encode_as_string(obj):  # noqa

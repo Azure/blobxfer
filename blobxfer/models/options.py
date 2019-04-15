@@ -76,6 +76,7 @@ FileProperties = collections.namedtuple(
     'FileProperties', [
         'attributes',
         'cache_control',
+        'content_type',
         'lmt',
         'md5',
     ]

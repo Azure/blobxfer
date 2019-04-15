@@ -711,7 +711,8 @@ class SyncCopy(object):
             if dst_ase is None:
                 dst_ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
                 dst_ase.populate_from_local(
-                    sa, cont, name, dst_mode, src_ase.cache_control)
+                    sa, cont, name, dst_mode, src_ase.cache_control,
+                    src_ase.content_type)
                 dst_ase.size = src_ase.size
             # overwrite tier with specified storage tier
             if (dst_mode == blobxfer.models.azure.StorageModes.Block and

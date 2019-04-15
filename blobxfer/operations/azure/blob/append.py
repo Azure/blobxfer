@@ -85,7 +85,7 @@ def create_blob(ase, timeout=None):
         container_name=ase.container,
         blob_name=ase.name,
         content_settings=azure.storage.blob.models.ContentSettings(
-            content_type=blobxfer.util.get_mime_type(ase.name)
+            content_type=ase.content_type,
         ),
         timeout=timeout)  # noqa
 
