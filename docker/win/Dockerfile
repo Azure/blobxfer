@@ -1,7 +1,7 @@
 # Dockerfile for Azure/blobxfer (Windows)
 # Adapted from: https://github.com/StefanScherer/dockerfiles-windows/blob/master/python/Dockerfile
 
-FROM python:3.7.2-windowsservercore-ltsc2016
+FROM python:3.7.3-windowsservercore-ltsc2016
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ENV chocolateyUseWindowsCompression false
@@ -29,8 +29,8 @@ COPY --from=0 /blobxfer/LICENSE /BLOBXFER_LICENSE.txt
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
-ENV PYTHON_VERSION 3.7.2
-ENV PYTHON_PIP_VERSION 18.1
+ENV PYTHON_VERSION 3.7.3
+ENV PYTHON_PIP_VERSION 19.0.3
 
 RUN $env:PATH = 'C:\Python;C:\Python\Scripts;{0}' -f $env:PATH ; \
     Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\' -Name Path -Value $env:PATH ; \

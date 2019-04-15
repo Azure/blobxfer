@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+- Support ability to set the Content Type property explicitly
+([#95](https://github.com/Azure/blobxfer/issues/95)). Specifying this
+option will override automatically inferring the MIME type of the file.
+
+### Changed
+- Updated dependencies
+- Binary builds are now built against Python 3.7.3
+- Windows Docker image uses Python 3.7.3
+
 ## [1.7.1] - 2019-03-04
 ### Changed
 - Updated dependencies
