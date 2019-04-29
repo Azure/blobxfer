@@ -39,6 +39,7 @@ import azure.storage.file
 import cryptography
 import requests
 # local imports
+import blobxfer.models.azure
 import blobxfer.models.download
 import blobxfer.models.synccopy
 import blobxfer.models.upload
@@ -176,6 +177,9 @@ def output_parameters(general_options, spec):
             spec.options.mode))
         log.append('                dest mode: {}'.format(
             spec.options.dest_mode))
+        if spec.options.dest_mode == blobxfer.models.azure.StorageModes.Block:
+            log.append('         server side copy: {}'.format(
+                spec.options.server_side_copy))
     else:
         log.append('                     mode: {}'.format(
             spec.options.mode))

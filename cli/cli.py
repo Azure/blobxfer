@@ -822,6 +822,19 @@ def _sas_option(f):
         callback=callback)(f)
 
 
+def _server_side_copy_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['server_side_copy'] = value
+        return value
+    return click.option(
+        '--server-side-copy/--no-server-side-copy',
+        expose_value=False,
+        default=None,
+        help='Copy source data within Azure Storage [True]',
+        callback=callback)(f)
+
+
 def _skip_on_filesize_match_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -1056,6 +1069,7 @@ def sync_copy_options(f):
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)
+    f = _server_side_copy_option(f)
     f = _sas_option(f)
     f = _remote_path_option(f)
     f = _overwrite_option(f)

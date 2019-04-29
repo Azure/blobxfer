@@ -316,6 +316,8 @@ class SyncCopy(object):
             if data is not None:
                 blobxfer.operations.azure.blob.append.append_block(ase, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
+            src_url = 'https://{}/{}'.format(sd.src_entity._client.primary_endpoint, sd.src_entity.path)
+            print(src_url, offsets.range_start, offsets.range_end, sd.is_one_shot_block_blob, sd.is_server_side_copyable)
             # handle one-shot uploads
             if sd.is_one_shot_block_blob:
                 if blobxfer.util.is_not_empty(sd.src_entity.md5):
@@ -324,6 +326,11 @@ class SyncCopy(object):
                     digest = None
                 blobxfer.operations.azure.blob.block.create_blob(
                     ase, data, digest, sd.src_entity.raw_metadata)
+                return
+            # server side copy
+            if sd.is_server_side_copyable:
+                blobxfer.operations.azure.blob.block.put_block_from_url(
+                    sd.src_entity, ase, offsets)
                 return
             # upload block
             if data is not None:
@@ -459,8 +466,13 @@ class SyncCopy(object):
             data = blobxfer.operations.azure.file.get_file_range(
                 sd.src_entity, offsets)
         else:
-            data = blobxfer.operations.azure.blob.get_blob_range(
-                sd.src_entity, offsets)
+            if sd.is_server_side_copyable:
+                data = None
+            elif offsets.range_start < offsets.range_end:
+                data = blobxfer.operations.azure.blob.get_blob_range(
+                    sd.src_entity, offsets)
+            else:
+                data = None
         # process data for upload
         self._process_data(sd, sd.dst_entity, offsets, data)
         # iterate replicas

@@ -120,6 +120,12 @@ class Descriptor(object):
         self._dst_ase = dst_ase
         self._src_block_list = block_list
         self._chunk_size = self._compute_chunk_size()
+        self._server_side_copy = options.server_side_copy
+        if (self._dst_ase.mode != blobxfer.models.azure.StorageModes.Block and
+                self._server_side_copy):
+            raise ValueError(
+                'Server side copy enabled with non-Block destination '
+                'mode: {}'.format(self._dst_ase.mode))
         # calculate the total number of ops required for transfer
         self._total_chunks = self._compute_total_chunks(self._chunk_size)
         self._outstanding_ops = self._total_chunks
@@ -226,6 +232,19 @@ class Descriptor(object):
         return self.dst_entity.mode == blobxfer.models.azure.StorageModes.Block
 
     @property
+    def is_server_side_copyable(self):
+        # type: (Descriptor) -> bool
+        """Is server side copyable
+        :param Descriptor self: this
+        :rtype: bool
+        :return: if source->destination is server side copyable
+        """
+        return (
+            self._server_side_copy and self.remote_is_block_blob and
+            self.src_entity.size > 0
+        )
+
+    @property
     def is_one_shot_block_blob(self):
         # type: (Descriptor) -> bool
         """Is one shot block blob
@@ -233,7 +252,15 @@ class Descriptor(object):
         :rtype: bool
         :return: if upload is a one-shot block blob
         """
-        return self.remote_is_block_blob and self._total_chunks == 1
+        if not self.remote_is_block_blob:
+            return False
+        if self._server_side_copy:
+            if self.dst_entity.size == 0:
+                return True
+            else:
+                return False
+        else:
+            return self._total_chunks == 1
 
     @property
     def requires_put_block_list(self):
@@ -243,7 +270,15 @@ class Descriptor(object):
         :rtype: bool
         :return: if finalize requires a put block list
         """
-        return self.remote_is_block_blob and self._total_chunks > 1
+        if not self.remote_is_block_blob:
+            return False
+        if self._server_side_copy:
+            if self.dst_entity.size == 0:
+                return False
+            else:
+                return True
+        else:
+            return self._total_chunks > 1
 
     @property
     def requires_access_tier_set(self):

@@ -29,6 +29,7 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip
 )
 # stdlib imports
+import datetime
 import logging
 # non-stdlib imports
 import azure.storage.blob
@@ -124,6 +125,40 @@ def put_block(ase, offsets, data, timeout=None):
         block=data,
         block_id=_format_block_id(offsets.chunk_num),
         validate_content=False,  # integrity is enforced with HTTPS
+        timeout=timeout)  # noqa
+
+
+def put_block_from_url(src_ase, dst_ase, offsets, timeout=None):
+    # type: (blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.azure.StorageEntity,
+    #        blobxfer.models.upload.Offsets, int) -> None
+    """Puts a block into remote blob
+    :param blobxfer.models.azure.StorageEntity src_ase:
+        Source Azure StorageEntity
+    :param blobxfer.models.azure.StorageEntity dst_ase:
+        Destination Azure StorageEntity
+    :param blobxfer.models.upload.Offsets offsets: upload offsets
+    :param int timeout: timeout
+    """
+    if blobxfer.util.is_not_empty(src_ase.client.account_key):
+        sas = src_ase.client.generate_blob_shared_access_signature(
+            container_name=src_ase.container,
+            blob_name=src_ase.name,
+            permission=azure.storage.blob.BlobPermissions(read=True),
+            expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+        )
+    else:
+        sas = src_ase.client.sas_token
+    src_url = 'https://{}/{}?{}'.format(
+        src_ase.client.primary_endpoint, src_ase.path, sas)
+    dst_ase.client.put_block_from_url(
+        container_name=dst_ase.container,
+        blob_name=dst_ase.name,
+        copy_source_url=src_url,
+        source_range_start=offsets.range_start,
+        source_range_end=offsets.range_end,
+        block_id=_format_block_id(offsets.chunk_num),
+        source_content_md5=None,
         timeout=timeout)  # noqa
 
 

@@ -200,6 +200,7 @@ def add_cli_options(cli_options, action):
                 'mode': cli_options.get('mode'),
                 'overwrite': cli_options.get('overwrite'),
                 'rename': cli_options.get('rename'),
+                'server_side_copy': cli_options.get('server_side_copy'),
                 'skip_on': {
                     'filesize_match': cli_options.get(
                         'skip_on_filesize_match'),
@@ -653,6 +654,9 @@ def create_synccopy_specifications(ctx_cli_options, config):
                     cli_options, conf_options, 'recursive', default=True),
                 rename=_merge_setting(
                     cli_options, conf_options, 'rename', default=False),
+                server_side_copy=_merge_setting(
+                    cli_options, conf_options, 'server_side_copy',
+                    default=True),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(
