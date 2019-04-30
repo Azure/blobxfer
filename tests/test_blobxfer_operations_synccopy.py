@@ -885,6 +885,7 @@ def test_run(srm, gbr, gfr):
     dst_ase.replica_targets = [dst_ase]
     with pytest.raises(RuntimeError):
         s._run()
+        s._synccopy_terminate = True
 
     # exception during worker thread
     s._synccopy_total = 2
@@ -893,6 +894,7 @@ def test_run(srm, gbr, gfr):
         s._process_synccopy_descriptor = mock.MagicMock()
         s._process_synccopy_descriptor.side_effect = RuntimeError()
         s._run()
+        s._synccopy_terminate = True
 
 
 def test_start():
@@ -904,7 +906,8 @@ def test_start():
 
     # test keyboard interrupt
     s._run.side_effect = KeyboardInterrupt()
-    s.start()
+    with pytest.raises(KeyboardInterrupt):
+        s.start()
 
     assert s._run.call_count == 1
     assert s._wait_for_transfer_threads.call_count == 1
@@ -912,4 +915,18 @@ def test_start():
 
     # test other exception
     s._run.side_effect = RuntimeError()
-    s.start()
+    with pytest.raises(RuntimeError):
+        s.start()
+
+    assert s._run.call_count == 2
+    assert s._wait_for_transfer_threads.call_count == 2
+    assert s._resume.close.call_count == 2
+
+    with pytest.raises(RuntimeError):
+        s._wait_for_transfer_threads = mock.MagicMock(
+            side_effect=RuntimeError('oops'))
+        s.start()
+
+    assert s._run.call_count == 3
+    assert s._wait_for_transfer_threads.call_count == 1
+    assert s._resume.close.call_count == 3

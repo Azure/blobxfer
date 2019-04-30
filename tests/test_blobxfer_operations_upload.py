@@ -1227,6 +1227,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.rename = True
     with pytest.raises(RuntimeError):
         u._run()
+        u._upload_terminate = True
         assert urm.call_count == 0
         assert lfmo.call_count == 0
         assert lfmo.initialize_check_thread.call_count == 0
@@ -1282,6 +1283,7 @@ def test_run(lfmo, urm, tmpdir):
         u._spec.sources.files.return_value = [lp]
 
         u._run()
+        u._upload_terminate = True
         assert urm.call_count == 1
         assert lfmo.call_count == 1
         assert u._md5_offload.initialize_check_thread.call_count == 1
@@ -1300,10 +1302,12 @@ def test_run(lfmo, urm, tmpdir):
 
     with pytest.raises(RuntimeError):
         u._run()
+        u._upload_terminate = True
 
     u._check_upload_conditions.return_value = ops.UploadAction.CheckMd5
     with pytest.raises(RuntimeError):
         u._run()
+        u._upload_terminate = True
 
     # regular execution
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
@@ -1434,6 +1438,7 @@ def test_run(lfmo, urm, tmpdir):
         u._process_upload_descriptor = mock.MagicMock()
         u._process_upload_descriptor.side_effect = RuntimeError()
         u._run()
+        u._upload_terminate = True
 
 
 def test_start():
@@ -1450,7 +1455,8 @@ def test_start():
 
     # test keyboard interrupt
     u._run.side_effect = KeyboardInterrupt()
-    u.start()
+    with pytest.raises(KeyboardInterrupt):
+        u.start()
 
     assert u._run.call_count == 1
     assert u._wait_for_transfer_threads.call_count == 1
@@ -1461,4 +1467,26 @@ def test_start():
 
     # test other exception
     u._run.side_effect = RuntimeError()
-    u.start()
+    with pytest.raises(RuntimeError):
+        u.start()
+
+    assert u._run.call_count == 2
+    assert u._wait_for_transfer_threads.call_count == 2
+    assert u._wait_for_disk_threads.call_count == 2
+    assert u._md5_offload.finalize_processes.call_count == 2
+    assert u._crypto_offload.finalize_processes.call_count == 2
+    assert u._resume.close.call_count == 2
+
+    u._run.side_effect = RuntimeError()
+    with pytest.raises(RuntimeError):
+        u._wait_for_transfer_threads = mock.MagicMock(
+            side_effect=RuntimeError('oops'))
+        u._upload_terminate = True
+        u.start()
+
+    assert u._run.call_count == 3
+    assert u._wait_for_transfer_threads.call_count == 1
+    assert u._wait_for_disk_threads.call_count == 2
+    assert u._md5_offload.finalize_processes.call_count == 3
+    assert u._crypto_offload.finalize_processes.call_count == 3
+    assert u._resume.close.call_count == 3

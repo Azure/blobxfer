@@ -953,6 +953,22 @@ def test_worker_thread_disk():
         d._worker_thread_disk()
         assert len(d._exceptions) == 1
 
+    with mock.patch(
+            'blobxfer.operations.download.Downloader.termination_check',
+            new_callable=mock.PropertyMock) as patched_tc:
+        d = ops.Downloader(
+            mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+        d._general_options.dry_run = False
+        d._general_options.concurrency.disk_threads = 1
+
+        d._disk_queue = mock.MagicMock()
+        d._disk_queue.get.side_effect = queue.Empty()
+        d._process_data = mock.MagicMock()
+        patched_tc.side_effect = [False, True]
+
+        d._worker_thread_disk()
+        assert d._process_data.call_count == 0
+
 
 def test_cleanup_temporary_files(tmpdir):
     lp = pathlib.Path(str(tmpdir.join('a')))
@@ -1052,6 +1068,7 @@ def _create_downloader_for_start(td):
     d._general_options.dry_run = False
     d._cleanup_temporary_files = mock.MagicMock()
     d._download_start = datetime.datetime.now(tz=dateutil.tz.tzlocal())
+    d._initialize_disk_threads = mock.MagicMock()
     d._initialize_transfer_threads = mock.MagicMock()
     d._general_options.concurrency.crypto_processes = 1
     d._general_options.concurrency.md5_processes = 1
@@ -1132,16 +1149,18 @@ def test_start(
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.CheckMd5
     d._download_sofar = -1
-    d.start()
-    d._download_terminate = True
+    with pytest.raises(RuntimeError):
+        d.start()
+        d._download_terminate = True
     assert d._pre_md5_skip_on_check.call_count == 1
 
     b.properties.content_length = 0
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Download
-    d.start()
-    d._download_terminate = True
+    with pytest.raises(RuntimeError):
+        d.start()
+        d._download_terminate = True
     assert d._transfer_queue.qsize() == 1
     dd = d._transfer_queue.get()
     assert 'remote' in dd.final_path.parts
@@ -1151,8 +1170,9 @@ def test_start(
     d = _create_downloader_for_start(tmpdir)
     d._check_download_conditions.return_value = ops.DownloadAction.Download
     d._spec.options.strip_components = 1
-    d.start()
-    d._download_terminate = True
+    with pytest.raises(RuntimeError):
+        d.start()
+        d._download_terminate = True
     assert d._transfer_queue.qsize() == 1
     dd = d._transfer_queue.get()
     assert 'remote' not in dd.final_path.parts
@@ -1175,8 +1195,9 @@ def test_start(
     d._spec.options.rename = True
     d._check_download_conditions.return_value = ops.DownloadAction.Skip
     d._exceptions = [RuntimeError('oops')]
-    d.start()
-    d._download_terminate = True
+    with pytest.raises(RuntimeError):
+        d.start()
+        d._download_terminate = True
     assert d._pre_md5_skip_on_check.call_count == 0
 
 
@@ -1185,13 +1206,24 @@ def test_start_exception():
     d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._run = mock.MagicMock(side_effect=RuntimeError('oops'))
+    d._wait_for_disk_threads = mock.MagicMock()
     d._wait_for_transfer_threads = mock.MagicMock()
     d._cleanup_temporary_files = mock.MagicMock()
     d._md5_offload = mock.MagicMock()
 
-    d.start()
+    with pytest.raises(RuntimeError):
+        d.start()
+    assert d._wait_for_disk_threads.call_count == 1
     assert d._wait_for_transfer_threads.call_count == 1
     assert d._cleanup_temporary_files.call_count == 1
+
+    with pytest.raises(RuntimeError):
+        d._wait_for_transfer_threads = mock.MagicMock(
+            side_effect=RuntimeError('oops'))
+        d.start()
+    assert d._wait_for_disk_threads.call_count == 2
+    assert d._wait_for_transfer_threads.call_count == 1
+    assert d._cleanup_temporary_files.call_count == 2
 
 
 def test_start_keyboard_interrupt():
@@ -1199,10 +1231,12 @@ def test_start_keyboard_interrupt():
     d._general_options.dry_run = False
     d._general_options.resume_file = None
     d._run = mock.MagicMock(side_effect=KeyboardInterrupt)
+    d._wait_for_disk_threads = mock.MagicMock()
     d._wait_for_transfer_threads = mock.MagicMock()
     d._cleanup_temporary_files = mock.MagicMock()
     d._md5_offload = mock.MagicMock()
 
-    d.start()
+    with pytest.raises(KeyboardInterrupt):
+        d.start()
     assert d._wait_for_transfer_threads.call_count == 1
     assert d._cleanup_temporary_files.call_count == 1

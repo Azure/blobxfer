@@ -1262,14 +1262,18 @@ class Uploader(object):
                 self._general_options, self._spec)
             self._run()
         except (KeyboardInterrupt, Exception) as ex:
+            logger.exception(ex)
             if isinstance(ex, KeyboardInterrupt):
                 logger.info(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
-            else:
-                logger.exception(ex)
-            self._wait_for_transfer_threads(terminate=True)
-            self._wait_for_disk_threads(terminate=True)
+            try:
+                self._wait_for_transfer_threads(terminate=True)
+                self._wait_for_disk_threads(terminate=True)
+            except Exception as tex:
+                logger.exception(tex)
+            finally:
+                raise ex
         finally:
             # shutdown processes
             if self._md5_offload is not None:

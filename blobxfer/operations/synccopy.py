@@ -886,13 +886,17 @@ class SyncCopy(object):
                 self._general_options, self._spec)
             self._run()
         except (KeyboardInterrupt, Exception) as ex:
+            logger.exception(ex)
             if isinstance(ex, KeyboardInterrupt):
                 logger.info(
                     'KeyboardInterrupt detected, force terminating '
                     'processes and threads (this may take a while)...')
-            else:
-                logger.exception(ex)
-            self._wait_for_transfer_threads(terminate=True)
+            try:
+                self._wait_for_transfer_threads(terminate=True)
+            except Exception as tex:
+                logger.exception(tex)
+            finally:
+                raise ex
         finally:
             # close resume file
             if self._resume is not None:
