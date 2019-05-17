@@ -245,7 +245,8 @@ class SyncCopy(object):
         # prepare remote file for download
         # if remote file is a block blob, need to retrieve block list
         if (src_ase.mode == dst_ase.mode ==
-                blobxfer.models.azure.StorageModes.Block):
+                blobxfer.models.azure.StorageModes.Block and
+                not src_ase.is_arbitrary_url):
             bl = blobxfer.operations.azure.blob.block.get_committed_block_list(
                 src_ase)
         else:
@@ -316,8 +317,6 @@ class SyncCopy(object):
             if data is not None:
                 blobxfer.operations.azure.blob.append.append_block(ase, data)
         elif ase.mode == blobxfer.models.azure.StorageModes.Block:
-            src_url = 'https://{}/{}'.format(sd.src_entity._client.primary_endpoint, sd.src_entity.path)
-            print(src_url, offsets.range_start, offsets.range_end, sd.is_one_shot_block_blob, sd.is_server_side_copyable)
             # handle one-shot uploads
             if sd.is_one_shot_block_blob:
                 if blobxfer.util.is_not_empty(sd.src_entity.md5):
@@ -605,8 +604,8 @@ class SyncCopy(object):
         :rtype: SynccopyAction
         :return: synccopy action
         """
-        # if remote file doesn't exist, copy
-        if dst is None or dst.from_local:
+        # if src is arbitrary or remote file doesn't exist, copy
+        if src.is_arbitrary_url or dst is None or dst.from_local:
             return SynccopyAction.Copy
         # check overwrite option
         if not self._spec.options.overwrite:
@@ -716,7 +715,11 @@ class SyncCopy(object):
                     raise RuntimeError(
                         'attempting rename multiple files to a directory')
             else:
-                name = str(pathlib.Path(name) / src_ase.name)
+                if src_ase.is_arbitrary_url:
+                    tmp = '/'.join(src_ase.name.split('/')[3:])
+                    name = str(pathlib.Path(name) / tmp)
+                else:
+                    name = str(pathlib.Path(name) / src_ase.name)
             # translate source mode to dest mode
             dst_mode = self._translate_src_mode_to_dst_mode(src_ase.mode)
             dst_ase = self._check_for_existing_remote(sa, cont, name, dst_mode)
@@ -856,7 +859,7 @@ class SyncCopy(object):
         self._update_progress_bar()
         # check for exceptions
         if len(self._exceptions) > 0:
-            logger.error('exceptions encountered while downloading')
+            logger.error('exceptions encountered during synccopy')
             # raise the first one
             raise self._exceptions[0]
         # check for mismatches

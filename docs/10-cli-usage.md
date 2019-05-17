@@ -53,7 +53,8 @@ configuration file:
 the Authentication sub-section below under Options.
 
 ### `synccopy`
-Synchronously copies remote Azure paths to other remote Azure paths. This
+Synchronously copies remote paths (Azure or arbitrary URLs) to other remote
+Azure paths. By default, copies occur on the Azure Storage servers. This
 command requires at the minimum, the following options if invoked without
 a YAML configuration file:
 
@@ -64,8 +65,11 @@ a YAML configuration file:
         * `--mode` specifies the source Azure Storage mode. This defaults
           to `auto` which will source from Azure Blob storage (any blob
           type). To source from Azure File storage, set this option to `file`.
-        * `--remote-path` for the source remote Azure path. This must have, at
-          the minimum, a container or file share name.
+        * `--remote-path` for the source remote path. If an Azure path this
+          must have, at the minimum, a container or file share name. For
+          an arbitrary URL, this must be a complete URL that starts with
+          the proper protocol, e.g., `http://` or `https://`. Aribtrary URL
+          support is limited to a single object.
         * `--storage-account` storage account for the source remote Azure path
           or the environment variable `BLOBXFER_STORAGE_ACCOUNT`
 * Remote Azure Storage _destination_ reference using one of two methods:
@@ -124,7 +128,7 @@ to be output.
 * `-q` or `--quiet` enables quiet mode
 * `--recursive` or `--no-recursive` controls if the source path should be
 recursively uploaded or downloaded.
-* `--remote-path` is the remote Azure path. This path must contain the
+* `--remote-path` is a remote path. If an Azure path, this must contain the
 Blob container or File share at the begining, e.g., `mycontainer/vdir`
 * `--restore-file-lmt` will set the last access and modified times of a
 downloaded file to the modified time set in Azure storage. This option can
@@ -306,6 +310,8 @@ behavior.
 This can only be used when transferring a single source file to a destination
 and can be used with any command. This is automatically enabled when
 using `stdin` as a source.
+* `--server-side-copy` or `--no-server-side-copy` enables or disables
+server side copies for synccopy operations. By default, this is enabled.
 * `--stdin-as-page-blob-size` allows a page blob size to be set if known
 beforehand when using `stdin` as a source and the destination is a page blob.
 This value will automatically be page blob boundary aligned.
@@ -384,6 +390,11 @@ blobxfer upload --config myconfig.yaml
 #### Synchronously Copy an Entire Path Recursively to Another Storage Account
 ```shell
 blobxfer synccopy --storage-account mystorageaccount --sas "mysastoken" --remote-path mysourcecontainer --sync-copy-dest-storage-account mydestaccount --sync-copy-dest-storage-account-key "mydestkey" --sync-copy-dest-remote-path mydestcontainer
+```
+
+#### Synchronously Copy an Arbitrary URL
+```shell
+blobxfer synccopy --remote-path "https://raw.githubusercontent.com/Azure/blobxfer/master/README.md" --sync-copy-dest-storage-account mydestaccount --sync-copy-dest-storage-account-key "mydestkey" --sync-copy-dest-remote-path mydestcontainer
 ```
 
 #### Synchronously Copy using a YAML Configuration File

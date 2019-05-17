@@ -1002,6 +1002,19 @@ def _sync_copy_dest_storage_url_option(f):
         callback=callback)(f)
 
 
+def _sync_copy_source_url(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sync_copy_source_url'] = value
+        return value
+    return click.option(
+        '--sync-copy-source-url',
+        expose_value=False,
+        default=None,
+        help='Remote URL for synccopy source',
+        callback=callback)(f)
+
+
 def upload_options(f):
     f = _stripe_chunk_size_bytes_option(f)
     f = _strip_components_option(f)
@@ -1059,6 +1072,7 @@ def download_options(f):
 
 
 def sync_copy_options(f):
+    f = _sync_copy_source_url(f)
     f = _sync_copy_dest_storage_url_option(f)
     f = _sync_copy_dest_storage_account_option(f)
     f = _sync_copy_dest_sas_option(f)
@@ -1071,6 +1085,7 @@ def sync_copy_options(f):
     f = _skip_on_filesize_match_option(f)
     f = _server_side_copy_option(f)
     f = _sas_option(f)
+    f = _rename_option(f)
     f = _remote_path_option(f)
     f = _overwrite_option(f)
     f = _mode_option(f)

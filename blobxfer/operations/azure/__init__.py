@@ -396,6 +396,14 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         super().__init__()
         self._path_map = {}
 
+    def add_arbitrary_remote_url(self, remote_path):
+        # type: (SourcePath, str) -> None
+        """Add an arbitrary remote URL
+        :param SourcePath self: this
+        :param str remote_path: remote path
+        """
+        self._paths.append(remote_path)
+
     def add_path_with_storage_account(self, remote_path, storage_account):
         # type: (SourcePath, str, str) -> None
         """Add a path with an associated storage account
@@ -617,6 +625,21 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
                         continue
                     yield ase
 
+    def _populate_from_arbitrary_url(self, remote_path):
+        # type: (SourcePath, str) -> StorageEntity
+        """Internal generator for Azure remote blobs
+        :param SourcePath self: this
+        :param str remote_path: remote path
+        :rtype: StorageEntity
+        :return: Azure storage entity object
+        """
+        # HEAD remote path to retrieve length
+        response = requests.head(remote_path)
+        ase = blobxfer.models.azure.StorageEntity(container=None)
+        ase.populate_from_arbitrary_url(
+            remote_path, int(response.headers['Content-Length']))
+        return ase
+
     def _populate_from_list_blobs(self, creds, options, dry_run):
         # type: (SourcePath, StorageCredentials, Any, bool) -> StorageEntity
         """Internal generator for Azure remote blobs
@@ -630,6 +653,12 @@ class SourcePath(blobxfer.models._BaseSourcePaths):
         is_synccopy = isinstance(options, blobxfer.models.options.SyncCopy)
         for _path in self._paths:
             rpath = str(_path)
+            if (is_synccopy and
+                    (rpath.lower().startswith('http://') or
+                     rpath.lower().startswith('https://'))):
+                ase = self._populate_from_arbitrary_url(rpath)
+                yield ase
+                continue
             sa = creds.get_storage_account(self.lookup_storage_account(rpath))
             # ensure at least read permissions
             if not sa.can_read_object:

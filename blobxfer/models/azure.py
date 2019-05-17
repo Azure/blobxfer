@@ -80,6 +80,7 @@ class StorageEntity(object):
         self._raw_metadata = None
         self._access_tier = None
         self._content_type = None
+        self._is_arbitrary_url = False
         self.replica_targets = None
 
     @property
@@ -130,7 +131,10 @@ class StorageEntity(object):
         :rtype: str
         :return: remote path of entity
         """
-        return '{}/{}'.format(self._container, self._name)
+        if self._is_arbitrary_url:
+            return self._name
+        else:
+            return '{}/{}'.format(self._container, self._name)
 
     @property
     def lmt(self):
@@ -339,6 +343,16 @@ class StorageEntity(object):
         """
         self._content_type = value
 
+    @property
+    def is_arbitrary_url(self):
+        # type: (StorageEntity) -> bool
+        """Is an arbitrary URL
+        :param StorageEntity self: this
+        :rtype: bool
+        :return: arbitrary URL
+        """
+        return self._is_arbitrary_url
+
     def populate_from_blob(self, sa, blob, vio=None, store_raw_metadata=False):
         # type: (StorageEntity, blobxfer.operations.azure.StorageAccount,
         #        azure.storage.blob.models.Blob) -> None
@@ -446,3 +460,19 @@ class StorageEntity(object):
             else:
                 self._client = sa.block_blob_client
                 self._mode = StorageModes.Block
+
+    def populate_from_arbitrary_url(self, remote_path, size):
+        # type: (StorageEntity, str, int) -> None
+        """Populate properties from an arbitrary url
+        :param StorageEntity self: this
+        :param str remote_path: remote path
+        :param int size: content length
+        """
+        # fake a client
+        self._client = lambda: None
+        setattr(self._client, 'primary_endpoint', remote_path.split('/')[2])
+        # set attributes
+        self._is_arbitrary_url = True
+        self._container = None
+        self._name = remote_path
+        self._size = size

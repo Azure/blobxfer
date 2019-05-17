@@ -28,7 +28,9 @@ within a file or object
     * `replica` mode allows replication of a file across multiple destinations
       including to multiple storage accounts
 * Synchronous copy with cross-mode (object transform) replication support
-(including block-level copies for Block blobs)
+    * By default, leverages server-side copies
+    * Arbitrary URL copy support
+    * Exact block-level copies for block blobs
 * Client-side encryption support
 * Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations

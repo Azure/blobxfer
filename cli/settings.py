@@ -182,6 +182,8 @@ def add_cli_options(cli_options, action):
                     sync_copy_dest_remote_path
                 }
             ]
+            if 'accounts' not in azstorage:
+                azstorage['accounts'] = {}
             azstorage['accounts'][sync_copy_dest_storage_account] = (
                 cli_options.get('sync_copy_dest_access_key') or
                 cli_options.get('sync_copy_dest_sas')
@@ -189,7 +191,6 @@ def add_cli_options(cli_options, action):
         else:
             sync_copy_dest = None
         arg = {
-            'source': [sa_rp] if sa_rp[storage_account] is not None else None,
             'destination': sync_copy_dest,
             'include': cli_options.get('include'),
             'exclude': cli_options.get('exclude'),
@@ -209,6 +210,17 @@ def add_cli_options(cli_options, action):
                 },
             },
         }
+        if storage_account is not None:
+            arg['source'] = (
+                [sa_rp] if sa_rp[storage_account] is not None else None
+            )
+        else:
+            src_url = cli_options.get('remote_path')
+            if src_url is None:
+                raise ValueError('--remote-path not specified')
+            arg['source'] = [{
+                '*': src_url
+            }]
     elif action == TransferAction.Upload:
         arg = {
             'source': [local_resource] if local_resource is not None else None,
@@ -671,13 +683,20 @@ def create_synccopy_specifications(ctx_cli_options, config):
         for src in conf['source']:
             sa = next(iter(src))
             asp = blobxfer.operations.azure.SourcePath()
-            asp.add_path_with_storage_account(src[sa], sa)
-            incl = _merge_setting(cli_conf, conf, 'include', default=None)
-            if blobxfer.util.is_not_empty(incl):
-                asp.add_includes(incl)
-            excl = _merge_setting(cli_conf, conf, 'exclude', default=None)
-            if blobxfer.util.is_not_empty(excl):
-                asp.add_excludes(excl)
+            if sa != '*':
+                asp.add_path_with_storage_account(src[sa], sa)
+                incl = _merge_setting(cli_conf, conf, 'include', default=None)
+                if blobxfer.util.is_not_empty(incl):
+                    asp.add_includes(incl)
+                excl = _merge_setting(cli_conf, conf, 'exclude', default=None)
+                if blobxfer.util.is_not_empty(excl):
+                    asp.add_excludes(excl)
+            else:
+                if not scs.options.server_side_copy:
+                    raise ValueError(
+                        'Server side copy must be enabled for abitrary '
+                        'source remote paths')
+                asp.add_arbitrary_remote_url(src[sa])
             scs.add_azure_source_path(asp)
         # create remote destination paths
         for dst in conf['destination']:

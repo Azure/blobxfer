@@ -3,7 +3,12 @@
 ## [Unreleased]
 
 ### Added
-- Support ability to set the Content Type property explicitly
+- Server side copy support for `synccopy` commands. By default, `synccopy`
+operations will now use server side copies eliminating the machine initiating
+the operation as a potential bottleneck. Arbitrary URLs are now supported
+in the `--remote-path` argument that reference a single object
+([#93](https://github.com/Azure/blobxfer/issues/93)).
+- Support setting the Content Type property explicitly
 ([#95](https://github.com/Azure/blobxfer/issues/95)). Specifying this
 option will override automatically inferring the MIME type of the file.
 
@@ -13,6 +18,9 @@ Microsoft Container Registry
 - Updated dependencies
 - Binary builds are now built against Python 3.7.3
 - Windows Docker image uses Python 3.7.3
+
+### Fixed
+- Allow `--rename` in `synccopy` operations
 
 ### Removed
 - Python 3.4 support dropped

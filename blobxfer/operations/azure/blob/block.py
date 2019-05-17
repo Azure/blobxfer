@@ -140,17 +140,20 @@ def put_block_from_url(src_ase, dst_ase, offsets, timeout=None):
     :param blobxfer.models.upload.Offsets offsets: upload offsets
     :param int timeout: timeout
     """
-    if blobxfer.util.is_not_empty(src_ase.client.account_key):
-        sas = src_ase.client.generate_blob_shared_access_signature(
-            container_name=src_ase.container,
-            blob_name=src_ase.name,
-            permission=azure.storage.blob.BlobPermissions(read=True),
-            expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
-        )
+    if src_ase.is_arbitrary_url:
+        src_url = src_ase.path
     else:
-        sas = src_ase.client.sas_token
-    src_url = 'https://{}/{}?{}'.format(
-        src_ase.client.primary_endpoint, src_ase.path, sas)
+        if blobxfer.util.is_not_empty(src_ase.client.account_key):
+            sas = src_ase.client.generate_blob_shared_access_signature(
+                container_name=src_ase.container,
+                blob_name=src_ase.name,
+                permission=azure.storage.blob.BlobPermissions(read=True),
+                expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
+            )
+        else:
+            sas = src_ase.client.sas_token
+        src_url = 'https://{}/{}?{}'.format(
+            src_ase.client.primary_endpoint, src_ase.path, sas)
     dst_ase.client.put_block_from_url(
         container_name=dst_ase.container,
         blob_name=dst_ase.name,

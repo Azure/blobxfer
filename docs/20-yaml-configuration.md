@@ -315,7 +315,8 @@ synccopy:
 ```
 
 * `source` is a list of storage account to remote path mappings. All sources
-are copied to each destination specified.
+are copied to each destination specified. To use an arbitrary URL, specify
+the map as `*: https://some.url/path`.
 * `destination` is a list of storage account to remote path mappings
 * `include` is a list of include patterns
 * `exclude` is a list of exclude patterns

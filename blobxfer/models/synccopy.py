@@ -45,6 +45,7 @@ import blobxfer.util
 # create logger
 logger = logging.getLogger(__name__)
 # global defines
+_DEFAULT_AUTO_CHUNKSIZE_BYTES = 16777216
 _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES = 4194304
 # named tuples
 Offsets = collections.namedtuple(
@@ -339,7 +340,10 @@ class Descriptor(object):
             else:
                 return -1
         else:
-            return _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
+            if self._dst_ase.mode == blobxfer.models.azure.StorageModes.Block:
+                return _DEFAULT_AUTO_CHUNKSIZE_BYTES
+            else:
+                return _MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
 
     def _compute_total_chunks(self, chunk_size):
         # type: (Descriptor, int) -> int
