@@ -3,7 +3,6 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/qgth9p7jlessgp5i/branch/master?svg=true)](https://ci.appveyor.com/project/alfpark/blobxfer)
 [![codecov](https://codecov.io/gh/Azure/blobxfer/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/blobxfer)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
-[![Docker Pulls](https://img.shields.io/docker/pulls/alfpark/blobxfer.svg)](https://hub.docker.com/r/alfpark/blobxfer)
 [![Image Layers](https://images.microbadger.com/badges/image/alfpark/blobxfer:latest.svg)](http://microbadger.com/images/alfpark/blobxfer)
 
 # blobxfer
@@ -56,8 +55,8 @@ There are three ways to install `blobxfer`:
 
 * `blobxfer` Python package from [PyPI](https://pypi.python.org/pypi/blobxfer)
 * Pre-built binaries available under [Releases](https://github.com/Azure/blobxfer/releases)
-* Docker images are available for both Linux and Windows platforms on
-[Docker Hub](https://hub.docker.com/r/alfpark/blobxfer/)
+* Docker images are available for both Linux and Windows platforms on the
+[Microsoft Container Registry](https://hub.docker.com/_/microsoft-blobxfer)
 
 Please refer to the
 [installation guide](http://blobxfer.readthedocs.io/en/latest/01-installation/)

@@ -87,7 +87,7 @@ pip3 install blobxfer
 pip install blobxfer
 ```
 
-`blobxfer` is compatible with Python 2.7 and 3.4+. To install for Python 3
+`blobxfer` is compatible with Python 2.7 and 3.5+. To install for Python 3
 (which is recommended), some distributions may use `pip3` instead of `pip`.
 Installing into a virtual environment or your user area via `--user`
 is recommended to avoid installation issues and conflicts with system-wide
@@ -104,15 +104,15 @@ method. After downloading the binary, make sure that the executable bit is
 set via `chmod +x` prior to attempting to execute the file.
 
 ## <a name="docker"></a>Docker Image
-[blobxfer](https://hub.docker.com/r/alfpark/blobxfer/) is available on
-Docker Hub and can be retrieved with:
+[blobxfer](https://hub.docker.com/_/microsoft-blobxfer) is available on the
+Microsoft Container Registry and can be retrieved with:
 
 ```shell
 # Linux
-docker pull alfpark/blobxfer
+docker pull mcr.microsoft.com/blobxfer
 
 # Windows
-docker pull alfpark/blobxfer:latest-windows
+docker pull mcr.microsoft.com/blobxfer:latest-windows
 ```
 
 Please note that when invoking the Docker image, you will need to ensure

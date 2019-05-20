@@ -8,9 +8,14 @@
 option will override automatically inferring the MIME type of the file.
 
 ### Changed
+- **Breaking Change**: Docker images going forward are now hosted in
+Microsoft Container Registry
 - Updated dependencies
 - Binary builds are now built against Python 3.7.3
 - Windows Docker image uses Python 3.7.3
+
+### Removed
+- Python 3.4 support dropped
 
 ## [1.7.1] - 2019-03-04
 ### Changed

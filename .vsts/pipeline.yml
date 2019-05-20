@@ -124,8 +124,8 @@ jobs:
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
       - powershell: |
           docker version
-          docker login -u="$(docker.username)" -p="$(docker.password)"
-          $cliImage = "alfpark/blobxfer:" + $env:DOCKER_TAG + "-windows"
+          docker login "$(docker.servername)" -u="$(docker.username)" -p="$(docker.password)"
+          $cliImage = "$(docker.servername)/public/blobxfer:" + $env:DOCKER_TAG + "-windows"
           echo "Building Docker image: $cliImage"
           pushd docker\\win
           docker build --build-arg GIT_BRANCH=$env:BUILD_SOURCEBRANCHNAME --build-arg GIT_COMMIT=$env:BUILD_SOURCEVERSION -t $cliImage .
@@ -249,8 +249,8 @@ jobs:
           set -e
           set -o pipefail
           docker version
-          docker login -u="$(docker.username)" -p="$(docker.password)"
-          cliImage="alfpark/blobxfer:$DOCKER_TAG"
+          docker login "$(docker.servername)" -u="$(docker.username)" -p="$(docker.password)"
+          cliImage="$(docker.servername)/public/blobxfer:$DOCKER_TAG"
           echo "Building Docker image: $cliImage"
           pushd docker/linux
           docker build --build-arg GIT_BRANCH=$BUILD_SOURCEBRANCHNAME --build-arg GIT_COMMIT=$BUILD_SOURCEVERSION -t $cliImage .
