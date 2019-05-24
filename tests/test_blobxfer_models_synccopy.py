@@ -8,6 +8,7 @@ except ImportError:  # noqa
     import mock
 # non-stdlib imports
 import bitstring
+import pytest
 # local imports
 import blobxfer.models.azure as azmodels
 import blobxfer.models.options as options
@@ -25,6 +26,7 @@ def test_specification():
             overwrite=True,
             recursive=True,
             rename=False,
+            server_side_copy=True,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,
@@ -44,12 +46,14 @@ def test_descriptor():
     opts = mock.MagicMock()
     opts.dest_mode = azmodels.StorageModes.Auto
     opts.mode = azmodels.StorageModes.Auto
+    opts.server_side_copy = False
 
     src_ase = azmodels.StorageEntity('cont')
     src_ase._mode = azmodels.StorageModes.Block
     src_ase._name = 'name'
     src_ase._size = 32
     src_ase._encryption = None
+    src_ase._is_arbitrary_url = False
 
     dst_ase = azmodels.StorageEntity('cont2')
     dst_ase._mode = azmodels.StorageModes.Block
@@ -74,6 +78,39 @@ def test_descriptor():
     assert not d.remote_is_append_blob
     assert d.is_one_shot_block_blob
     assert not d.requires_put_block_list
+
+    dst_ase = azmodels.StorageEntity('cont2')
+    dst_ase._mode = azmodels.StorageModes.Page
+    dst_ase._name = 'name'
+    dst_ase._size = 32
+    dst_ase._encryption = None
+    dst_ase.replica_targets = None
+
+    d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
+    assert not d.is_one_shot_block_blob
+    assert not d.requires_put_block_list
+
+    opts.server_side_copy = True
+    dst_ase._mode = azmodels.StorageModes.Page
+    with pytest.raises(ValueError):
+        d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
+
+    dst_ase = azmodels.StorageEntity('cont2')
+    dst_ase._mode = azmodels.StorageModes.Block
+    dst_ase._name = 'name'
+    dst_ase._size = 0
+    dst_ase._encryption = None
+    dst_ase.replica_targets = None
+
+    d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
+    assert d.is_one_shot_block_blob
+    assert not d.requires_put_block_list
+
+    dst_ase._size = 32
+
+    d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
+    assert not d.is_one_shot_block_blob
+    assert d.requires_put_block_list
 
 
 def test_descriptor_complete_offset_upload():
@@ -107,12 +144,14 @@ def test_descriptor_compute_chunk_size():
     opts = mock.MagicMock()
     opts.dest_mode = azmodels.StorageModes.Auto
     opts.mode = azmodels.StorageModes.Auto
+    opts.server_side_copy = False
 
     src_ase = azmodels.StorageEntity('cont')
     src_ase._mode = azmodels.StorageModes.Block
     src_ase._name = 'name'
     src_ase._size = 32
     src_ase._encryption = None
+    src_ase._is_arbitrary_url = False
 
     dst_ase = azmodels.StorageEntity('cont2')
     dst_ase._mode = azmodels.StorageModes.Block
@@ -123,8 +162,14 @@ def test_descriptor_compute_chunk_size():
 
     d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
     assert d._compute_chunk_size() == \
+        synccopy._DEFAULT_AUTO_CHUNKSIZE_BYTES
+
+    dst_ase._mode = azmodels.StorageModes.Page
+    d = synccopy.Descriptor(src_ase, dst_ase, None, opts, mock.MagicMock())
+    assert d._compute_chunk_size() == \
         synccopy._MAX_NONBLOCK_BLOB_CHUNKSIZE_BYTES
 
+    dst_ase._mode = azmodels.StorageModes.Block
     d = synccopy.Descriptor(src_ase, dst_ase, [], opts, mock.MagicMock())
     assert d._compute_chunk_size() == d.src_entity.size
 

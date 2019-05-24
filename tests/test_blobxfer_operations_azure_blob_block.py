@@ -48,6 +48,35 @@ def test_format_block_id():
     assert '00000001' == ops._format_block_id(1)
 
 
+def test_put_block_from_url():
+    dst_ase = mock.MagicMock()
+    dst_ase.client.put_block_from_url = mock.MagicMock()
+
+    src_ase = mock.MagicMock()
+    src_ase.path = 'https://host/remote/path'
+    src_ase.is_arbitrary_url = True
+
+    offsets = mock.MagicMock()
+    offsets.chunk_num = 0
+
+    ops.put_block_from_url(src_ase, dst_ase, offsets)
+    assert dst_ase.client.put_block_from_url.call_count == 1
+
+    src_ase.is_arbitrary_url = False
+
+    src_ase.client.account_key = 'key'
+    src_ase.client.generate_blob_shared_access_signature.return_value = 'sas'
+
+    ops.put_block_from_url(src_ase, dst_ase, offsets)
+    assert dst_ase.client.put_block_from_url.call_count == 2
+
+    src_ase.client.account_key = None
+    src_ase.client.sas_token = 'sastoken'
+
+    ops.put_block_from_url(src_ase, dst_ase, offsets)
+    assert dst_ase.client.put_block_from_url.call_count == 3
+
+
 def test_put_block_list():
     ase = mock.MagicMock()
     ase.name = 'abc'

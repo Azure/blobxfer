@@ -178,6 +178,7 @@ def test_add_to_transfer_queue(gcbl):
     src_ase._client.primary_endpoint = 'ep'
     src_ase.path = 'srcasepath'
     src_ase.mode = azmodels.StorageModes.Block
+    src_ase.is_arbitrary_url = False
 
     dst_ase = mock.MagicMock()
     dst_ase._client.primary_endpoint = 'ep2'
@@ -231,11 +232,13 @@ def test_worker_thread_transfer():
 @mock.patch('blobxfer.operations.azure.blob.append.append_block')
 @mock.patch('blobxfer.operations.azure.blob.block.create_blob')
 @mock.patch('blobxfer.operations.azure.blob.block.put_block')
+@mock.patch('blobxfer.operations.azure.blob.block.put_block_from_url')
 @mock.patch('blobxfer.operations.azure.file.put_file_range')
 @mock.patch('blobxfer.operations.azure.blob.page.put_page')
-def test_put_data(pp, pfr, pb, cb, ab):
+def test_put_data(pp, pfr, pbfu, pb, cb, ab):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
@@ -248,6 +251,7 @@ def test_put_data(pp, pfr, pb, cb, ab):
     src_ase.mode = azmodels.StorageModes.Block
     src_ase.size = 10
     src_ase.is_encrypted = False
+    src_ase.is_arbitrary_url = False
 
     dst_ase = mock.MagicMock()
     dst_ase._client.primary_endpoint = 'ep2'
@@ -260,6 +264,7 @@ def test_put_data(pp, pfr, pb, cb, ab):
     sd.src_entity = src_ase
     sd.dst_entity = dst_ase
     sd.complete_offset_upload = mock.MagicMock()
+    sd.is_server_side_copyable = False
 
     s._put_data(sd, dst_ase, offsets, b'\0')
     assert ab.call_count == 1
@@ -270,6 +275,16 @@ def test_put_data(pp, pfr, pb, cb, ab):
     sd.src_entity.md5 = ''
     s._put_data(sd, dst_ase, offsets, b'\0')
     assert cb.call_count == 1
+
+    s._spec.options.server_side_copy = True
+    sd.is_server_side_copyable = True
+    sd.is_one_shot_block_blob = False
+    s._put_data(sd, dst_ase, offsets, None)
+    assert pbfu.call_count == 1
+
+    s._spec.options.server_side_copy = False
+    sd.is_server_side_copyable = False
+    sd.is_one_shot_block_blob = True
 
     sd.src_entity.md5 = b'md5'
     s._put_data(sd, dst_ase, offsets, b'\0')
@@ -320,6 +335,7 @@ def test_process_data():
 def test_prepare_upload(page_cb, cf, capd, cs, append_cb, cc):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -354,6 +370,7 @@ def test_prepare_upload(page_cb, cf, capd, cs, append_cb, cc):
 def test_process_synccopy_descriptor(gbr, gfr):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     src_ase = mock.MagicMock()
     src_ase._client.primary_endpoint = 'ep'
@@ -376,6 +393,7 @@ def test_process_synccopy_descriptor(gbr, gfr):
     sd.next_offsets.return_value = (None, 1)
     sd.is_one_shot_block_blob = False
     sd.all_operations_completed = True
+    sd.is_server_side_copyable = False
 
     s._finalize_upload = mock.MagicMock()
     s._transfer_set.add(
@@ -391,6 +409,7 @@ def test_process_synccopy_descriptor(gbr, gfr):
     # test nothing
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     sd.all_operations_completed = False
     sd.next_offsets.return_value = (None, None)
     s._process_synccopy_descriptor(sd)
@@ -399,12 +418,14 @@ def test_process_synccopy_descriptor(gbr, gfr):
     # test normal block blob
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._prepare_upload = mock.MagicMock()
     s._process_data = mock.MagicMock()
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
     offsets.num_bytes = 1
-    offsets.range_start = 10
+    offsets.range_start = 0
+    offsets.range_end = 1
     sd.next_offsets.return_value = (offsets, None)
 
     dst_ase.replica_targets = [dst_ase]
@@ -417,12 +438,14 @@ def test_process_synccopy_descriptor(gbr, gfr):
     # test normal append blob
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._prepare_upload = mock.MagicMock()
     s._process_data = mock.MagicMock()
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
     offsets.num_bytes = 1
-    offsets.range_start = 10
+    offsets.range_start = 0
+    offsets.range_end = 1
     sd.next_offsets.return_value = (offsets, None)
     src_ase.mode = azmodels.StorageModes.Append
 
@@ -434,12 +457,14 @@ def test_process_synccopy_descriptor(gbr, gfr):
     # test normal file
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._prepare_upload = mock.MagicMock()
     s._process_data = mock.MagicMock()
     offsets = mock.MagicMock()
     offsets.chunk_num = 0
     offsets.num_bytes = 1
-    offsets.range_start = 10
+    offsets.range_start = 0
+    offsets.range_end = 1
     sd.next_offsets.return_value = (offsets, None)
     src_ase.mode = azmodels.StorageModes.File
 
@@ -448,11 +473,56 @@ def test_process_synccopy_descriptor(gbr, gfr):
     assert s._transfer_queue.qsize() == 1
     assert len(s._transfer_set) == 0
 
+    # test block blob server side copy
+    s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    s._general_options.dry_run = False
+    s._spec.options.server_side_copy = True
+    s._prepare_upload = mock.MagicMock()
+    s._process_data = mock.MagicMock()
+    offsets = mock.MagicMock()
+    offsets.chunk_num = 0
+    offsets.num_bytes = 1
+    offsets.range_start = 0
+    offsets.range_end = 1
+    sd.next_offsets.return_value = (offsets, None)
+    sd.is_server_side_copyable = True
+    src_ase.mode = azmodels.StorageModes.Block
+
+    dst_ase.replica_targets = [dst_ase]
+
+    s._process_synccopy_descriptor(sd)
+    assert gbr.call_count == 2
+    assert s._transfer_queue.qsize() == 1
+    assert len(s._transfer_set) == 0
+
+    # test range start and end overlap
+    s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
+    s._general_options.dry_run = False
+    s._spec.options.server_side_copy = True
+    s._prepare_upload = mock.MagicMock()
+    s._process_data = mock.MagicMock()
+    offsets = mock.MagicMock()
+    offsets.chunk_num = 0
+    offsets.num_bytes = 1
+    offsets.range_start = 1
+    offsets.range_end = 1
+    sd.next_offsets.return_value = (offsets, None)
+    sd.is_server_side_copyable = False
+    src_ase.mode = azmodels.StorageModes.Block
+
+    dst_ase.replica_targets = [dst_ase]
+
+    s._process_synccopy_descriptor(sd)
+    assert gbr.call_count == 2
+    assert s._transfer_queue.qsize() == 1
+    assert len(s._transfer_set) == 0
+
 
 @mock.patch('blobxfer.operations.azure.blob.block.put_block_list')
 def test_finalize_block_blob(pbl):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -474,6 +544,7 @@ def test_finalize_block_blob(pbl):
 def test_set_blob_properties(sbp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -494,6 +565,7 @@ def test_set_blob_properties(sbp):
 def test_set_blob_metadata(sbm):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -513,6 +585,7 @@ def test_set_blob_metadata(sbm):
 def test_finalize_nonblock_blob():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     s._set_blob_properties = mock.MagicMock()
     s._set_blob_metadata = mock.MagicMock()
@@ -527,6 +600,7 @@ def test_finalize_nonblock_blob():
 def test_finalize_azure_file(sfmeta, sfp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -546,6 +620,7 @@ def test_finalize_azure_file(sfmeta, sfp):
 def test_finalize_upload():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     ase = mock.MagicMock()
     ase._client.primary_endpoint = 'ep'
@@ -585,12 +660,14 @@ def test_finalize_upload():
 def test_check_copy_conditions(gmfm):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     src_ase = mock.MagicMock()
     src_ase._client.primary_endpoint = 'ep'
     src_ase.path = 'srcasepath'
     src_ase.mode = azmodels.StorageModes.Block
     src_ase.size = 10
+    src_ase.is_arbitrary_url = False
 
     dst_ase = mock.MagicMock()
     dst_ase._client.primary_endpoint = 'ep2'
@@ -655,6 +732,7 @@ def test_check_copy_conditions(gmfm):
 def test_check_for_existing_remote(gbp, gfp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
 
     sa = mock.MagicMock()
     sa.name = 'name'
@@ -697,6 +775,7 @@ def test_check_for_existing_remote(gbp, gfp):
 def test_get_destination_paths():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     paths = mock.MagicMock()
     paths.paths = [pathlib.Path('a/b')]
     s._spec.destinations = [paths]
@@ -710,6 +789,7 @@ def test_get_destination_paths():
 def test_generate_destination_for_source():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._spec.options.dest_mode = azmodels.StorageModes.Block
     s._spec.options.rename = False
     s._check_for_existing_remote = mock.MagicMock()
@@ -721,6 +801,7 @@ def test_generate_destination_for_source():
     src_ase.mode = azmodels.StorageModes.Block
     src_ase.size = 10
     src_ase.name = 'srcase'
+    src_ase.is_arbitrary_url = False
 
     sa = mock.MagicMock()
     sa.block_blob_client.primary_endpoint = 'ep'
@@ -765,10 +846,21 @@ def test_generate_destination_for_source():
     with pytest.raises(RuntimeError):
         next(s._generate_destination_for_source(src_ase))
 
+    # test arbitrary url
+    s._get_destination_paths.return_value = [
+        (sa, 'cont', 'name', 'dpath'),
+    ]
+    s._spec.options.rename = False
+    src_ase.is_arbitrary_url = True
+    src_ase.name = 'https://hostname/remote/path'
+    ase = next(s._generate_destination_for_source(src_ase))
+    assert pathlib.Path(ase.name) == pathlib.Path('name/remote/path')
+
 
 def test_bind_sources_to_destination():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._spec.options.delete_extraneous_destination = True
 
     src_ase = mock.MagicMock()
@@ -832,6 +924,7 @@ def test_bind_sources_to_destination():
 def test_run(srm, gbr, gfr):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._general_options.concurrency.transfer_threads = 1
     s._general_options.resume_file = 'resume'
     s._spec.options.chunk_size_bytes = 0
@@ -900,6 +993,7 @@ def test_run(srm, gbr, gfr):
 def test_start():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.server_side_copy = False
     s._wait_for_transfer_threads = mock.MagicMock()
     s._resume = mock.MagicMock()
     s._run = mock.MagicMock()

@@ -327,6 +327,21 @@ def test_handle_vectored_io_stripe(patched_gbp, patched_gfp):
         assert i == 2
 
 
+@mock.patch('requests.head')
+def test_populate_from_arbitrary_url(patched_rh):
+    response = mock.MagicMock()
+    response.headers = {
+        'Content-Length': 10
+    }
+    patched_rh.return_value = response
+
+    asp = azops.SourcePath()
+    ase = asp._populate_from_arbitrary_url('https://host/remote/path')
+    assert ase.size == 10
+    assert ase.path == 'https://host/remote/path'
+    assert ase.is_arbitrary_url
+
+
 def test_azuresourcepath():
     p = '/cont/remote/path'
     asp = azops.SourcePath()
@@ -336,6 +351,10 @@ def test_azuresourcepath():
         asp.add_path_with_storage_account('x', 'x')
 
     assert 'sa' == asp.lookup_storage_account(p)
+
+    asp = azops.SourcePath()
+    asp.add_arbitrary_remote_url('https://host/remote/path')
+    assert 'https://host/remote/path' in asp._paths
 
 
 @mock.patch('blobxfer.models.crypto.EncryptionMetadata')
@@ -578,6 +597,32 @@ def test_azuresourcepath_blobs(patched_gbp, patched_lb, patched_em):
         i += 1
         assert file.name == 'name'
         assert file.encryption_metadata is not None
+    assert i == 1
+
+
+def test_azuresourcepath_url():
+    p = '/cont/remote/path'
+    asp = azops.SourcePath()
+    asp.add_arbitrary_remote_url('https://host/remote/path')
+    asp._populate_from_arbitrary_url = mock.MagicMock()
+
+    import blobxfer.models.options
+    sc = blobxfer.models.options.SyncCopy(
+        access_tier=None,
+        delete_extraneous_destination=None,
+        dest_mode=None,
+        mode=None,
+        overwrite=None,
+        recursive=None,
+        rename=None,
+        server_side_copy=True,
+    )
+
+    i = 0
+    for ase in asp._populate_from_list_blobs(mock.MagicMock(), sc, False):
+        i += 1
+
+    assert asp._populate_from_arbitrary_url.call_count == 1
     assert i == 1
 
 

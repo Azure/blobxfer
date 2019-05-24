@@ -117,3 +117,9 @@ def test_azurestorageentity():
     assert ase.size == 456
     assert not ase.append_create
     assert ase.encryption_metadata is not None
+
+    ase = azmodels.StorageEntity(container=None)
+    ase.populate_from_arbitrary_url('https://host/remote/path', 10)
+    assert ase.is_arbitrary_url
+    assert ase.size == 10
+    assert ase.path == 'https://host/remote/path'

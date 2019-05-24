@@ -31,7 +31,7 @@ install:
 - where pip
 - "%PYTHON%\\python.exe -m pip install --upgrade --user pip"
 - pip install --upgrade setuptools wheel
-- pip install --upgrade coveralls tox
+- pip install --upgrade virtualenv coveralls tox
 
 build: off
 
