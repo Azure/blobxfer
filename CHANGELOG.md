@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2019-05-30
 ### Added
 - Server side copy support for `synccopy` commands. By default, `synccopy`
 operations will now use server side copies eliminating the machine initiating
@@ -496,7 +497,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.7.1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.8.0...HEAD
+[1.8.0]: https://github.com/Azure/blobxfer/compare/1.7.1...1.8.0
 [1.7.1]: https://github.com/Azure/blobxfer/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/Azure/blobxfer/compare/1.6.0...1.7.0
 [1.6.0]: https://github.com/Azure/blobxfer/compare/1.5.5...1.6.0
