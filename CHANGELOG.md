@@ -21,6 +21,8 @@ Microsoft Container Registry
 
 ### Fixed
 - Allow `--rename` in `synccopy` operations
+- Fix retries for certain SSL errors
+([#98](https://github.com/Azure/blobxfer/issues/98))
 
 ### Removed
 - Python 3.4 support dropped

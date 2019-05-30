@@ -31,6 +31,7 @@ from builtins import (  # noqa
     next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import errno
+import ssl
 # non-stdlib imports
 import azure.storage.common.models
 import azure.storage.common.retry
@@ -140,7 +141,10 @@ class ExponentialRetryWithMaxWait(azure.storage.common.retry._Retry):
                         # unexpected/malformed exception hierarchy, don't retry
                         pass
                     else:
-                        if any(x in msg for x in _RETRYABLE_ERRNO_MAXRETRY):
+                        if (isinstance(msg, ssl.SSLWantWriteError) or
+                                isinstance(msg, ssl.SSLWantReadError)):
+                            ret = True
+                        elif any(x in msg for x in _RETRYABLE_ERRNO_MAXRETRY):
                             ret = True
                 elif isinstance(exc.args[0], urllib3.exceptions.ProtocolError):
                     try:

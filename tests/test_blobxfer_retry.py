@@ -6,6 +6,7 @@ try:
     import unittest.mock as mock
 except ImportError:  # noqa
     import mock
+import ssl
 # non-stdlib imports
 import azure.storage.common.models
 import pytest
@@ -55,6 +56,15 @@ def test_should_retry():
     )
     context.exception = ex
     assert not er._should_retry(context)
+
+    ex = requests.ConnectionError(
+        urllib3.exceptions.MaxRetryError(
+            mock.MagicMock(), mock.MagicMock(),
+            reason=ssl.SSLError(ssl.SSLWantWriteError())
+        )
+    )
+    context.exception = ex
+    assert er._should_retry(context)
 
     # test malformed
     ex = requests.ConnectionError(
