@@ -1166,6 +1166,8 @@ class Uploader(object):
                 seen.add(dest_id)
                 if self._spec.options.delete_extraneous_destination:
                     self._delete_exclude.add(dest_id)
+                if self._spec.options.delete_only:
+                    continue
                 files_processed += 1
                 if action == UploadAction.Skip:
                     skipped_files += 1
@@ -1200,14 +1202,19 @@ class Uploader(object):
             self._all_files_processed = True
         with self._upload_lock:
             upload_size_mib = approx_total_bytes / blobxfer.util.MEGABYTE
-            logger.debug(
-                ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
-                 'skipped').format(
-                    skipped_files, skipped_size / blobxfer.util.MEGABYTE))
-            logger.debug(
-                ('{0} local files processed, waiting for upload '
-                 'completion of approx. {1:.4f} MiB').format(
-                     files_processed, upload_size_mib))
+            if self._spec.options.delete_only:
+                logger.info(
+                    'skipping upload transfers as only deletion option '
+                    'was specified')
+            else:
+                logger.debug(
+                    ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                     'skipped').format(
+                        skipped_files, skipped_size / blobxfer.util.MEGABYTE))
+                logger.debug(
+                    ('{0} local files processed, waiting for upload '
+                     'completion of approx. {1:.4f} MiB').format(
+                         files_processed, upload_size_mib))
         del files_processed
         del skipped_files
         del skipped_size

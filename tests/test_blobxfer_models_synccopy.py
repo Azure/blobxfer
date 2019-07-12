@@ -21,6 +21,7 @@ def test_specification():
         synccopy_options=options.SyncCopy(
             access_tier=None,
             delete_extraneous_destination=False,
+            delete_only=False,
             dest_mode=azmodels.StorageModes.Auto,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,

@@ -287,9 +287,11 @@ Storage and General Purpose V2 storage accounts. Valid values for this
 option are `hot`, `cool`, or `archive`.
 * `--delete` deletes extraneous files (including blob snapshots if the parent
 is deleted) at the remote destination path on uploads and at the local
-resource on downloads. This actions occur after the transfer has taken place,
+resource on downloads. This action occurs after all transfers have taken place,
 similarly to rsync's delete after option. Note that this interacts with other
 filters such as `--include` and `--exclude`.
+* `--delete-only` only performs the delete operations as per `--delete` but
+no transfer is invoked. This option must be specified with `--delete`.
 * `--file-cache-control` sets the
 [CacheControl](https://docs.microsoft.com/azure/cdn/cdn-manage-expiration-of-blob-content)
 property on the destination entity on upload operations. Note that if an

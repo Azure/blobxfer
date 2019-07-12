@@ -1221,6 +1221,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.rsa_public_key = 'abc'
     u._spec.options.chunk_size_bytes = 0
     u._spec.options.one_shot_bytes = 0
+    u._spec.options.delete_only = False
 
     # check rename failure
     u._spec.sources.can_rename.return_value = False
@@ -1324,6 +1325,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.one_shot_bytes = 0
     u._spec.sources.can_rename.return_value = False
     u._spec.options.rename = False
+    u._spec.options.delete_only = False
 
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Replica
@@ -1357,6 +1359,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.one_shot_bytes = 0
     u._spec.sources.can_rename.return_value = False
     u._spec.options.rename = False
+    u._spec.options.delete_only = False
 
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Replica
@@ -1375,6 +1378,12 @@ def test_run(lfmo, urm, tmpdir):
     u._run()
     assert u._finalize_upload.call_count == 0
 
+    # delete only
+    u._spec.options.delete_extraneous_destination = True
+    u._spec.options.delete_only = True
+    u._run()
+    assert u._finalize_upload.call_count == 0
+
     # regular execution, upload dry run
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = True
@@ -1390,6 +1399,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.one_shot_bytes = 0
     u._spec.sources.can_rename.return_value = False
     u._spec.options.rename = False
+    u._spec.options.delete_only = False
 
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Replica
@@ -1423,6 +1433,7 @@ def test_run(lfmo, urm, tmpdir):
     u._spec.options.one_shot_bytes = 0
     u._spec.sources.can_rename.return_value = False
     u._spec.options.rename = False
+    u._spec.options.delete_only = False
 
     u._spec.options.vectored_io.distribution_mode = \
         models.VectoredIoDistributionMode.Disabled
@@ -1444,6 +1455,7 @@ def test_run(lfmo, urm, tmpdir):
 def test_start():
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = False
+    u._spec.options.delete_only = False
     u._wait_for_transfer_threads = mock.MagicMock()
     u._wait_for_disk_threads = mock.MagicMock()
     u._md5_offload = mock.MagicMock()

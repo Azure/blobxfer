@@ -16,6 +16,7 @@ import azure.storage.file
 import pytest
 # local imports
 import blobxfer.models.metadata as md
+import blobxfer.models.options
 # module under test
 import blobxfer.models.azure as azmodels
 import blobxfer.operations.azure as azops
@@ -601,15 +602,14 @@ def test_azuresourcepath_blobs(patched_gbp, patched_lb, patched_em):
 
 
 def test_azuresourcepath_url():
-    p = '/cont/remote/path'
     asp = azops.SourcePath()
     asp.add_arbitrary_remote_url('https://host/remote/path')
     asp._populate_from_arbitrary_url = mock.MagicMock()
 
-    import blobxfer.models.options
     sc = blobxfer.models.options.SyncCopy(
         access_tier=None,
         delete_extraneous_destination=None,
+        delete_only=None,
         dest_mode=None,
         mode=None,
         overwrite=None,

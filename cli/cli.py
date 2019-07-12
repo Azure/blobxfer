@@ -489,6 +489,8 @@ def common_options(f):
     f = _enable_azure_storage_logger_option(f)
     f = _dry_run_option(f)
     f = _disk_threads_option(f)
+    f = _delete_option(f)
+    f = _delete_only_option(f)
     f = _crypto_processes_option(f)
     f = _connect_timeout_option(f)
     f = _config_option(f)
@@ -556,6 +558,21 @@ def _delete_option(f):
         is_flag=True,
         default=None,
         help='Delete extraneous files on target [False]',
+        callback=callback)(f)
+
+
+def _delete_only_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['delete_only'] = value
+        return value
+    return click.option(
+        '--delete-only',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Do not transfer files, only perform deletion of extraneous '
+        'files on target [False]',
         callback=callback)(f)
 
 
@@ -1039,7 +1056,6 @@ def upload_options(f):
     f = _exclude_option(f)
     f = _endpoint_option(f)
     f = _distribution_mode(f)
-    f = _delete_option(f)
     f = _chunk_size_bytes_option(f)
     f = _access_tier_option(f)
     f = _access_key_option(f)
@@ -1065,7 +1081,6 @@ def download_options(f):
     f = _file_attributes(f)
     f = _exclude_option(f)
     f = _endpoint_option(f)
-    f = _delete_option(f)
     f = _chunk_size_bytes_option(f)
     f = _access_key_option(f)
     return f

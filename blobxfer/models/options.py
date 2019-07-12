@@ -86,6 +86,7 @@ Upload = collections.namedtuple(
         'access_tier',
         'chunk_size_bytes',
         'delete_extraneous_destination',
+        'delete_only',
         'mode',
         'one_shot_bytes',
         'overwrite',
@@ -103,6 +104,7 @@ Download = collections.namedtuple(
         'check_file_md5',
         'chunk_size_bytes',
         'delete_extraneous_destination',
+        'delete_only',
         'max_single_object_concurrency',
         'mode',
         'overwrite',
@@ -117,6 +119,7 @@ SyncCopy = collections.namedtuple(
     'SyncCopy', [
         'access_tier',
         'delete_extraneous_destination',
+        'delete_only',
         'dest_mode',
         'mode',
         'overwrite',

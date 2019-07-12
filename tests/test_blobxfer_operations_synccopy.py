@@ -928,6 +928,7 @@ def test_run(srm, gbr, gfr):
     s._general_options.concurrency.transfer_threads = 1
     s._general_options.resume_file = 'resume'
     s._spec.options.chunk_size_bytes = 0
+    s._spec.options.delete_only = False
 
     src_ase = mock.MagicMock()
     src_ase._client.primary_endpoint = 'ep'
@@ -969,8 +970,16 @@ def test_run(srm, gbr, gfr):
     s._run()
     assert s._prepare_upload.call_count == 1
     assert s._put_data.call_count == 1
-
     s._general_options.dry_run = False
+
+    # delete only
+    s._spec.options.delete_extraneous_destination = True
+    s._spec.options.delete_only = True
+    s._run()
+    assert s._prepare_upload.call_count == 1
+    assert s._put_data.call_count == 1
+    s._spec.options.delete_extraneous_destination = False
+    s._spec.options.delete_only = False
 
     # replica targets with mismatch
     s._synccopy_start_time = None
@@ -993,6 +1002,7 @@ def test_run(srm, gbr, gfr):
 def test_start():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
+    s._spec.options.delete_only = False
     s._spec.options.server_side_copy = False
     s._wait_for_transfer_threads = mock.MagicMock()
     s._resume = mock.MagicMock()

@@ -762,7 +762,6 @@ class Downloader(object):
                     if lpath is None:
                         lpath = pathlib.Path(rfile.name)
                     lpath = pathlib.Path(self._spec.destination.path) / lpath
-                files_processed += 1
                 # check on download conditions
                 action = self._check_download_conditions(lpath, rfile)
                 # remove from delete after set
@@ -770,6 +769,9 @@ class Downloader(object):
                     self._delete_after.remove(lpath)
                 except KeyError:
                     pass
+                if self._spec.options.delete_only:
+                    continue
+                files_processed += 1
                 if action == DownloadAction.Skip:
                     skipped_files += 1
                     skipped_size += rfile.size
@@ -807,14 +809,19 @@ class Downloader(object):
             download_size_mib = (
                 self._download_bytes_total / blobxfer.util.MEGABYTE
             )
-            logger.debug(
-                ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
-                 'skipped').format(
-                    skipped_files, skipped_size / blobxfer.util.MEGABYTE))
-            logger.debug(
-                ('{0} remote files processed, waiting for download '
-                 'completion of approx. {1:.4f} MiB').format(
-                     files_processed, download_size_mib))
+            if self._spec.options.delete_only:
+                logger.info(
+                    'skipping download transfers as only deletion option '
+                    'was specified')
+            else:
+                logger.debug(
+                    ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                     'skipped').format(
+                        skipped_files, skipped_size / blobxfer.util.MEGABYTE))
+                logger.debug(
+                    ('{0} remote files processed, waiting for download '
+                     'completion of approx. {1:.4f} MiB').format(
+                         files_processed, download_size_mib))
         del files_processed
         del skipped_files
         del skipped_size

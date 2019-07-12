@@ -42,6 +42,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -80,6 +81,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -111,6 +113,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
@@ -142,6 +145,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
@@ -177,6 +181,7 @@ def test_ensure_local_destination(patched_blob, patched_file, tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.File,
             overwrite=True,
@@ -214,6 +219,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=False,
@@ -251,6 +257,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -285,6 +292,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -316,6 +324,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -356,6 +365,7 @@ def test_check_download_conditions(tmpdir):
             check_file_md5=True,
             chunk_size_bytes=4194304,
             delete_extraneous_destination=False,
+            delete_only=False,
             max_single_object_concurrency=8,
             mode=azmodels.StorageModes.Auto,
             overwrite=True,
@@ -1025,6 +1035,7 @@ def test_catalog_local_files_for_deletion(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._general_options.dry_run = False
     d._spec.options.delete_extraneous_destination = False
+    d._spec.options.delete_only = False
 
     d._catalog_local_files_for_deletion()
     assert len(d._delete_after) == 0
@@ -1048,6 +1059,7 @@ def test_delete_extraneous_files(tmpdir):
     d = ops.Downloader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     d._general_options.dry_run = False
     d._spec.options.delete_extraneous_destination = True
+    d._spec.options.delete_only = False
     d._spec.destination.is_dir = True
     d._delete_after.add(fp)
 
@@ -1082,6 +1094,7 @@ def _create_downloader_for_start(td):
     d._spec.options.overwrite = True
     d._spec.options.rename = False
     d._spec.options.strip_components = 0
+    d._spec.options.delete_only = False
     d._spec.skip_on = mock.MagicMock()
     d._spec.skip_on.md5_match = False
     d._spec.skip_on.lmt_ge = False
@@ -1137,6 +1150,16 @@ def test_start(
     d._download_bytes_sofar = 0
     d.start()
     assert d._pre_md5_skip_on_check.call_count == 0
+
+    # test delete only
+    patched_lb.side_effect = [[b]]
+    d = _create_downloader_for_start(tmpdir)
+    d._spec.options.delete_extraneous_destination = True
+    d._spec.options.delete_only = True
+    d.start()
+    assert d._transfer_queue.qsize() == 0
+    d._spec.options.delete_extraneous_destination = False
+    d._spec.options.delete_only = False
 
     patched_lb.side_effect = [[b]]
     d = _create_downloader_for_start(tmpdir)

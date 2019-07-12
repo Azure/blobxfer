@@ -187,8 +187,9 @@ def output_parameters(general_options, spec):
             spec.skip_on.filesize_match,
             spec.skip_on.lmt_ge,
             spec.skip_on.md5_match))
-    log.append('        delete extraneous: {}'.format(
-        spec.options.delete_extraneous_destination))
+    log.append('                   delete: extraneous={} only={}'.format(
+        spec.options.delete_extraneous_destination,
+        spec.options.delete_only))
     log.append('                overwrite: {}'.format(
         spec.options.overwrite))
     log.append('                recursive: {}'.format(

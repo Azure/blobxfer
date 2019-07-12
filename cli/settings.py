@@ -113,6 +113,7 @@ def add_cli_options(cli_options, action):
                 'check_file_md5': cli_options.get('file_md5'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
                 'delete_extraneous_destination': cli_options.get('delete'),
+                'delete_only': cli_options.get('delete_only'),
                 'max_single_object_concurrency': cli_options.get(
                     'max_single_object_concurrency'),
                 'mode': cli_options.get('mode'),
@@ -197,6 +198,8 @@ def add_cli_options(cli_options, action):
             'options': {
                 'access_tier': cli_options.get('access_tier'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
+                'delete_extraneous_destination': cli_options.get('delete'),
+                'delete_only': cli_options.get('delete_only'),
                 'dest_mode': cli_options.get('sync_copy_dest_mode'),
                 'mode': cli_options.get('mode'),
                 'overwrite': cli_options.get('overwrite'),
@@ -233,6 +236,7 @@ def add_cli_options(cli_options, action):
                 'access_tier': cli_options.get('access_tier'),
                 'chunk_size_bytes': cli_options.get('chunk_size_bytes'),
                 'delete_extraneous_destination': cli_options.get('delete'),
+                'delete_only': cli_options.get('delete_only'),
                 'mode': cli_options.get('mode'),
                 'one_shot_bytes': cli_options.get('one_shot_bytes'),
                 'overwrite': cli_options.get('overwrite'),
@@ -541,6 +545,8 @@ def create_download_specifications(ctx_cli_options, config):
                 delete_extraneous_destination=_merge_setting(
                     cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
+                delete_only=_merge_setting(
+                    cli_options, conf_options, 'delete_only', default=False),
                 max_single_object_concurrency=_merge_setting(
                     cli_options, conf_options,
                     'max_single_object_concurrency', default=8),
@@ -579,6 +585,9 @@ def create_download_specifications(ctx_cli_options, config):
                 conf['destination']
             )
         )
+        if (ds.options.delete_only and
+                not ds.options.delete_extraneous_destination):
+            raise ValueError('delete only specified without delete')
         # create remote source paths
         for src in conf['source']:
             if len(src) != 1:
@@ -659,6 +668,8 @@ def create_synccopy_specifications(ctx_cli_options, config):
                 delete_extraneous_destination=_merge_setting(
                     cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
+                delete_only=_merge_setting(
+                    cli_options, conf_options, 'delete_only', default=False),
                 dest_mode=destmode,
                 mode=mode,
                 overwrite=_merge_setting(
@@ -680,6 +691,9 @@ def create_synccopy_specifications(ctx_cli_options, config):
                     cli_sod, conf_sod, 'md5_match', default=False),
             ),
         )
+        if (scs.options.delete_only and
+                not scs.options.delete_extraneous_destination):
+            raise ValueError('delete only specified without delete')
         # create remote source paths
         for src in conf['source']:
             sa = next(iter(src))
@@ -786,6 +800,8 @@ def create_upload_specifications(ctx_cli_options, config):
                 delete_extraneous_destination=_merge_setting(
                     cli_options, conf_options,
                     'delete_extraneous_destination', default=False),
+                delete_only=_merge_setting(
+                    cli_options, conf_options, 'delete_only', default=False),
                 mode=mode,
                 one_shot_bytes=_merge_setting(
                     cli_options, conf_options, 'one_shot_bytes', default=0),
@@ -834,6 +850,9 @@ def create_upload_specifications(ctx_cli_options, config):
             ),
             local_source_path=lsp,
         )
+        if (us.options.delete_only and
+                not us.options.delete_extraneous_destination):
+            raise ValueError('delete only specified without delete')
         # create remote destination paths
         for dst in conf['destination']:
             if len(dst) != 1:

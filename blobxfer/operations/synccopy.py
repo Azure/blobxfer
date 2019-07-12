@@ -824,6 +824,8 @@ class SyncCopy(object):
         # iterate through source paths to download
         processed_files = 0
         for src_ase, dst_ase in self._bind_sources_to_destination():
+            if self._spec.options.delete_only:
+                continue
             processed_files += 1
             if self._general_options.dry_run:
                 logger.info('[DRY RUN] synccopy: {} -> {}'.format(
@@ -844,13 +846,18 @@ class SyncCopy(object):
         # set remote files processed
         with self._transfer_lock:
             self._all_remote_files_processed = True
-            synccopy_size_mib = (
-                self._synccopy_bytes_total / blobxfer.util.MEGABYTE
-            )
-            logger.debug(
-                ('{0} remote files to sync, waiting for copy '
-                 'completion of approx. {1:.4f} MiB').format(
-                     processed_files, synccopy_size_mib))
+            if self._spec.options.delete_only:
+                logger.info(
+                    'skipping sync transfers as only deletion option '
+                    'was specified')
+            else:
+                synccopy_size_mib = (
+                    self._synccopy_bytes_total / blobxfer.util.MEGABYTE
+                )
+                logger.debug(
+                    ('{0} remote files to sync, waiting for copy '
+                     'completion of approx. {1:.4f} MiB').format(
+                         processed_files, synccopy_size_mib))
         del processed_files
         # wait for downloads to complete
         self._wait_for_transfer_threads(terminate=False)

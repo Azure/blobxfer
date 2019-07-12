@@ -130,6 +130,7 @@ download:
           check_file_md5: true
           chunk_size_bytes: 16777216
           delete_extraneous_destination: false
+          delete_only: false
           max_single_object_concurrency: 8
           mode: auto
           overwrite: true
@@ -160,6 +161,9 @@ download:
     * `delete_extraneous_destination` will cleanup any files locally that are
       not found on the remote. Note that this interacts with include and
       exclude filters.
+    * `delete_only` will only perform the local cleanup. If this is specified
+      as `true`, then `delete_extraneous_destination` must be specified as
+      `true` as well.
     * `max_single_object_concurrency` is the maximum number of concurrent
       transfers per object
     * `mode` is the operating mode
@@ -208,6 +212,7 @@ upload:
           access_tier: null
           chunk_size_bytes: 0
           delete_extraneous_destination: true
+          delete_only: false
           one_shot_bytes: 33554432
           overwrite: true
           recursive: true
@@ -246,6 +251,9 @@ upload:
     * `delete_extraneous_destination` will cleanup any files remotely that are
       not found on locally. Note that this interacts with include and
       exclude filters.
+    * `delete_only` will only perform the remote cleanup. If this is specified
+      as `true`, then `delete_extraneous_destination` must be specified as
+      `true` as well.
     * `one_shot_bytes` is the size limit to upload block blobs in a single
       request.
     * `overwrite` specifies clobber behavior
@@ -305,6 +313,7 @@ synccopy:
           dest_mode: auto
           access_tier: null
           delete_extraneous_destination: true
+          delete_only: false
           overwrite: true
           recursive: true
           rename: false
@@ -329,6 +338,9 @@ the map as `*: https://some.url/path`.
     * `delete_extraneous_destination` will cleanup any files in remote
       destinations that are not found in the remote sources. Note that this
       interacts with include and exclude filters.
+    * `delete_only` will only perform the remote cleanup. If this is specified
+      as `true`, then `delete_extraneous_destination` must be specified as
+      `true` as well.
     * `overwrite` specifies clobber behavior
     * `recursive` specifies if source remote paths should be recursively
       searched for files to copy

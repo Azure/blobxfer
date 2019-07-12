@@ -10,6 +10,7 @@ except ImportError:  # noqa
 import azure.storage.common
 # local imports
 import blobxfer.version
+import blobxfer.models.azure
 # module under test
 import blobxfer.operations.azure as azops
 import blobxfer.operations.azure.blob.block as ops
@@ -75,6 +76,14 @@ def test_put_block_from_url():
 
     ops.put_block_from_url(src_ase, dst_ase, offsets)
     assert dst_ase.client.put_block_from_url.call_count == 3
+
+    src_ase.client.account_key = 'key'
+    src_ase.client.sas_token = None
+    src_ase.mode = blobxfer.models.azure.StorageModes.File
+    src_ase.client.generate_file_shared_access_signature.return_value = 'sas'
+
+    ops.put_block_from_url(src_ase, dst_ase, offsets)
+    assert dst_ase.client.put_block_from_url.call_count == 4
 
 
 def test_put_block_list():
