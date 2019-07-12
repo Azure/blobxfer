@@ -3,7 +3,6 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/qgth9p7jlessgp5i/branch/master?svg=true)](https://ci.appveyor.com/project/alfpark/blobxfer)
 [![codecov](https://codecov.io/gh/Azure/blobxfer/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/blobxfer)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
-[![Image Layers](https://images.microbadger.com/badges/image/alfpark/blobxfer:latest.svg)](http://microbadger.com/images/alfpark/blobxfer)
 
 # blobxfer
 `blobxfer` is an advanced data movement tool and library for Azure Storage
@@ -28,9 +27,8 @@ within a file or object
     * `replica` mode allows replication of a file across multiple destinations
       including to multiple storage accounts
 * Synchronous copy with cross-mode (object transform) replication support
-    * By default, leverages server-side copies
+    * Leverages server-side copies by default
     * Arbitrary URL copy support
-    * Exact block-level copies for block blobs
 * Client-side encryption support
 * Support all Azure Blob types and Azure Files for both upload and download
 * Advanced skip options for rsync-like operations
