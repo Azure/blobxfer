@@ -19,7 +19,7 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.3'
+          PYENV_VERSION: '3.7.4'
           PYTOX_ENV: 'py37'
           VENV_VERSION: '16.2.0'
     steps:
@@ -142,7 +142,7 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.3'
+          PYENV_VERSION: '3.7.4'
           PYTOX_ENV: 'py37'
           VENV_VERSION: '16.2.0'
     steps:
@@ -273,7 +273,7 @@ jobs:
       matrix:
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.3'
+          PYENV_VERSION: '3.7.4'
           PYTOX_ENV: 'py37'
           VENV_VERSION: '16.2.0'
     steps:
