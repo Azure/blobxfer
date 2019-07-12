@@ -34,6 +34,7 @@ import logging
 # non-stdlib imports
 import azure.storage.blob
 # local imports
+import blobxfer.models.azure
 import blobxfer.retry
 
 # create logger
@@ -144,12 +145,22 @@ def put_block_from_url(src_ase, dst_ase, offsets, timeout=None):
         src_url = src_ase.path
     else:
         if blobxfer.util.is_not_empty(src_ase.client.account_key):
-            sas = src_ase.client.generate_blob_shared_access_signature(
-                container_name=src_ase.container,
-                blob_name=src_ase.name,
-                permission=azure.storage.blob.BlobPermissions(read=True),
-                expiry=datetime.datetime.utcnow() + datetime.timedelta(days=1),
-            )
+            if src_ase.mode == blobxfer.models.azure.StorageModes.File:
+                sas = src_ase.client.generate_file_shared_access_signature(
+                    share_name=src_ase.container,
+                    file_name=src_ase.name,
+                    permission=azure.storage.file.FilePermissions(read=True),
+                    expiry=datetime.datetime.utcnow() + datetime.timedelta(
+                        days=7),
+                )
+            else:
+                sas = src_ase.client.generate_blob_shared_access_signature(
+                    container_name=src_ase.container,
+                    blob_name=src_ase.name,
+                    permission=azure.storage.blob.BlobPermissions(read=True),
+                    expiry=datetime.datetime.utcnow() + datetime.timedelta(
+                        days=7),
+                )
         else:
             sas = src_ase.client.sas_token
         src_url = 'https://{}/{}?{}'.format(

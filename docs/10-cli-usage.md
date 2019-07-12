@@ -312,6 +312,8 @@ and can be used with any command. This is automatically enabled when
 using `stdin` as a source.
 * `--server-side-copy` or `--no-server-side-copy` enables or disables
 server side copies for synccopy operations. By default, this is enabled.
+Only block blob destinations are supported for server side copies. If
+the destination is not block blob, then this option must be disabled.
 * `--stdin-as-page-blob-size` allows a page blob size to be set if known
 beforehand when using `stdin` as a source and the destination is a page blob.
 This value will automatically be page blob boundary aligned.
