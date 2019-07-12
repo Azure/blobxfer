@@ -216,11 +216,12 @@ def add_cli_options(cli_options, action):
             )
         else:
             src_url = cli_options.get('remote_path')
-            if src_url is None:
-                raise ValueError('--remote-path not specified')
-            arg['source'] = [{
-                '*': src_url
-            }]
+            if blobxfer.util.is_not_empty(src_url):
+                arg['source'] = [{
+                    '*': src_url
+                }]
+            else:
+                arg['source'] = None
     elif action == TransferAction.Upload:
         arg = {
             'source': [local_resource] if local_resource is not None else None,

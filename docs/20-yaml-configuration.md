@@ -308,6 +308,7 @@ synccopy:
           overwrite: true
           recursive: true
           rename: false
+          server_side_copy: true
           skip_on:
               filesize_match: false
               lmt_ge: false
@@ -333,6 +334,9 @@ the map as `*: https://some.url/path`.
       searched for files to copy
     * `rename` will rename a single remote source entity to the remote
       destination path
+    * `server_side_copy` will perform the copy on Azure Storage servers.
+      This option is enabled by default and destinations must be block blob.
+      If destinations are not block blob, this option must be set to `false`.
     * `skip_on` are skip on options to use
         * `filesize_match` skip if file size match
         * `lmt_ge` skip if source file has a last modified time greater
