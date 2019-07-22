@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [1.9.0] - 2019-07-22
+### Added
+- Support a `--delete-only` option which allows operations to proceed but
+no transfer takes place but deletions do occur (in conjunction with
+`--delete`) ([#101](https://github.com/Azure/blobxfer/issues/101)). This
+option can be used for all operation types.
+- Support the `--strip-components` option for `synccopy` operations
+([#103](https://github.com/Azure/blobxfer/issues/103))
+
+### Changed
+- Updated dependencies
+- Binary builds are now built against Python 3.7.4
+- Windows Docker image uses Python 3.7.4
+- Linux Docker builds are based on Alpine 3.10
+
+### Fixed
+- Regression in YAML config and `synccopy` operations
+([#100](https://github.com/Azure/blobxfer/issues/100))
+- Allow synccopy source from Azure Files with a storage account key
+
 ## [1.8.0] - 2019-05-30
 ### Added
 - Server side copy support for `synccopy` commands. By default, `synccopy`
@@ -497,7 +517,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.8.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.0...HEAD
+[1.9.0]: https://github.com/Azure/blobxfer/compare/1.8.0...1.9.0
 [1.8.0]: https://github.com/Azure/blobxfer/compare/1.7.1...1.8.0
 [1.7.1]: https://github.com/Azure/blobxfer/compare/1.7.0...1.7.1
 [1.7.0]: https://github.com/Azure/blobxfer/compare/1.6.0...1.7.0
