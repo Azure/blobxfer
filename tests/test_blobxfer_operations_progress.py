@@ -131,6 +131,7 @@ def test_output_parameters():
             recursive=True,
             rename=False,
             server_side_copy=True,
+            strip_components=0,
         ),
         skip_on_options=options.SkipOn(
             filesize_match=True,

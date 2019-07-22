@@ -720,6 +720,14 @@ class SyncCopy(object):
                     name = str(pathlib.Path(name) / tmp)
                 else:
                     name = str(pathlib.Path(name) / src_ase.name)
+            # apply strip components
+            if self._spec.options.strip_components > 0:
+                _rparts = pathlib.Path(name).parts
+                _strip = min(
+                    (len(_rparts) - 1, self._spec.options.strip_components)
+                )
+                if _strip > 0:
+                    name = str(pathlib.Path(*_rparts[_strip:]))
             # translate source mode to dest mode
             dst_mode = self._translate_src_mode_to_dst_mode(src_ase.mode)
             dst_ase = self._check_for_existing_remote(sa, cont, name, dst_mode)

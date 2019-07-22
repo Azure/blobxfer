@@ -196,12 +196,12 @@ def output_parameters(general_options, spec):
         spec.options.recursive))
     log.append('            rename single: {}'.format(
         spec.options.rename))
+    log.append('         strip components: {}'.format(
+        spec.options.strip_components))
     # specific epilog
     if isinstance(spec, blobxfer.models.download.Specification):
         log.append('         chunk size bytes: {}'.format(
             spec.options.chunk_size_bytes))
-        log.append('         strip components: {}'.format(
-            spec.options.strip_components))
         log.append('         compute file md5: {}'.format(
             spec.options.check_file_md5))
         log.append('       restore properties: attr={} lmt={}'.format(
@@ -218,8 +218,6 @@ def output_parameters(general_options, spec):
             spec.options.chunk_size_bytes))
         log.append('           one shot bytes: {}'.format(
             spec.options.one_shot_bytes))
-        log.append('         strip components: {}'.format(
-            spec.options.strip_components))
         if spec.options.store_file_properties.content_type is not None:
             ct = '\'{}\''.format(
                 spec.options.store_file_properties.content_type)

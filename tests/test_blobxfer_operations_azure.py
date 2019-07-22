@@ -616,6 +616,7 @@ def test_azuresourcepath_url():
         recursive=None,
         rename=None,
         server_side_copy=True,
+        strip_components=0,
     )
 
     i = 0

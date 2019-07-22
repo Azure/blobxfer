@@ -137,6 +137,35 @@ class CliContext(object):
 pass_cli_context = click.make_pass_decorator(CliContext, ensure=True)
 
 
+def _access_key_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['access_key'] = value
+        return value
+    return click.option(
+        '--storage-account-key',
+        expose_value=False,
+        default=None,
+        help='Storage account access key',
+        envvar='BLOBXFER_STORAGE_ACCOUNT_KEY',
+        callback=callback)(f)
+
+
+def _chunk_size_bytes_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['chunk_size_bytes'] = value
+        return value
+    return click.option(
+        '--chunk-size-bytes',
+        expose_value=False,
+        type=int,
+        default=None,
+        help='Block or chunk size in bytes; set to 0 for auto-select '
+        'on upload [0]',
+        callback=callback)(f)
+
+
 def _config_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -221,6 +250,47 @@ def _enable_azure_storage_logger_option(f):
         callback=callback)(f)
 
 
+def _endpoint_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['endpoint'] = value
+        return value
+    return click.option(
+        '--endpoint',
+        expose_value=False,
+        default=None,
+        help='Azure Storage endpoint [core.windows.net]',
+        callback=callback)(f)
+
+
+def _exclude_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['exclude'] = value
+        return value
+    return click.option(
+        '--exclude',
+        expose_value=False,
+        multiple=True,
+        default=None,
+        help='Exclude pattern',
+        callback=callback)(f)
+
+
+def _include_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['include'] = value
+        return value
+    return click.option(
+        '--include',
+        expose_value=False,
+        multiple=True,
+        default=None,
+        help='Include pattern',
+        callback=callback)(f)
+
+
 def _log_file_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -261,6 +331,33 @@ def _md5_processes_option(f):
         type=int,
         default=None,
         help='Concurrent MD5 processes',
+        callback=callback)(f)
+
+
+def _mode_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['mode'] = value
+        return value
+    return click.option(
+        '--mode',
+        expose_value=False,
+        default=None,
+        help='Transfer mode: auto, append, block, file, page [auto]',
+        callback=callback)(f)
+
+
+def _overwrite_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['overwrite'] = value
+        return value
+    return click.option(
+        '--overwrite/--no-overwrite',
+        expose_value=False,
+        default=None,
+        help='Overwrite destination if exists. For append blobs, '
+        '--no-overwrite will append to any existing blob. [True]',
         callback=callback)(f)
 
 
@@ -320,6 +417,20 @@ def _proxy_username_option(f):
         callback=callback)(f)
 
 
+def _quiet_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['quiet'] = value
+        return value
+    return click.option(
+        '-q', '--quiet',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Quiet mode',
+        callback=callback)(f)
+
+
 def _read_timeout_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -331,6 +442,21 @@ def _read_timeout_option(f):
         type=float,
         default=None,
         help='Timeout, in seconds, applied to read operations',
+        callback=callback)(f)
+
+
+def _rename_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['rename'] = value
+        return value
+    return click.option(
+        '--rename',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Rename to specified destination for a single object. '
+        'Automatically enabled with stdin source. [False]',
         callback=callback)(f)
 
 
@@ -347,6 +473,20 @@ def _resume_file_option(f):
         callback=callback)(f)
 
 
+def _sas_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['sas'] = value
+        return value
+    return click.option(
+        '--sas',
+        expose_value=False,
+        default=None,
+        help='Shared access signature',
+        envvar='BLOBXFER_SAS',
+        callback=callback)(f)
+
+
 def _show_config_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -357,6 +497,63 @@ def _show_config_option(f):
         expose_value=False,
         is_flag=True,
         help='Show configuration',
+        callback=callback)(f)
+
+
+def _skip_on_filesize_match_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['skip_on_filesize_match'] = value
+        return value
+    return click.option(
+        '--skip-on-filesize-match',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Skip on equivalent file size [False]',
+        callback=callback)(f)
+
+
+def _skip_on_lmt_ge_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['skip_on_lmt_ge'] = value
+        return value
+    return click.option(
+        '--skip-on-lmt-ge',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Skip on last modified time greater than or equal to [False]',
+        callback=callback)(f)
+
+
+def _skip_on_md5_match_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['skip_on_md5_match'] = value
+        return value
+    return click.option(
+        '--skip-on-md5-match',
+        expose_value=False,
+        is_flag=True,
+        default=None,
+        help='Skip on MD5 match [False]',
+        callback=callback)(f)
+
+
+def _strip_components_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['strip_components'] = value
+        return value
+    return click.option(
+        '--strip-components',
+        expose_value=False,
+        type=int,
+        default=None,
+        help='Strip leading file path components: local path for upload, '
+        'remote path for download, or source path for synccopy [0]',
         callback=callback)(f)
 
 
@@ -403,17 +600,68 @@ def _verbose_option(f):
         callback=callback)(f)
 
 
-def _quiet_option(f):
+def common_options(f):
+    f = _verbose_option(f)
+    f = _transfer_threads_option(f)
+    f = _timeout_option(f)
+    f = _strip_components_option(f)
+    f = _skip_on_md5_match_option(f)
+    f = _skip_on_lmt_ge_option(f)
+    f = _skip_on_filesize_match_option(f)
+    f = _show_config_option(f)
+    f = _sas_option(f)
+    f = _resume_file_option(f)
+    f = _rename_option(f)
+    f = _read_timeout_option(f)
+    f = _quiet_option(f)
+    f = _proxy_username_option(f)
+    f = _proxy_password_option(f)
+    f = _proxy_host_option(f)
+    f = _progress_bar_option(f)
+    f = _overwrite_option(f)
+    f = _mode_option(f)
+    f = _md5_processes_option(f)
+    f = _max_retries_option(f)
+    f = _log_file_option(f)
+    f = _include_option(f)
+    f = _exclude_option(f)
+    f = _endpoint_option(f)
+    f = _enable_azure_storage_logger_option(f)
+    f = _dry_run_option(f)
+    f = _disk_threads_option(f)
+    f = _delete_option(f)
+    f = _delete_only_option(f)
+    f = _crypto_processes_option(f)
+    f = _connect_timeout_option(f)
+    f = _config_option(f)
+    f = _chunk_size_bytes_option(f)
+    f = _access_key_option(f)
+    return f
+
+
+def _file_attributes(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['quiet'] = value
+        clictx.cli_options['file_attributes'] = value
         return value
     return click.option(
-        '-q', '--quiet',
+        '--file-attributes/--no-file-attributes',
         expose_value=False,
-        is_flag=True,
         default=None,
-        help='Quiet mode',
+        help='Store or restore file attributes [False]',
+        callback=callback)(f)
+
+
+def _file_md5_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['file_md5'] = value
+        return value
+    return click.option(
+        '--file-md5/--no-file-md5',
+        expose_value=False,
+        default=None,
+        help='Compute file MD5 [False]',
         callback=callback)(f)
 
 
@@ -427,6 +675,60 @@ def _local_resource_option(f):
         expose_value=False,
         default=None,
         help='Local path; use - for stdin',
+        callback=callback)(f)
+
+
+def _recursive_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['recursive'] = value
+        return value
+    return click.option(
+        '--recursive/--no-recursive',
+        expose_value=False,
+        default=None,
+        help='Recursive [True]',
+        callback=callback)(f)
+
+
+def _remote_path_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['remote_path'] = value
+        return value
+    return click.option(
+        '--remote-path',
+        expose_value=False,
+        default=None,
+        help='Remote path on Azure Storage',
+        callback=callback)(f)
+
+
+def _rsa_private_key_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['rsa_private_key'] = value
+        return value
+    return click.option(
+        '--rsa-private-key',
+        expose_value=False,
+        default=None,
+        help='RSA private key PEM file',
+        envvar='BLOBXFER_RSA_PRIVATE_KEY',
+        callback=callback)(f)
+
+
+def _rsa_private_key_passphrase_option(f):
+    def callback(ctx, param, value):
+        clictx = ctx.ensure_object(CliContext)
+        clictx.cli_options['rsa_private_key_passphrase'] = value
+        return value
+    return click.option(
+        '--rsa-private-key-passphrase',
+        expose_value=False,
+        default=None,
+        help='RSA private key passphrase',
+        envvar='BLOBXFER_RSA_PRIVATE_KEY_PASSPHRASE',
         callback=callback)(f)
 
 
@@ -444,19 +746,6 @@ def _storage_account_option(f):
         callback=callback)(f)
 
 
-def _remote_path_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['remote_path'] = value
-        return value
-    return click.option(
-        '--remote-path',
-        expose_value=False,
-        default=None,
-        help='Remote path on Azure Storage',
-        callback=callback)(f)
-
-
 def _storage_url_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -471,52 +760,17 @@ def _storage_url_option(f):
         callback=callback)(f)
 
 
-def common_options(f):
-    f = _verbose_option(f)
-    f = _transfer_threads_option(f)
-    f = _timeout_option(f)
-    f = _show_config_option(f)
-    f = _resume_file_option(f)
-    f = _read_timeout_option(f)
-    f = _quiet_option(f)
-    f = _proxy_username_option(f)
-    f = _proxy_password_option(f)
-    f = _proxy_host_option(f)
-    f = _progress_bar_option(f)
-    f = _md5_processes_option(f)
-    f = _max_retries_option(f)
-    f = _log_file_option(f)
-    f = _enable_azure_storage_logger_option(f)
-    f = _dry_run_option(f)
-    f = _disk_threads_option(f)
-    f = _delete_option(f)
-    f = _delete_only_option(f)
-    f = _crypto_processes_option(f)
-    f = _connect_timeout_option(f)
-    f = _config_option(f)
-    return f
-
-
 def upload_download_options(f):
-    f = _remote_path_option(f)
     f = _storage_url_option(f)
     f = _storage_account_option(f)
+    f = _rsa_private_key_passphrase_option(f)
+    f = _rsa_private_key_option(f)
+    f = _remote_path_option(f)
+    f = _recursive_option(f)
     f = _local_resource_option(f)
+    f = _file_md5_option(f)
+    f = _file_attributes(f)
     return f
-
-
-def _access_key_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['access_key'] = value
-        return value
-    return click.option(
-        '--storage-account-key',
-        expose_value=False,
-        default=None,
-        help='Storage account access key',
-        envvar='BLOBXFER_STORAGE_ACCOUNT_KEY',
-        callback=callback)(f)
 
 
 def _access_tier_option(f):
@@ -529,21 +783,6 @@ def _access_tier_option(f):
         expose_value=False,
         default=None,
         help='Access tier to apply to target (block blob only)',
-        callback=callback)(f)
-
-
-def _chunk_size_bytes_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['chunk_size_bytes'] = value
-        return value
-    return click.option(
-        '--chunk-size-bytes',
-        expose_value=False,
-        type=int,
-        default=None,
-        help='Block or chunk size in bytes; set to 0 for auto-select '
-        'on upload [0]',
         callback=callback)(f)
 
 
@@ -590,46 +829,6 @@ def _distribution_mode(f):
         callback=callback)(f)
 
 
-def _endpoint_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['endpoint'] = value
-        return value
-    return click.option(
-        '--endpoint',
-        expose_value=False,
-        default=None,
-        help='Azure Storage endpoint [core.windows.net]',
-        callback=callback)(f)
-
-
-def _exclude_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['exclude'] = value
-        return value
-    return click.option(
-        '--exclude',
-        expose_value=False,
-        multiple=True,
-        default=None,
-        help='Exclude pattern',
-        callback=callback)(f)
-
-
-def _file_attributes(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['file_attributes'] = value
-        return value
-    return click.option(
-        '--file-attributes/--no-file-attributes',
-        expose_value=False,
-        default=None,
-        help='Store or restore file attributes [False]',
-        callback=callback)(f)
-
-
 def _file_cache_control_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -656,33 +855,6 @@ def _file_content_type_option(f):
         callback=callback)(f)
 
 
-def _file_md5_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['file_md5'] = value
-        return value
-    return click.option(
-        '--file-md5/--no-file-md5',
-        expose_value=False,
-        default=None,
-        help='Compute file MD5 [False]',
-        callback=callback)(f)
-
-
-def _include_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['include'] = value
-        return value
-    return click.option(
-        '--include',
-        expose_value=False,
-        multiple=True,
-        default=None,
-        help='Include pattern',
-        callback=callback)(f)
-
-
 def _max_single_object_concurrency(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -694,19 +866,6 @@ def _max_single_object_concurrency(f):
         type=int,
         default=None,
         help='Maximum single object concurrency [8]',
-        callback=callback)(f)
-
-
-def _mode_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['mode'] = value
-        return value
-    return click.option(
-        '--mode',
-        expose_value=False,
-        default=None,
-        help='Transfer mode: auto, append, block, file, page [auto]',
         callback=callback)(f)
 
 
@@ -726,48 +885,6 @@ def _one_shot_bytes_option(f):
         callback=callback)(f)
 
 
-def _overwrite_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['overwrite'] = value
-        return value
-    return click.option(
-        '--overwrite/--no-overwrite',
-        expose_value=False,
-        default=None,
-        help='Overwrite destination if exists. For append blobs, '
-        '--no-overwrite will append to any existing blob. [True]',
-        callback=callback)(f)
-
-
-def _recursive_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['recursive'] = value
-        return value
-    return click.option(
-        '--recursive/--no-recursive',
-        expose_value=False,
-        default=None,
-        help='Recursive [True]',
-        callback=callback)(f)
-
-
-def _rename_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['rename'] = value
-        return value
-    return click.option(
-        '--rename',
-        expose_value=False,
-        is_flag=True,
-        default=None,
-        help='Rename to specified destination for a single object. '
-        'Automatically enabled with stdin source. [False]',
-        callback=callback)(f)
-
-
 def _restore_file_lmt_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -780,34 +897,6 @@ def _restore_file_lmt_option(f):
         default=None,
         help='Set last modified time equal to the last modified property '
         'in Azure Storage [false]',
-        callback=callback)(f)
-
-
-def _rsa_private_key_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['rsa_private_key'] = value
-        return value
-    return click.option(
-        '--rsa-private-key',
-        expose_value=False,
-        default=None,
-        help='RSA private key PEM file',
-        envvar='BLOBXFER_RSA_PRIVATE_KEY',
-        callback=callback)(f)
-
-
-def _rsa_private_key_passphrase_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['rsa_private_key_passphrase'] = value
-        return value
-    return click.option(
-        '--rsa-private-key-passphrase',
-        expose_value=False,
-        default=None,
-        help='RSA private key passphrase',
-        envvar='BLOBXFER_RSA_PRIVATE_KEY_PASSPHRASE',
         callback=callback)(f)
 
 
@@ -825,20 +914,6 @@ def _rsa_public_key_option(f):
         callback=callback)(f)
 
 
-def _sas_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['sas'] = value
-        return value
-    return click.option(
-        '--sas',
-        expose_value=False,
-        default=None,
-        help='Shared access signature',
-        envvar='BLOBXFER_SAS',
-        callback=callback)(f)
-
-
 def _server_side_copy_option(f):
     def callback(ctx, param, value):
         clictx = ctx.ensure_object(CliContext)
@@ -849,48 +924,6 @@ def _server_side_copy_option(f):
         expose_value=False,
         default=None,
         help='Copy source data within Azure Storage [True]',
-        callback=callback)(f)
-
-
-def _skip_on_filesize_match_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['skip_on_filesize_match'] = value
-        return value
-    return click.option(
-        '--skip-on-filesize-match',
-        expose_value=False,
-        is_flag=True,
-        default=None,
-        help='Skip on equivalent file size [False]',
-        callback=callback)(f)
-
-
-def _skip_on_lmt_ge_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['skip_on_lmt_ge'] = value
-        return value
-    return click.option(
-        '--skip-on-lmt-ge',
-        expose_value=False,
-        is_flag=True,
-        default=None,
-        help='Skip on last modified time greater than or equal to [False]',
-        callback=callback)(f)
-
-
-def _skip_on_md5_match_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['skip_on_md5_match'] = value
-        return value
-    return click.option(
-        '--skip-on-md5-match',
-        expose_value=False,
-        is_flag=True,
-        default=None,
-        help='Skip on MD5 match [False]',
         callback=callback)(f)
 
 
@@ -905,21 +938,6 @@ def _stdin_as_page_blob_size_option(f):
         type=int,
         default=None,
         help='Size of page blob with input from stdin [0]',
-        callback=callback)(f)
-
-
-def _strip_components_option(f):
-    def callback(ctx, param, value):
-        clictx = ctx.ensure_object(CliContext)
-        clictx.cli_options['strip_components'] = value
-        return value
-    return click.option(
-        '--strip-components',
-        expose_value=False,
-        type=int,
-        default=None,
-        help='Strip leading file path components: local path for upload '
-        'or remote path for download [0]',
         callback=callback)(f)
 
 
@@ -1034,55 +1052,19 @@ def _sync_copy_source_url(f):
 
 def upload_options(f):
     f = _stripe_chunk_size_bytes_option(f)
-    f = _strip_components_option(f)
     f = _stdin_as_page_blob_size_option(f)
-    f = _skip_on_md5_match_option(f)
-    f = _skip_on_lmt_ge_option(f)
-    f = _skip_on_filesize_match_option(f)
-    f = _sas_option(f)
     f = _rsa_public_key_option(f)
-    f = _rsa_private_key_passphrase_option(f)
-    f = _rsa_private_key_option(f)
-    f = _rename_option(f)
-    f = _recursive_option(f)
-    f = _overwrite_option(f)
     f = _one_shot_bytes_option(f)
-    f = _mode_option(f)
-    f = _include_option(f)
-    f = _file_md5_option(f)
     f = _file_content_type_option(f)
     f = _file_cache_control_option(f)
-    f = _file_attributes(f)
-    f = _exclude_option(f)
-    f = _endpoint_option(f)
     f = _distribution_mode(f)
-    f = _chunk_size_bytes_option(f)
     f = _access_tier_option(f)
-    f = _access_key_option(f)
     return f
 
 
 def download_options(f):
-    f = _strip_components_option(f)
-    f = _skip_on_md5_match_option(f)
-    f = _skip_on_lmt_ge_option(f)
-    f = _skip_on_filesize_match_option(f)
-    f = _sas_option(f)
-    f = _rsa_private_key_passphrase_option(f)
-    f = _rsa_private_key_option(f)
     f = _restore_file_lmt_option(f)
-    f = _rename_option(f)
-    f = _recursive_option(f)
-    f = _overwrite_option(f)
-    f = _mode_option(f)
     f = _max_single_object_concurrency(f)
-    f = _include_option(f)
-    f = _file_md5_option(f)
-    f = _file_attributes(f)
-    f = _exclude_option(f)
-    f = _endpoint_option(f)
-    f = _chunk_size_bytes_option(f)
-    f = _access_key_option(f)
     return f
 
 
@@ -1095,21 +1077,9 @@ def sync_copy_options(f):
     f = _sync_copy_dest_mode_option(f)
     f = _sync_copy_dest_access_key_option(f)
     f = _storage_account_option(f)
-    f = _skip_on_md5_match_option(f)
-    f = _skip_on_lmt_ge_option(f)
-    f = _skip_on_filesize_match_option(f)
     f = _server_side_copy_option(f)
-    f = _sas_option(f)
-    f = _rename_option(f)
     f = _remote_path_option(f)
-    f = _overwrite_option(f)
-    f = _mode_option(f)
-    f = _include_option(f)
-    f = _exclude_option(f)
-    f = _endpoint_option(f)
-    f = _chunk_size_bytes_option(f)
     f = _access_tier_option(f)
-    f = _access_key_option(f)
     return f
 
 
@@ -1122,8 +1092,8 @@ def cli(ctx):
 
 
 @cli.command('download')
-@upload_download_options
 @download_options
+@upload_download_options
 @common_options
 @pass_cli_context
 def download(ctx):
@@ -1157,8 +1127,8 @@ def synccopy(ctx):
 
 
 @cli.command('upload')
-@upload_download_options
 @upload_options
+@upload_download_options
 @common_options
 @pass_cli_context
 def upload(ctx):

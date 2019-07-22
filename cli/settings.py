@@ -211,6 +211,7 @@ def add_cli_options(cli_options, action):
                     'lmt_ge': cli_options.get('skip_on_lmt_ge'),
                     'md5_match': cli_options.get('skip_on_md5_match'),
                 },
+                'strip_components': cli_options.get('strip_components'),
             },
         }
         if storage_account is not None:
@@ -681,6 +682,9 @@ def create_synccopy_specifications(ctx_cli_options, config):
                 server_side_copy=_merge_setting(
                     cli_options, conf_options, 'server_side_copy',
                     default=True),
+                strip_components=_merge_setting(
+                    cli_options, conf_options, 'strip_components',
+                    default=0),
             ),
             skip_on_options=blobxfer.models.options.SkipOn(
                 filesize_match=_merge_setting(

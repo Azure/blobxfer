@@ -661,6 +661,7 @@ def test_check_copy_conditions(gmfm):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
 
     src_ase = mock.MagicMock()
     src_ase._client.primary_endpoint = 'ep'
@@ -733,6 +734,7 @@ def test_check_for_existing_remote(gbp, gfp):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
 
     sa = mock.MagicMock()
     sa.name = 'name'
@@ -776,6 +778,8 @@ def test_get_destination_paths():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
+
     paths = mock.MagicMock()
     paths.paths = [pathlib.Path('a/b')]
     s._spec.destinations = [paths]
@@ -790,6 +794,7 @@ def test_generate_destination_for_source():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
     s._spec.options.dest_mode = azmodels.StorageModes.Block
     s._spec.options.rename = False
     s._check_for_existing_remote = mock.MagicMock()
@@ -856,11 +861,21 @@ def test_generate_destination_for_source():
     ase = next(s._generate_destination_for_source(src_ase))
     assert pathlib.Path(ase.name) == pathlib.Path('name/remote/path')
 
+    # test strip components
+    s._get_destination_paths.return_value = [
+        (sa, 'cont', 'name', 'dpath'),
+    ]
+    s._spec.options.strip_components = 1
+    src_ase.is_arbitrary_url = True
+    ase = next(s._generate_destination_for_source(src_ase))
+    assert pathlib.Path(ase.name) == pathlib.Path('remote/path')
+
 
 def test_bind_sources_to_destination():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
     s._spec.options.delete_extraneous_destination = True
 
     src_ase = mock.MagicMock()
@@ -925,6 +940,7 @@ def test_run(srm, gbr, gfr):
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     s._general_options.dry_run = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
     s._general_options.concurrency.transfer_threads = 1
     s._general_options.resume_file = 'resume'
     s._spec.options.chunk_size_bytes = 0
@@ -1004,6 +1020,7 @@ def test_start():
     s._general_options.dry_run = False
     s._spec.options.delete_only = False
     s._spec.options.server_side_copy = False
+    s._spec.options.strip_components = 0
     s._wait_for_transfer_threads = mock.MagicMock()
     s._resume = mock.MagicMock()
     s._run = mock.MagicMock()

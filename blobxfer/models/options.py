@@ -126,6 +126,7 @@ SyncCopy = collections.namedtuple(
         'recursive',
         'rename',
         'server_side_copy',
+        'strip_components',
     ]
 )
 
