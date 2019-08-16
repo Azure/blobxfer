@@ -43,6 +43,11 @@ logger = logging.getLogger(__name__)
 
 
 class _MultiprocessOffload(object):
+    __slots__ = [
+        '_task_queue', '_done_queue', '_done_cv', '_term_signal', '_procs',
+        '_check_thread'
+    ]
+
     def __init__(self, target, num_workers, description=None):
         # type: (_MultiprocessOffload, function, int, str) -> None
         """Ctor for Multiprocess Offload
@@ -92,7 +97,15 @@ class _MultiprocessOffload(object):
         logger.debug('initializing {}{} processes'.format(
             num_workers, ' ' + description if not None else ''))
         for _ in range(num_workers):
-            proc = multiprocessing.Process(target=target)
+            proc = multiprocessing.Process(
+                target=target,
+                args=(
+                    self._term_signal,
+                    self._task_queue,
+                    self._done_cv,
+                    self._done_queue
+                )
+            )
             proc.start()
             self._procs.append(proc)
 

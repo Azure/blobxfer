@@ -226,20 +226,24 @@ class Uploader(object):
         md5 = blobxfer.models.metadata.get_md5_from_metadata(rfile)
         key = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
         with self._md5_meta_lock:
-            self._md5_map[key] = (src, rfile)
+            self._md5_map[key] = (src, rfile, md5)
         self._md5_offload.add_localfile_for_md5_check(
             key, None, str(src.absolute_path), md5, rfile.mode, src.view)
 
-    def _post_md5_skip_on_check(self, key, md5_match):
-        # type: (Uploader, str, bool) -> None
+    def _post_md5_skip_on_check(self, key, local_md5, md5_match):
+        # type: (Uploader, str, str, bool) -> None
         """Perform post MD5 skip on check
         :param Uploader self: this
         :param str key: md5 map key
+        :param str local_md5: local md5
         :param bool md5_match: if MD5 matches
         """
         with self._md5_meta_lock:
-            src, rfile = self._md5_map.pop(key)
+            src, rfile, remote_md5 = self._md5_map.pop(key)
         uid = blobxfer.operations.upload.Uploader.create_unique_id(src, rfile)
+        if self._general_options.verbose:
+            logger.debug('pre-transfer MD5 check: {} <L..R> {} {}'.format(
+                local_md5, remote_md5, src.relative_path))
         if md5_match:
             with self._upload_lock:
                 self._upload_set.remove(uid)
@@ -278,7 +282,7 @@ class Uploader(object):
                     break
             cv.release()
             if result is not None:
-                self._post_md5_skip_on_check(result[0], result[3])
+                self._post_md5_skip_on_check(result[0], result[3], result[4])
 
     def _add_to_upload_queue(self, src, rfile, uid):
         # type: (Uploader, blobxfer.models.upload.LocalPath,

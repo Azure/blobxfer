@@ -297,7 +297,7 @@ class Downloader(object):
         key = blobxfer.operations.download.Downloader.\
             create_unique_transfer_operation_id(rfile)
         with self._md5_meta_lock:
-            self._md5_map[key] = rfile
+            self._md5_map[key] = (rfile, md5)
         slpath = str(lpath)
         # temporarily create a download descriptor view for vectored io
         if rfile.vectored_io is not None:
@@ -312,17 +312,22 @@ class Downloader(object):
         self._md5_offload.add_localfile_for_md5_check(
             key, slpath, fpath, md5, rfile.mode, view)
 
-    def _post_md5_skip_on_check(self, key, filename, size, md5_match):
-        # type: (Downloader, str, str, int, bool) -> None
+    def _post_md5_skip_on_check(
+            self, key, filename, size, local_md5, md5_match):
+        # type: (Downloader, str, str, int, str, bool) -> None
         """Perform post MD5 skip on check
         :param Downloader self: this
         :param str key: md5 map key
         :param str filename: local filename
         :param int size: size of checked data
+        :param str local_md5: local md5
         :param bool md5_match: if MD5 matches
         """
         with self._md5_meta_lock:
-            rfile = self._md5_map.pop(key)
+            rfile, remote_md5 = self._md5_map.pop(key)
+        if self._general_options.verbose:
+            logger.debug('pre-transfer MD5 check: {} <L..R> {} {}'.format(
+                local_md5, remote_md5, filename))
         lpath = pathlib.Path(filename)
         if md5_match:
             if size is None:
@@ -372,7 +377,7 @@ class Downloader(object):
             cv.release()
             if result is not None:
                 self._post_md5_skip_on_check(
-                    result[0], result[1], result[2], result[3])
+                    result[0], result[1], result[2], result[3], result[4])
 
     def _check_for_crypto_done(self):
         # type: (Downloader) -> None

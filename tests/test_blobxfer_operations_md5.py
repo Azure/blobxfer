@@ -103,11 +103,12 @@ def test_from_add_to_done_non_pagealigned(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 4
+            assert len(result) == 5
             assert result[0] == key
             assert result[1] == str(file)
             assert result[2] is None
-            assert result[3]
+            assert result[3] == remote_md5
+            assert result[4]
             checked = True
             break
         assert checked
@@ -148,11 +149,12 @@ def test_from_add_to_done_lpview(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 4
+            assert len(result) == 5
             assert result[0] == key
             assert result[1] == str(file)
             assert result[2] == 3
-            assert result[3]
+            assert result[3] == remote_md5
+            assert result[4]
             checked = True
             break
         assert checked
@@ -185,11 +187,12 @@ def test_from_add_to_done_pagealigned(tmpdir):
                 time.sleep(0.3)
                 i -= 1
                 continue
-            assert len(result) == 4
+            assert len(result) == 5
             assert result[0] == key
             assert result[1] == str(file)
             assert result[2] is None
-            assert result[3]
+            assert result[3] == remote_md5
+            assert result[4]
             checked = True
             break
         assert checked

@@ -235,16 +235,21 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
         :param CryptoOffload self: this
         :param int num_workers: number of worker processes
         """
-        super().__init__(self._worker_process, num_workers, 'Crypto')
+        super().__init__(CryptoOffload._worker_process, num_workers, 'Crypto')
 
-    def _worker_process(self):
-        # type: (CryptoOffload) -> None
+    @staticmethod
+    def _worker_process(term_signal, task_queue, done_cv, done_queue):
+        # type: (multiprocessing.Value, multiprocessing.Queue,
+        #        multiprocessing.Condition, multiprocessing.Queue) -> None
         """Crypto worker
-        :param CryptoOffload self: this
+        :param multiprocessing.Value term_signal: termination signal
+        :param multiprocessing.Queue task_queue: task queue
+        :param multiprocessing.Condition done_cv: done condition variable
+        :param multiprocessing.Queue done_queue: done queue
         """
-        while not self.terminated:
+        while term_signal.value != 1:
             try:
-                inst = self._task_queue.get(True, 0.1)
+                inst = task_queue.get(True, 0.1)
             except queue.Empty:
                 continue
             # UNUSED due to AES256-CBC FullBlob mode
@@ -259,8 +264,8 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
                         mode='wb', delete=False) as fd:
                     fpath = fd.name
                     fd.write(encdata)
-                self._done_cv.acquire()
-                self._done_queue.put(fpath)
+                done_cv.acquire()
+                done_queue.put(fpath)
             elif inst[0] == CryptoAction.Decrypt:
                 final_path, internal_fdstart, offsets, symkey, iv, \
                     hmac_datafile = \
@@ -275,11 +280,11 @@ class CryptoOffload(blobxfer.models.offload._MultiprocessOffload):
                     with open(final_path, 'r+b') as fd:
                         fd.seek(internal_fdstart + offsets.fd_start, 0)
                         fd.write(data)
-                self._done_cv.acquire()
-                self._done_queue.put((final_path, offsets))
+                done_cv.acquire()
+                done_queue.put((final_path, offsets))
             # notify and release condition var
-            self._done_cv.notify()
-            self._done_cv.release()
+            done_cv.notify()
+            done_cv.release()
 
     def add_decrypt_chunk(
             self, final_path, internal_fdstart, offsets, symkey, iv,

@@ -111,22 +111,22 @@ def test_post_md5_skip_on_check():
     ase.path = 'asepath'
 
     id = ops.Uploader.create_unique_id(src, ase)
-    u._md5_map[id] = (src, ase)
+    u._md5_map[id] = (src, ase, 'md5')
     u._upload_set.add(id)
     u._upload_total += 1
 
     u._general_options.dry_run = True
-    u._post_md5_skip_on_check(id, True)
+    u._post_md5_skip_on_check(id, 'md5', True)
     assert len(u._md5_map) == 0
     assert id not in u._upload_set
     assert u._upload_total == 0
 
     u._general_options.dry_run = False
-    u._md5_map[id] = (src, ase)
+    u._md5_map[id] = (src, ase, 'md5')
     u._upload_set.add(id)
     u._upload_total += 1
     u._add_to_upload_queue = mock.MagicMock()
-    u._post_md5_skip_on_check(id, False)
+    u._post_md5_skip_on_check(id, 'lmd5', False)
     assert len(u._md5_map) == 0
     assert id in u._upload_set
     assert u._upload_total == 1
@@ -134,11 +134,11 @@ def test_post_md5_skip_on_check():
 
     u = ops.Uploader(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
     u._general_options.dry_run = True
-    u._md5_map[id] = (src, ase)
+    u._md5_map[id] = (src, ase, 'md5')
     u._upload_set.add(id)
     u._upload_total += 1
     u._add_to_upload_queue = mock.MagicMock()
-    u._post_md5_skip_on_check(id, False)
+    u._post_md5_skip_on_check(id, 'lmd5', False)
     assert len(u._md5_map) == 0
     assert id not in u._upload_set
     assert u._upload_total == 0

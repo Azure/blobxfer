@@ -123,17 +123,24 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
         :param LocalFileMd5Offload self: this
         :param int num_workers: number of worker processes
         """
-        super().__init__(self._worker_process, num_workers, 'MD5')
+        super().__init__(
+            LocalFileMd5Offload._worker_process, num_workers, 'MD5'
+        )
 
-    def _worker_process(self):
-        # type: (LocalFileMd5Offload) -> None
+    @staticmethod
+    def _worker_process(term_signal, task_queue, done_cv, done_queue):
+        # type: (multiprocessing.Value, multiprocessing.Queue,
+        #        multiprocessing.Condition, multiprocessing.Queue) -> None
         """Compute MD5 for local file
-        :param LocalFileMd5Offload self: this
+        :param multiprocessing.Value term_signal: termination signal
+        :param multiprocessing.Queue task_queue: task queue
+        :param multiprocessing.Condition done_cv: done condition variable
+        :param multiprocessing.Queue done_queue: done queue
         """
-        while not self.terminated:
+        while term_signal.value != 1:
             try:
                 key, lpath, fpath, remote_md5, pagealign, lpview = \
-                    self._task_queue.get(True, 0.1)
+                    task_queue.get(True, 0.1)
             except queue.Empty:
                 continue
             if lpview is None:
@@ -146,12 +153,10 @@ class LocalFileMd5Offload(blobxfer.models.offload._MultiprocessOffload):
                 size = end - start
             md5 = blobxfer.operations.md5.compute_md5_for_file_asbase64(
                 fpath, pagealign, start, end)
-            logger.debug('pre-transfer MD5 check: {} <L..R> {} {}'.format(
-                md5, remote_md5, fpath))
-            self._done_cv.acquire()
-            self._done_queue.put((key, lpath, size, md5 == remote_md5))
-            self._done_cv.notify()
-            self._done_cv.release()
+            done_cv.acquire()
+            done_queue.put((key, lpath, size, md5, md5 == remote_md5))
+            done_cv.notify()
+            done_cv.release()
 
     def add_localfile_for_md5_check(
             self, key, lpath, fpath, remote_md5, mode, lpview):

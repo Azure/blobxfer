@@ -457,20 +457,20 @@ def test_post_md5_skip_on_check(tmpdir):
     assert key in d._md5_map
 
     d._general_options.dry_run = True
-    d._post_md5_skip_on_check(key, lpath, None, True)
+    d._post_md5_skip_on_check(key, lpath, None, 'abc', True)
     assert key not in d._md5_map
 
     d._general_options.dry_run = False
     d._add_to_download_queue = mock.MagicMock()
     d._pre_md5_skip_on_check(lpath, rfile)
     d._transfer_set.add(key)
-    d._post_md5_skip_on_check(key, lpath, rfile._size, False)
+    d._post_md5_skip_on_check(key, lpath, rfile._size, 'labc', False)
     assert d._add_to_download_queue.call_count == 1
 
     d._general_options.dry_run = True
     d._pre_md5_skip_on_check(lpath, rfile)
     d._transfer_set.add(key)
-    d._post_md5_skip_on_check(key, lpath, rfile._size, False)
+    d._post_md5_skip_on_check(key, lpath, rfile._size, 'labc', False)
     assert d._add_to_download_queue.call_count == 1
 
 
@@ -492,7 +492,7 @@ def test_check_for_downloads_from_md5():
     d._md5_offload.done_cv = multiprocessing.Condition()
     d._md5_offload.pop_done_queue.side_effect = [
         None,
-        (key, lpath, rfile._size, False),
+        (key, lpath, rfile._size, 'labc', False),
     ]
     d._add_to_download_queue = mock.MagicMock()
     d._all_remote_files_processed = False
@@ -507,13 +507,13 @@ def test_check_for_downloads_from_md5():
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
         d._general_options.dry_run = False
-        d._md5_map[key] = rfile
+        d._md5_map[key] = (rfile, 'labc')
         d._transfer_set.add(key)
         d._md5_offload = mock.MagicMock()
         d._md5_offload.done_cv = multiprocessing.Condition()
         d._md5_offload.pop_done_queue.side_effect = [
             None,
-            (key, lpath, rfile._size, False),
+            (key, lpath, rfile._size, 'labc', False),
         ]
         d._add_to_download_queue = mock.MagicMock()
         patched_tc.side_effect = [False, False, True]
@@ -527,7 +527,7 @@ def test_check_for_downloads_from_md5():
         d = ops.Downloader(
             mock.MagicMock(), mock.MagicMock(), mock.MagicMock())
         d._general_options.dry_run = False
-        d._md5_map[key] = rfile
+        d._md5_map[key] = (rfile, 'labc')
         d._transfer_set.add(key)
         d._md5_offload = mock.MagicMock()
         d._md5_offload.done_cv = multiprocessing.Condition()
