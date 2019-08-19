@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.9.1] - 2019-08-19
+### Fixed
+- Multi-process concurrency workers (MD5 and decryption) on Python 3.7+
+([#104](https://github.com/Azure/blobxfer/issues/104))
+
+### Removed
+- Python 2.7 support on Windows dropped
+
 ## [1.9.0] - 2019-07-22
 ### Added
 - Support a `--delete-only` option which allows operations to proceed but
@@ -517,7 +525,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.1...HEAD
+[1.9.1]: https://github.com/Azure/blobxfer/compare/1.9.0...1.9.1
 [1.9.0]: https://github.com/Azure/blobxfer/compare/1.8.0...1.9.0
 [1.8.0]: https://github.com/Azure/blobxfer/compare/1.7.1...1.8.0
 [1.7.1]: https://github.com/Azure/blobxfer/compare/1.7.0...1.7.1
