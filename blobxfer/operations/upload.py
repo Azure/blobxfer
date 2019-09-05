@@ -886,6 +886,9 @@ class Uploader(object):
         :rtype: blobxfer.models.azure.StorageEntity
         :return: remote storage entity
         """
+        ase = None
+        if self._spec.options.overwrite or not sa.can_read_object:
+            return ase
         if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
                 sa.file_client, cont, name)
@@ -918,8 +921,6 @@ class Uploader(object):
                 self._spec.options.store_file_properties.content_type or
                 blobxfer.util.get_mime_type(ase.name)
             )
-        else:
-            ase = None
         return ase
 
     def _generate_destination_for_source(self, local_path):
@@ -958,10 +959,7 @@ class Uploader(object):
                     VectoredIoDistributionMode.Stripe):
                 ase = None
             else:
-                if sa.can_read_object:
-                    ase = self._check_for_existing_remote(sa, cont, name)
-                else:
-                    ase = None
+                ase = self._check_for_existing_remote(sa, cont, name)
             if ase is None:
                 # encryption metadata will be populated later, if required
                 ase = blobxfer.models.azure.StorageEntity(cont, ed=None)
@@ -1212,7 +1210,7 @@ class Uploader(object):
                     'was specified')
             else:
                 logger.debug(
-                    ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                    ('{0} files {1:.4f} MiB filesize, lmt_ge, or no overwrite '
                      'skipped').format(
                         skipped_files, skipped_size / blobxfer.util.MEGABYTE))
                 logger.debug(

@@ -820,7 +820,7 @@ class Downloader(object):
                     'was specified')
             else:
                 logger.debug(
-                    ('{0} files {1:.4f} MiB filesize and/or lmt_ge '
+                    ('{0} files {1:.4f} MiB filesize, lmt_ge, or no overwrite '
                      'skipped').format(
                         skipped_files, skipped_size / blobxfer.util.MEGABYTE))
                 logger.debug(
