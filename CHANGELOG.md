@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [1.9.2] - 2019-09-09
+### Fixed
+- Fix default overwrite behavior on upload performing point query lookups
+for each remote object
+
 ## [1.9.1] - 2019-08-19
 ### Fixed
 - Multi-process concurrency workers (MD5 and decryption) on Python 3.7+
@@ -12,7 +17,7 @@
 
 ## [1.9.0] - 2019-07-22
 ### Added
-- Support a `--delete-only` option which allows operations to proceed but
+- Support a `--delete-only` option which allows operations to proceed while
 no transfer takes place but deletions do occur (in conjunction with
 `--delete`) ([#101](https://github.com/Azure/blobxfer/issues/101)). This
 option can be used for all operation types.
@@ -525,7 +530,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.1...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.2...HEAD
+[1.9.2]: https://github.com/Azure/blobxfer/compare/1.9.1...1.9.2
 [1.9.1]: https://github.com/Azure/blobxfer/compare/1.9.0...1.9.1
 [1.9.0]: https://github.com/Azure/blobxfer/compare/1.8.0...1.9.0
 [1.8.0]: https://github.com/Azure/blobxfer/compare/1.7.1...1.8.0
