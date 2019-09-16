@@ -122,6 +122,9 @@ class StorageAccount(object):
         self.key = key
         self.endpoint = endpoint
         self.is_sas = StorageAccount._key_is_sas(self.key)
+        # normalize sas keys
+        if self.is_sas and self.key[0] == '?':
+            self.key = self.key[1:]
         self.can_create_containers = self._container_manipulation_allowed()
         self.can_list_container_objects = (
             self._credential_allows_container_list()
@@ -134,9 +137,6 @@ class StorageAccount(object):
                 raise ValueError(
                     'the provided SAS does not allow object-level access for '
                     'account: {}'.format(self.name))
-            # normalize sas keys
-            if self.key.startswith('?'):
-                self.key = self.key[1:]
         else:
             # check if sa shared key is base64
             if StorageAccount._VALID_BASE64_RE.match(self.key) is None:

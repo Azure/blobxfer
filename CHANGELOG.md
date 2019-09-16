@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Fixed
+- Fix SAS permission derivation on SAS keys with leading '?' character
+
 ## [1.9.2] - 2019-09-09
 ### Fixed
 - Fix default overwrite behavior on upload performing point query lookups

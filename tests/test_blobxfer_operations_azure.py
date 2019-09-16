@@ -180,6 +180,26 @@ def test_credential_allows_object_read():
     assert a.can_read_object
 
     a = azops.StorageAccount(
+        'name', '?sp=r&sr=b&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
+        'name', 'sp=r&sr=b&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
+        'name', '?sr=b&sp=r&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
+        'name', 'sr=b&sp=r&sig=2', 'core.windows.net', 10, to, None)
+    assert a._credential_allows_object_read()
+    assert a.can_read_object
+
+    a = azops.StorageAccount(
         'name', '?sv=0&si=policy&sig=2', 'core.windows.net', 10, to, None)
     assert a._credential_allows_object_read()
     assert a.can_read_object
