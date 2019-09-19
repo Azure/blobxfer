@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+## [1.9.3] - 2019-09-19
 ### Fixed
 - Fix SAS permission derivation on SAS keys with leading '?' character
 
@@ -533,7 +534,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.2...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.3...HEAD
+[1.9.3]: https://github.com/Azure/blobxfer/compare/1.9.2...1.9.3
 [1.9.2]: https://github.com/Azure/blobxfer/compare/1.9.1...1.9.2
 [1.9.1]: https://github.com/Azure/blobxfer/compare/1.9.0...1.9.1
 [1.9.0]: https://github.com/Azure/blobxfer/compare/1.8.0...1.9.0
