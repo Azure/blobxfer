@@ -54,6 +54,19 @@ remain in the directory on the Azure File share.
 * Please see [this article](https://msdn.microsoft.com/en-us/library/azure/dn744326.aspx)
 for general limitations with Azure File Shares.
 
+### Synccopy Limitations
+* Synchronous copy between containers and file shares within the same storage
+account must be invoked with a storage key or an account-level SAS token with
+access to both services on both the source and destination. Single object
+copies are not affected.
+* Synchronous copy operations between Azure source and remote paths are
+limited to transfers within the same Azure cloud (i.e., the source and
+destination `endpoint` must match). For example, you can synchonously copy
+within or between storage accounts in Azure Public cloud,
+e.g., `core.windows.net` but not between Azure clouds, e.g.,
+`core.windows.net` and `core.usgovcloudapi.net`. Single object copies between
+clouds can be performed by providing a full source URL as the `--remote-path`.
+
 ### Other Limitations
 * MD5 is not computed for append blobs.
 * Virtual directories in Azure with no characters, e.g. `mycontainer//mydir`
@@ -71,10 +84,3 @@ remote path of `mycontainer/mydir/` will not work as intended as, internally,
 Blob Storage or General Purpose V2 Storage accounts. Please see
 [this article](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
 for more information.
-* Synchronous copy operations between Azure source and remote paths are
-limited to transfers within the same Azure cloud (i.e., the source and
-destination `endpoint` must match). For example, you can synchonously copy
-within or between storage accounts in Azure Public cloud,
-e.g., `core.windows.net` but not between Azure clouds, e.g.,
-`core.windows.net` and `core.usgovcloudapi.net`. Single object copies between
-clouds can be performed by providing a full source URL as the `--remote-path`.

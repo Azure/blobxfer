@@ -605,6 +605,7 @@ def common_options(f):
     f = _transfer_threads_option(f)
     f = _timeout_option(f)
     f = _strip_components_option(f)
+    f = _storage_url_option(f)
     f = _skip_on_md5_match_option(f)
     f = _skip_on_lmt_ge_option(f)
     f = _skip_on_filesize_match_option(f)
@@ -761,7 +762,6 @@ def _storage_url_option(f):
 
 
 def upload_download_options(f):
-    f = _storage_url_option(f)
     f = _storage_account_option(f)
     f = _rsa_private_key_passphrase_option(f)
     f = _rsa_private_key_option(f)

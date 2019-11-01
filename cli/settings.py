@@ -168,7 +168,7 @@ def add_cli_options(cli_options, action):
                     'Invalid derived destination mode from '
                     '--sync-copy-dest-storage-url: {}'.format(mode))
             if mode == 'file':
-                cli_options['dest_mode'] = mode
+                cli_options['sync_copy_dest_mode'] = mode
             del mode
             del sas
         sync_copy_dest_storage_account = cli_options.get(
