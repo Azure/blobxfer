@@ -933,10 +933,16 @@ def test_check_for_existing_remote(gbp, gfp):
     sa = mock.MagicMock()
     sa.name = 'name'
     sa.endpoint = 'ep'
-    sa.can_read_object = True
+    sa.can_read_object = False
 
     u._spec.options.mode = azmodels.StorageModes.File
     gfp.return_value = None
+    assert u._check_for_existing_remote(sa, 'cont', 'name') is None
+
+    sa.can_read_object = True
+    u._spec.skip_on.filesize_match = False
+    u._spec.skip_on.lmt_ge = False
+    u._spec.skip_on.md5_match = False
     assert u._check_for_existing_remote(sa, 'cont', 'name') is None
 
     u._spec.options.overwrite = False

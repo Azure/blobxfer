@@ -887,7 +887,14 @@ class Uploader(object):
         :return: remote storage entity
         """
         ase = None
-        if self._spec.options.overwrite or not sa.can_read_object:
+        if not sa.can_read_object:
+            return ase
+        # if overwrite and no skip on options specified, then don't bother
+        # checking the remote as we should clobber
+        if (self._spec.options.overwrite and not
+                self._spec.skip_on.filesize_match and not
+                self._spec.skip_on.lmt_ge and not
+                self._spec.skip_on.md5_match):
             return ase
         if self._spec.options.mode == blobxfer.models.azure.StorageModes.File:
             fp = blobxfer.operations.azure.file.get_file_properties(
