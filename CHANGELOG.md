@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.9.4] - 2019-11-13
+### Changed
+- Updated dependencies
+- Binary builds are now built against Python 3.7.5
+- Windows Docker image uses Python 3.7.5
+
+### Fixed
+- Fix issues with `--storage-url` and `--sync-copy-dest-storage-url` for
+Synccopy operations ([#108](https://github.com/Azure/blobxfer/issues/108))
+- Fix overwrite optimization and skip-on regression
+([#109](https://github.com/Azure/blobxfer/issues/109))
+
 ## [1.9.3] - 2019-09-19
 ### Fixed
 - Fix SAS permission derivation on SAS keys with leading '?' character
@@ -534,7 +546,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.3...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.4...HEAD
+[1.9.4]: https://github.com/Azure/blobxfer/compare/1.9.3...1.9.4
 [1.9.3]: https://github.com/Azure/blobxfer/compare/1.9.2...1.9.3
 [1.9.2]: https://github.com/Azure/blobxfer/compare/1.9.1...1.9.2
 [1.9.1]: https://github.com/Azure/blobxfer/compare/1.9.0...1.9.1
