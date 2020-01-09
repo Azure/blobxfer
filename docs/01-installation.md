@@ -16,7 +16,8 @@ compiler and supporting libraries if there is no binary wheel for that
 dependency and your platform. Please follow the pre-requisites section first
 prior to invoking installation via `pip`.
 
-It is strongly recommended to use a 64-bit Python interpreter.
+It is strongly recommended to use a 64-bit Python interpreter. Only Python3
+is supported.
 
 ### Pre-requisites
 `blobxfer` has dependencies which require a C compiler if your platform does
@@ -26,51 +27,35 @@ commands via `sudo` or as root.
 
 #### Ubuntu
 ```shell
-# for Python3 (recommended)
+# for Python3
 apt-get update
 apt-get install -y build-essential libssl-dev libffi-dev python3-dev python3-pip
-
-# for Python2
-apt-get update
-apt-get install -y build-essential libssl-dev libffi-dev python-dev python-pip
 ```
 
 #### CentOS/RHEL
 ```shell
-# for Python3 (recommended)
+# for Python3
 yum install -y epel-release
-yum install -y python34 python34-devel gcc openssl-devel libffi-devel
+yum install -y python36-devel gcc openssl-devel libffi-devel
 curl -fSsL https://bootstrap.pypa.io/get-pip.py | python3
-
-# for Python2
-yum install -y gcc openssl-devel libffi-devel python-devel
-curl -fSsL https://bootstrap.pypa.io/get-pip.py | python
 ```
 
 #### SLES/OpenSUSE
 ```shell
-# for Python3 (recommended)
+# for Python3
 zypper ref
 zypper -n in gcc libopenssl-devel libffi48-devel python3-devel
 curl -fSsL https://bootstrap.pypa.io/get-pip.py | python3
-
-# for Python2
-zypper ref
-zypper -n in gcc libopenssl-devel libffi48-devel python-devel
-curl -fSsL https://bootstrap.pypa.io/get-pip.py | python
 ```
 
 #### Mac OS X
-Python 2.7 should come pre-installed. However, if you want to install
-`blobxfer` for Python 3.5+ (recommended), please follow the steps outlined on
+To install `blobxfer` for Python 3.5+, please follow the steps outlined on
 [this guide](http://docs.python-guide.org/en/latest/starting/install3/osx/#install3-osx)
 to ensure that you have the latest version of Python, a compiler and pip.
 
 #### Windows
 Please install at least Python 3.5 or later to avoid requiring a
-compiler. If you must use Python 2.7, you can download the necessary
-development headers and compiler [from Microsoft](http://aka.ms/vcpython27).
-It is strongly recommended to use a 64-bit interpreter.
+compiler. It is strongly recommended to use a 64-bit interpreter.
 
 #### Windows Subsystem for Linux
 Please follow the same instructions for the Linux distribution installed.
@@ -82,16 +67,12 @@ After the pre-requisite steps have been completed then install the
 ```shell
 # for Python3
 pip3 install blobxfer
-
-# for Python2
-pip install blobxfer
 ```
 
-`blobxfer` is compatible with Python 2.7 and 3.5+. To install for Python 3
-(which is recommended), some distributions may use `pip3` instead of `pip`.
-Installing into a virtual environment or your user area via `--user`
-is recommended to avoid installation issues and conflicts with system-wide
-Python packages.
+`blobxfer` is compatible with Python 3.5+. To install for Python 3, some
+distributions may use `pip3` instead of `pip`. Installing into a virtual
+environment or your user area via `--user` is recommended to avoid
+installation issues and conflicts with system-wide Python packages.
 
 ## <a name="binary"></a>Pre-built Binary
 Download an appropriate [Release](https://github.com/Azure/blobxfer/releases)
