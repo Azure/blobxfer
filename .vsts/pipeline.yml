@@ -17,10 +17,10 @@ jobs:
     strategy:
       maxParallel: 1
       matrix:
-        Python37:
-          python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
-          PYTOX_ENV: 'py37'
+        Python38:
+          python.version: '3.8'
+          PYENV_VERSION: '3.8.2'
+          PYTOX_ENV: 'py38'
           VENV_VERSION: '16.2.0'
     steps:
       - task: InstallPython@1
@@ -140,10 +140,10 @@ jobs:
     strategy:
       maxParallel: 1
       matrix:
-        Python37:
-          python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
-          PYTOX_ENV: 'py37'
+        Python38:
+          python.version: '3.8'
+          PYENV_VERSION: '3.8.2'
+          PYTOX_ENV: 'py38'
           VENV_VERSION: '16.2.0'
     steps:
       - task: UsePythonVersion@0
@@ -274,9 +274,9 @@ jobs:
       maxParallel: 1
       matrix:
         Python37:
-          python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
-          PYTOX_ENV: 'py37'
+          python.version: '3.8'
+          PYENV_VERSION: '3.8.2'
+          PYTOX_ENV: 'py38'
           VENV_VERSION: '16.2.0'
     steps:
       - task: UsePythonVersion@0
