@@ -303,7 +303,7 @@ def _merge_setting(cli_options, conf, name, name_cli=None, default=None):
     :return: merged setting value
     """
     val = cli_options.get(name_cli or name)
-    if val is None:
+    if not val:
         val = conf.get(name, default)
     return val
 
