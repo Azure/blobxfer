@@ -3,14 +3,8 @@
 
 # stdlib imports
 import datetime
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import unittest.mock as mock
+import pathlib
 # non-stdlib imports
 import azure.storage.blob
 import pytest

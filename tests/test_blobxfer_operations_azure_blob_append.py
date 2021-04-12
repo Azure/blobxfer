@@ -2,10 +2,7 @@
 """Tests for operations: blob append"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 # non-stdlib imports
 import azure.storage.common
 # local imports

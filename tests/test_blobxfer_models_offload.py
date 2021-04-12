@@ -2,10 +2,7 @@
 """Tests for offload"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 # non-stdlib imports
 import pytest
 # local imports
@@ -23,10 +20,10 @@ def test_multiprocess_offload():
     with pytest.raises(ValueError):
         a = offload._MultiprocessOffload(None, None)
 
-    if util.on_windows():
-        target = PicklableMagicMock()
-    else:
+    if util.on_linux():
         target = mock.MagicMock()
+    else:
+        target = PicklableMagicMock()
     a = offload._MultiprocessOffload(target, 1, 'test')
     assert len(a._procs) == 1
     assert not a.terminated

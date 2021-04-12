@@ -1,5 +1,12 @@
 name: $(SourceBranch)$(Rev:.r)
 
+variables:
+  VENV_VERSION: '20.4.3'
+  PY36_VER: '3.6.13'
+  PY37_VER: '3.7.10'
+  PY38_VER: '3.8.9'
+  PY39_VER: '3.9.4'
+
 jobs:
   - job: ComponentGovernance
     pool:
@@ -13,15 +20,14 @@ jobs:
         displayName: 'CG Component Detection'
   - job: Windows
     pool:
-      vmIamge: vs2017-win2016
+      vmImage: vs2017-win2016
     strategy:
-      maxParallel: 1
+      maxParallel: 0
       matrix:
-        Python37:
-          python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
-          PYTOX_ENV: 'py37'
-          VENV_VERSION: '16.2.0'
+        Python39:
+          python.version: '3.9'
+          PYENV_VERSION: $(PY39_VER)
+          PYTOX_ENV: 'py39'
     steps:
       - task: InstallPython@1
         inputs:
@@ -58,7 +64,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.9'))
       - powershell: |
           git tag -l --points-at $env:BUILD_SOURCEVERSION | Tee-Object -Variable gitTag
           $gitTag -match "^([\d\.])+"
@@ -76,7 +82,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.9'))
       - powershell: |
           $artifactCliPath = "bin\\" + $env:ARTIFACT_CLI
           echo "##vso[task.setvariable variable=ARTIFACT_CLI_PATH;]$artifactCliPath"
@@ -136,15 +142,26 @@ jobs:
 
   - job: Linux
     pool:
-      vmImage: ubuntu-16.04
+      vmImage: ubuntu-20.04
     strategy:
-      maxParallel: 1
+      maxParallel: 0
       matrix:
+        Python36:
+          python.version: '3.6'
+          PYENV_VERSION: $(PY36_VER)
+          PYTOX_ENV: 'py36'
         Python37:
           python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
+          PYENV_VERSION: $(PY37_VER)
           PYTOX_ENV: 'py37'
-          VENV_VERSION: '16.2.0'
+        Python38:
+          python.version: '3.8'
+          PYENV_VERSION: $(PY38_VER)
+          PYTOX_ENV: 'py38'
+        Python39:
+          python.version: '3.9'
+          PYENV_VERSION: $(PY39_VER)
+          PYTOX_ENV: 'py39'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -200,7 +217,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.9'))
       - script: |
           set -e
           set -o pipefail
@@ -216,7 +233,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.9'))
       - template: ./pyenv.yml
       - script: |
           set -e
@@ -269,15 +286,14 @@ jobs:
 
   - job: MacOS
     pool:
-      vmImage: macOS-10.13
+      vmImage: macOS-10.15
     strategy:
-      maxParallel: 1
+      maxParallel: 0
       matrix:
-        Python37:
-          python.version: '3.7'
-          PYENV_VERSION: '3.7.5'
-          PYTOX_ENV: 'py37'
-          VENV_VERSION: '16.2.0'
+        Python39:
+          python.version: '3.9'
+          PYENV_VERSION: $(PY39_VER)
+          PYTOX_ENV: 'py39'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -326,7 +342,7 @@ jobs:
         displayName: Pre-build Environment (Branch)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.7'))
+          in(variables['Build.SourceBranchName'], 'master', 'develop'), eq(variables['python.version'], '3.9'))
       - script: |
           GIT_TAG=$(git tag -l --points-at $BUILD_SOURCEVERSION)
           ARTIFACT_CLI="blobxfer-${GIT_TAG}-mac-x86_64"
@@ -337,7 +353,7 @@ jobs:
         displayName: Pre-build Environment (Tagged Release)
         condition: >
           and(succeeded(), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI', 'Manual'),
-          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.7'))
+          startsWith(variables['Build.SourceBranch'], 'refs/tags/'), eq(variables['python.version'], '3.9'))
       - template: ./pyenv.yml
       - script: |
           set -e

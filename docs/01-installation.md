@@ -16,8 +16,8 @@ compiler and supporting libraries if there is no binary wheel for that
 dependency and your platform. Please follow the pre-requisites section first
 prior to invoking installation via `pip`.
 
-It is strongly recommended to use a 64-bit Python interpreter. Only Python3
-is supported.
+It is strongly recommended to use a 64-bit Python interpreter. Python 2
+is not supported.
 
 ### Pre-requisites
 `blobxfer` has dependencies which require a C compiler if your platform does
@@ -49,12 +49,12 @@ curl -fSsL https://bootstrap.pypa.io/get-pip.py | python3
 ```
 
 #### Mac OS X
-To install `blobxfer` for Python 3.5+, please follow the steps outlined on
+To install `blobxfer` for Python 3.6+, please follow the steps outlined on
 [this guide](http://docs.python-guide.org/en/latest/starting/install3/osx/#install3-osx)
 to ensure that you have the latest version of Python, a compiler and pip.
 
 #### Windows
-Please install at least Python 3.5 or later to avoid requiring a
+Please install at least Python 3.6 or later to avoid requiring a
 compiler. It is strongly recommended to use a 64-bit interpreter.
 
 #### Windows Subsystem for Linux
@@ -69,7 +69,7 @@ After the pre-requisite steps have been completed then install the
 pip3 install blobxfer
 ```
 
-`blobxfer` is compatible with Python 3.5+. To install for Python 3, some
+`blobxfer` is compatible with Python 3.6+. To install for Python 3, some
 distributions may use `pip3` instead of `pip`. Installing into a virtual
 environment or your user area via `--user` is recommended to avoid
 installation issues and conflicts with system-wide Python packages.

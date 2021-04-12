@@ -29,17 +29,14 @@ packages = [
 ]
 
 install_requires = [
-    'azure-storage-blob~=2.1.0',
-    'azure-storage-file~=2.1.0',
-    'bitstring~=3.1.6',
-    'click~=7.0',
-    'cryptography~=2.8',
-    'future~=0.18.2',
-    'pathlib2>=2.3.5;python_version<"3.5"',
-    'python-dateutil~=2.8.1',
-    'requests~=2.22.0',
-    'ruamel.yaml~=0.16.5',
-    'scandir>=1.10.0;python_version<"3.5"',
+    'azure-storage-blob>=2.1.0,<3',
+    'azure-storage-file>=2.1.0,<3',
+    'bitstring>=3.1.7,<4',
+    'click>=7.0,<8',
+    'cryptography>=3.3.2',
+    'python-dateutil>=2.8.1,<3',
+    'requests>=2.25.1,<3',
+    'ruamel.yaml>=0.16.5',
 ]
 
 setup(
@@ -71,12 +68,7 @@ setup(
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3'
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Utilities',
     ],

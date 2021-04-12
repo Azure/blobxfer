@@ -22,20 +22,10 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals
-)
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import contextlib
 import logging
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import pathlib
 import pickle
 import shelve
 import threading
@@ -112,11 +102,7 @@ class _BaseResumeManager(object):
         :rtype: str
         :return: record key
         """
-        key = '{}:{}'.format(ase._client.primary_endpoint, ase.path)
-        if blobxfer.util.on_python2():
-            return key.encode('utf8')
-        else:
-            return key
+        return '{}:{}'.format(ase._client.primary_endpoint, ase.path)
 
     def get_record(self, ase, key=None, lock=True):
         # type: (_BaseResumeManager, str, bool) -> object

@@ -2,14 +2,8 @@
 """Tests for file operations"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import unittest.mock as mock
+import pathlib
 # non-stdlib imports
 import azure.common
 import azure.storage.common

@@ -3,10 +3,7 @@
 
 # stdlib imports
 import json
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 # non-stdlib imports
 import pytest
 # module under test

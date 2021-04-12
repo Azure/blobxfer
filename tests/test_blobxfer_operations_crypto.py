@@ -2,10 +2,7 @@
 """Tests for crypto operations"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 import os
 import time
 # non-stdlib imports
@@ -17,8 +14,8 @@ import blobxfer.operations.crypto as ops
 
 
 _RSAKEY = cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key(
-        public_exponent=65537, key_size=2048,
-        backend=cryptography.hazmat.backends.default_backend())
+    public_exponent=65537, key_size=2048,
+    backend=cryptography.hazmat.backends.default_backend())
 
 
 @mock.patch(

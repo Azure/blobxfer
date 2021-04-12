@@ -2,14 +2,8 @@
 """Tests for operations resume"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import unittest.mock as mock
+import pathlib
 # non-stdlib imports
 # local imports
 # module under test
@@ -21,11 +15,7 @@ def test_generate_record_key():
     ase._client.primary_endpoint = 'ep'
     ase.path = 'abc'
 
-    with mock.patch('blobxfer.util.on_python2', return_value=True):
-        assert ops._BaseResumeManager.generate_record_key(ase) == b'ep:abc'
-
-    with mock.patch('blobxfer.util.on_python2', return_value=False):
-        assert ops._BaseResumeManager.generate_record_key(ase) == 'ep:abc'
+    assert ops._BaseResumeManager.generate_record_key(ase) == 'ep:abc'
 
 
 def test_download_resume_manager(tmpdir):
@@ -94,12 +84,6 @@ def test_download_resume_manager(tmpdir):
 
     # oserror path
     with mock.patch('blobxfer.util.on_windows', return_value=True):
-        with mock.patch('blobxfer.util.on_python2', return_value=False):
-            drm.delete()
-    assert drm._data is None
-
-    # oserror path
-    with mock.patch('blobxfer.util.on_python2', return_value=True):
         drm.delete()
     assert drm._data is None
 

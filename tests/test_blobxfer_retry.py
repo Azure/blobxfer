@@ -2,10 +2,7 @@
 """Tests for retry"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 import ssl
 # non-stdlib imports
 import azure.storage.common.models

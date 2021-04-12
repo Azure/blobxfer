@@ -3,19 +3,10 @@
 
 # stdlib imports
 import datetime
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 import multiprocessing
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
-try:
-    import queue
-except ImportError:  # noqa
-    import Queue as queue
+import pathlib
+import queue
 # non-stdlib imports
 import azure.storage.blob
 import dateutil.tz
@@ -626,7 +617,7 @@ def test_add_to_download_queue(tmpdir):
 
     d._add_to_download_queue(lpath, ase)
     assert d._transfer_queue.qsize() == 1
-    assert path in d._dd_map
+    assert str(path) in d._dd_map
 
 
 def test_initialize_and_terminate_threads():

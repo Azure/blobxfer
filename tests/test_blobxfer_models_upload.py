@@ -3,14 +3,8 @@
 
 # stdlib imports
 import hashlib
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import unittest.mock as mock
+import pathlib
 # non-stdlib imports
 import bitstring
 import pytest

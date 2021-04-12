@@ -5,15 +5,9 @@
 import datetime
 import hashlib
 import hmac
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 import os
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import pathlib
 import time
 import unittest
 # non-stdlib imports
@@ -308,8 +302,7 @@ def test_set_final_path_view():
     assert total_size == ase._size
 
 
-@unittest.skipIf(
-    util.on_python2() or not util.on_linux(), 'fallocate does not exist')
+@unittest.skipIf(not util.on_linux(), 'fallocate does not exist')
 def test_downloaddescriptor_allocate_disk_space_via_seek(tmpdir):
     fp = pathlib.Path(str(tmpdir.join('fp')))
     opts = mock.MagicMock()

@@ -3,22 +3,12 @@
 
 # stdlib imports
 import datetime
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-import sys
 import time
 # non-stdlib imports
 import dateutil.tz
 import pytest
 # module under test
 import blobxfer.util
-
-
-def test_on_python2():
-    py2 = sys.version_info.major == 2
-    assert py2 == blobxfer.util.on_python2()
 
 
 def test_is_none_or_empty():
@@ -57,21 +47,6 @@ def test_is_not_empty():
     assert blobxfer.util.is_not_empty(a)
     a = [None]
     assert blobxfer.util.is_not_empty(a)
-
-
-def test_join_thread():
-    with mock.patch('blobxfer.util.on_python2', return_value=True):
-        thr = mock.MagicMock()
-        thr.isAlive.side_effect = [True, False]
-        blobxfer.util.join_thread(thr)
-        assert thr.isAlive.call_count == 2
-
-    with mock.patch('blobxfer.util.on_python2', return_value=False):
-        thr = mock.MagicMock()
-        thr.isAlive.side_effect = [True, False]
-        blobxfer.util.join_thread(thr)
-        thr.join.assert_called_once_with()
-        thr.isAlive.assert_not_called()
 
 
 def test_merge_dict():
@@ -138,10 +113,7 @@ def test_get_mime_type():
 def test_base64_encode_as_string():
     a = b'abc'
     enc = blobxfer.util.base64_encode_as_string(a)
-    if blobxfer.util.on_python2():
-        assert type(enc) == str
-    else:
-        assert type(enc) != bytes
+    assert type(enc) != bytes
     dec = blobxfer.util.base64_decode_string(enc)
     assert a == dec
 

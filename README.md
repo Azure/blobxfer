@@ -1,5 +1,4 @@
 [![Build Status](https://azurebatch.visualstudio.com/blobxfer/_apis/build/status/blobxfer-CI)](https://azurebatch.visualstudio.com/blobxfer/_build/latest?definitionId=12)
-[![Build Status](https://travis-ci.org/Azure/blobxfer.svg?branch=master)](https://travis-ci.org/Azure/blobxfer)
 [![Build status](https://ci.appveyor.com/api/projects/status/qgth9p7jlessgp5i/branch/master?svg=true)](https://ci.appveyor.com/project/alfpark/blobxfer)
 [![codecov](https://codecov.io/gh/Azure/blobxfer/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/blobxfer)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)

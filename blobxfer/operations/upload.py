@@ -22,25 +22,12 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals
-)
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import enum
 import logging
 import math
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
-try:
-    import queue
-except ImportError:  # noqa
-    import Queue as queue
+import pathlib
+import queue
 import threading
 import time
 # non-stdlib imports

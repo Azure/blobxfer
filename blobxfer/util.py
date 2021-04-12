@@ -22,12 +22,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import absolute_import, division, print_function
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip
-)
 # stdlib imports
 import base64
 import copy
@@ -36,17 +30,13 @@ import hashlib
 import logging
 import logging.handlers
 import mimetypes
-try:
-    from os import scandir as scandir
-except ImportError:  # noqa
-    from scandir import scandir as scandir
+import os
 import platform
 import re
 import sys
 # non-stdlib imports
 import dateutil.parser
 import dateutil.tz
-import future.utils
 # local imports
 
 # global defines
@@ -56,15 +46,6 @@ _ON_LINUX = platform.system() == 'Linux'
 _ON_WINDOWS = platform.system() == 'Windows'
 _REGISTERED_LOGGER_HANDLERS = []
 _PAGEBLOB_BOUNDARY = 512
-
-
-def on_python2():
-    # type: (None) -> bool
-    """Execution on python2
-    :rtype: bool
-    :return: if on Python2
-    """
-    return future.utils.PY2
 
 
 def on_linux():  # noqa
@@ -144,20 +125,6 @@ def is_not_empty(obj):
     return obj is not None and len(obj) > 0
 
 
-def join_thread(thr):
-    # type: (threading.Thread) -> None
-    """Join a thread
-    :type threading.Thread thr: thread to join
-    """
-    if on_python2():
-        while True:
-            thr.join(timeout=1)
-            if not thr.isAlive():
-                break
-    else:
-        thr.join()
-
-
 def merge_dict(dict1, dict2):
     # type: (dict, dict) -> dict
     """Recursively merge dictionaries: dict2 on to dict1. This differs
@@ -214,7 +181,7 @@ def scantree(path):
     :rtype: DirEntry
     :return: DirEntry via generator
     """
-    for entry in scandir(path):
+    for entry in os.scandir(path):
         if entry.is_dir(follow_symlinks=True):
             # due to python2 compat, cannot use yield from here
             for t in scantree(entry.path):
@@ -241,10 +208,7 @@ def base64_encode_as_string(obj):  # noqa
     :rtype: str
     :return: base64 encoded string
     """
-    if on_python2():
-        return base64.b64encode(obj)
-    else:
-        return str(base64.b64encode(obj), 'ascii')
+    return str(base64.b64encode(obj), 'ascii')
 
 
 def base64_decode_string(string):

@@ -22,19 +22,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import absolute_import, division, print_function
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import json
 import logging
 import multiprocessing
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import pathlib
 # non-stdlib imports
 import click
 import ruamel.yaml

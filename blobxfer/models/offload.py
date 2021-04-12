@@ -22,21 +22,11 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import (
-    absolute_import, division, print_function, unicode_literals
-)
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip)
 # stdlib imports
 import logging
 import multiprocessing
 import threading
-try:
-    import queue
-except ImportError:  # noqa
-    import Queue as queue
+import queue
 
 # create logger
 logger = logging.getLogger(__name__)

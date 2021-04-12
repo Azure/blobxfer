@@ -2,14 +2,8 @@
 """Tests for models options"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
-try:
-    import pathlib2 as pathlib
-except ImportError:  # noqa
-    import pathlib
+import unittest.mock as mock
+import pathlib
 # non-stdlib imports
 import pytest
 # module under test

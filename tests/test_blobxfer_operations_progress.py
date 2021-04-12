@@ -2,10 +2,7 @@
 """Tests for progress operations"""
 
 # stdlib imports
-try:
-    import unittest.mock as mock
-except ImportError:  # noqa
-    import mock
+import unittest.mock as mock
 # non-stdlib imports
 # local imports
 import blobxfer.models.azure as azmodels

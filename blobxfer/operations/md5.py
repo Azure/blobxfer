@@ -22,18 +22,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# compat imports
-from __future__ import absolute_import, division, print_function
-from builtins import (  # noqa
-    bytes, dict, int, list, object, range, ascii, chr, hex, input,
-    next, oct, open, pow, round, super, filter, map, zip
-)
 # stdlib imports
 import logging
-try:
-    import queue
-except ImportError:  # noqa
-    import Queue as queue
+import queue
 # non-stdlib imports
 # local imports
 import blobxfer.models.azure
