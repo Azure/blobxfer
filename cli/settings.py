@@ -68,7 +68,7 @@ def add_cli_options(cli_options, action):
                 blobxfer.util.is_not_empty(cli_options.get('endpoint')) or
                 blobxfer.util.is_not_empty(cli_options.get('remote_path'))):
             raise ValueError(
-                'Specified both --storage-url and --storage-account, '
+                'Specified --storage-url along with one of --storage-account, '
                 '--mode, --endpoint, or --remote-path')
         cli_options['storage_account'], mode, \
             cli_options['endpoint'], \
@@ -303,7 +303,9 @@ def _merge_setting(cli_options, conf, name, name_cli=None, default=None):
     :return: merged setting value
     """
     val = cli_options.get(name_cli or name)
-    if not val:
+    # multi-valued options result in iterable set or lists from click
+    if (val is None or
+            ((type(val) == tuple or type(val) == list) and len(val) == 0)):
         val = conf.get(name, default)
     return val
 
