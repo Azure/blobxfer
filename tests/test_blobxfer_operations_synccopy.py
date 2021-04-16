@@ -870,6 +870,18 @@ def test_generate_destination_for_source():
     ase = next(s._generate_destination_for_source(src_ase))
     assert pathlib.Path(ase.name) == pathlib.Path('remote/path')
 
+    # test strip components with blob at same level as vdir
+    s._get_destination_paths.return_value = [
+        (sa, 'cont', 'name', 'dpath'),
+    ]
+    s._spec.options.strip_components = 3
+    src_ase.is_arbitrary_url = True
+    with pytest.raises(StopIteration):
+        next(s._generate_destination_for_source(src_ase))
+    s._general_options.dry_run = True
+    with pytest.raises(StopIteration):
+        next(s._generate_destination_for_source(src_ase))
+
 
 def test_bind_sources_to_destination():
     s = ops.SyncCopy(mock.MagicMock(), mock.MagicMock(), mock.MagicMock())

@@ -726,6 +726,14 @@ class SyncCopy(object):
                 _strip = min(
                     (len(_rparts) - 1, self._spec.options.strip_components)
                 )
+                # handle case where there's an object with the same name
+                # and level as a virtual directory
+                if _strip < self._spec.options.strip_components:
+                    if self._general_options.dry_run:
+                        logger.info(
+                            '[DRY RUN] skipping: {} object at same level '
+                            'as virtual directory'.format(src_ase.path))
+                    return
                 if _strip > 0:
                     name = str(pathlib.Path(*_rparts[_strip:]))
             # translate source mode to dest mode
