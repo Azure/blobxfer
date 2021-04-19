@@ -18,6 +18,7 @@ jobs:
     steps:
       - task: ComponentGovernanceComponentDetection@0
         displayName: 'CG Component Detection'
+
   - job: Windows
     pool:
       vmImage: vs2017-win2016
@@ -112,9 +113,13 @@ jobs:
           pip install --no-cache-dir -e .
           pyinstaller -F -n "%ARTIFACT_CLI%" -p blobxfer -p cli --additional-hooks-dir blobxfer --exclude-module future.tests --exclude-module future.backports.test --exclude-module future.moves.test --icon cli\\azure.ico --version-file cli\\file_version_info.txt --distpath bin cli\\cli.py
           call pyi\\Scripts\\deactivate.bat
-          "%ARTIFACT_CLI_PATH%" upload --storage-account "$(blobxfer.storageAccount)" --storage-account-key "$(blobxfer.storageAccountKey)" --remote-path "%ARTIFACT_UPLOAD_PATH%" --local-path "%ARTIFACT_CLI_PATH%" --strip-components 1 --file-md5 --overwrite
         displayName: Build
-        condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
+        condition: and(succeeded(), ne(variables['ARTIFACT_CLI_PATH'], ''))
+      - template: ./sign.yml
+      - script: |
+          "%ARTIFACT_CLI_PATH%" upload --storage-account "$(blobxfer.storageAccount)" --storage-account-key "$(blobxfer.storageAccountKey)" --remote-path "%ARTIFACT_UPLOAD_PATH%" --local-path "%ARTIFACT_CLI_PATH%" --strip-components 1 --file-md5 --overwrite
+        displayName: Artifact Upload
+        condition: and(succeeded(), ne(variables['ARTIFACT_CLI_PATH'], ''))
       - powershell: |
           $versionTag = "bin\\version_tag.txt"
           $env:GIT_TAG | Out-File $versionTag -Force -NoNewline
@@ -127,7 +132,7 @@ jobs:
         inputs:
           pathtoPublish: bin
           artifactName: Blobxfer-Windows
-        condition: and(succeeded(), ne(variables['ARTIFACT_CLI'], ''))
+        condition: and(succeeded(), ne(variables['ARTIFACT_CLI_PATH'], ''))
       - powershell: |
           docker version
           docker login "$(docker.servername)" -u="$(docker.username)" -p="$(docker.password)"
@@ -279,7 +284,7 @@ jobs:
         condition: and(succeeded(), ne(variables['DOCKER_TAG'], ''))
       - task: PyPIPublisher@0
         inputs:
-          pypiConnection: PyPI
+          pypiConnection: PyPI-blobxfer
           packageDirectory: .
           alsoPublishWheel: true
         condition: and(succeeded(), ne(variables['GIT_TAG'], ''))
