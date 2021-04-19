@@ -84,3 +84,5 @@ remote path of `mycontainer/mydir/` will not work as intended as, internally,
 Blob Storage or General Purpose V2 Storage accounts. Please see
 [this article](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers)
 for more information.
+* A storage object with the same name as a virtual directory is not copied
+during a `synccopy` operation.

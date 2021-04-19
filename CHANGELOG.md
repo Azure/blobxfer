@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2021-04-19
+### Changed
+- Updated dependencies
+- Loosen some dependency requirements
+([#121](https://github.com/Azure/blobxfer/issues/121))
+- Binary builds and Docker iamges are now built against Python 3.9.4
+- `synccopy` no longer copies storage objects at the same level as a virtual
+directory when specified with `--strip-components`
+([#117](https://github.com/Azure/blobxfer/issues/117))
+- MacOS X binary built against 10.15
+
+### Fixed
+- Fix multiple option setting inputs (include/exclude)
+([#126](https://github.com/Azure/blobxfer/issues/126))
+
+### Removed
+- Python < 3.6 support dropped
+
 ## [1.9.4] - 2019-11-13
 ### Changed
 - Updated dependencies
@@ -546,7 +564,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.9.4...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.10.0...HEAD
+[1.10.0]: https://github.com/Azure/blobxfer/compare/1.9.4...1.10.0
 [1.9.4]: https://github.com/Azure/blobxfer/compare/1.9.3...1.9.4
 [1.9.3]: https://github.com/Azure/blobxfer/compare/1.9.2...1.9.3
 [1.9.2]: https://github.com/Azure/blobxfer/compare/1.9.1...1.9.2
