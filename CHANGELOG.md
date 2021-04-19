@@ -7,14 +7,14 @@
 - Updated dependencies
 - Loosen some dependency requirements
 ([#121](https://github.com/Azure/blobxfer/issues/121))
-- Binary builds and Docker iamges are now built against Python 3.9.4
-- `synccopy` no longer copies storage objects at the same level as a virtual
-directory when specified with `--strip-components`
+- `synccopy` no longer copies storage objects at the same level and name as
+a virtual directory when specified with `--strip-components`
 ([#117](https://github.com/Azure/blobxfer/issues/117))
+- Binary builds and Docker images are now built against Python 3.9.4
 - MacOS X binary built against 10.15
 
 ### Fixed
-- Fix multiple option setting inputs (include/exclude)
+- Fix multiple argument CLI options (`--include`/`--exclude`)
 ([#126](https://github.com/Azure/blobxfer/issues/126))
 
 ### Removed
