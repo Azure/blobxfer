@@ -36,7 +36,7 @@ install_requires = [
     'cryptography>=3.3.2',
     'python-dateutil>=2.8.1,<3',
     'requests>=2.25.1,<3',
-    'ruamel.yaml>=0.16.5',
+    'ruamel.yaml>=0.16.9',
 ]
 
 setup(
