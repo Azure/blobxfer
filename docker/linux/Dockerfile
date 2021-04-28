@@ -7,9 +7,8 @@ ARG GIT_BRANCH
 ARG GIT_COMMIT
 
 RUN apk update \
-    && apk add --update --no-cache musl \
-        musl build-base openssl-dev libffi-dev \
-        rust cargo ca-certificates git \
+    && apk add --update --no-cache \
+        musl build-base openssl-dev libffi-dev rust cargo ca-certificates git \
     && python3 -m ensurepip --upgrade \
     && pip3 install --no-cache-dir --upgrade pip setuptools setuptools-rust wheel \
     && git clone -b $GIT_BRANCH --single-branch --depth 5 https://github.com/Azure/blobxfer.git /blobxfer \
@@ -22,9 +21,7 @@ RUN apk update \
     && pip3 uninstall -y setuptools-rust wheel \
     && apk del --purge build-base patch openssl-dev libffi-dev rust cargo git \
     && rm /var/cache/apk/* \
-    && cd /root \
-    && rm -rf .cache .cargo \
-    && cd / \
-    && rm -rf blobxfer
+    && rm -rf /root/.cache /root/.cargo \
+    && rm -rf /blobxfer
 
 ENTRYPOINT ["blobxfer"]

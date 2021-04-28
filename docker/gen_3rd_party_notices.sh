@@ -17,10 +17,7 @@ DEPENDENCIES=(
     https://github.com/pallets/click/raw/master/LICENSE.rst
     cryptography
     https://github.com/pyca/cryptography
-    https://github.com/pyca/cryptography/raw/master/LICENSE.BSD
-    future
-    https://github.com/PythonCharmers/python-future
-    https://github.com/PythonCharmers/python-future/raw/master/LICENSE.txt
+    https://github.com/pyca/cryptography/raw/main/LICENSE.BSD
     Python
     https://python.org
     https://github.com/python/cpython/raw/master/LICENSE
@@ -31,15 +28,15 @@ DEPENDENCIES=(
     https://github.com/requests/requests
     https://github.com/requests/requests/raw/master/LICENSE
     ruamel.yaml
-    https://bitbucket.org/ruamel/yaml
-    https://bitbucket.org/ruamel/yaml/raw/2f052c9df9775530dc37ae3027fa789e3cbc6fc9/LICENSE
+    https://sourceforge.net/p/ruamel-yaml/code/ci/default/tree/
+    "https://sourceforge.net/p/ruamel-yaml/code/ci/default/tree/LICENSE?format=raw"
 )
 DEPLEN=${#DEPENDENCIES[@]}
 
 add_attribution() {
     name=$1
     url=$2
-    license=$(curl -fSsL $3)
+    license=$(curl -fSsL "$3")
 
     { echo ""; echo "-------------------------------------------------------------------------------"; \
       echo ""; echo "$name ($url)"; echo ""; echo "$license"; } >> $TPNFILE

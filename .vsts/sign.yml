@@ -1,11 +1,12 @@
 parameters:
+  enabled: false
   folder: ./bin
   pattern: '*.dll,*.exe'
 
 steps:
   - task: SFP.build-tasks.custom-build-task-1.EsrpCodeSigning@1
     displayName: "Code Sign"
-    condition: and(succeeded(), ne(variables['ARTIFACT_CLI_PATH'], ''))
+    condition: ${{ parameters.enabled }}
     inputs:
       ConnectedServiceName: 'ESRP CodeSign'
       FolderPath: ${{ parameters.folder }}

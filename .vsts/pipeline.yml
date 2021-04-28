@@ -116,6 +116,8 @@ jobs:
         displayName: Build
         condition: and(succeeded(), ne(variables['ARTIFACT_CLI_PATH'], ''))
       - template: ./sign.yml
+        parameters:
+          enabled: ne(variables['ARTIFACT_CLI_PATH'], '')
       - script: |
           "%ARTIFACT_CLI_PATH%" upload --storage-account "$(blobxfer.storageAccount)" --storage-account-key "$(blobxfer.storageAccountKey)" --remote-path "%ARTIFACT_UPLOAD_PATH%" --local-path "%ARTIFACT_CLI_PATH%" --strip-components 1 --file-md5 --overwrite
         displayName: Artifact Upload
