@@ -73,3 +73,6 @@ for project history.
 * * *
 Please see this project's [Code of Conduct](CODE_OF_CONDUCT.md) and
 [Contributing](CONTRIBUTING.md) guidelines.
+
+## Support
+This project is not supported by Microsoft. We do not have a defined SLA for bug fixes or support. For tools supported by Microsoft please look at the following [link](https://docs.microsoft.com/en-us/azure/storage/common/storage-choose-data-transfer-solution).
