@@ -71,9 +71,9 @@ Please see the
 for project history.
 
 ## Support
-This project is not officially supported by Microsoft. Bug fixes and support are exclusively
-serviced in GitHub and there is no defined SLA. For tools officially supported by Microsoft
-please refer to this
+This project is community supported and not officially supported by Microsoft. There is
+no defined SLA for addressing features, issues, and bugs which are exclusively serviced via
+GitHub issues. For tools officially supported by Microsoft please refer to this
 [documentation](https://docs.microsoft.com/azure/storage/common/storage-choose-data-transfer-solution).
 
 * * *
