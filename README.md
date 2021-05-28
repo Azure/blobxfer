@@ -70,12 +70,12 @@ Please see the
 [Change Log](http://blobxfer.readthedocs.io/en/latest/CHANGELOG/)
 for project history.
 
-* * *
-Please see this project's [Code of Conduct](CODE_OF_CONDUCT.md) and
-[Contributing](CONTRIBUTING.md) guidelines.
-
 ## Support
 This project is not officially supported by Microsoft. Bug fixes and support are exclusively
 serviced in GitHub and there is no defined SLA. For tools officially supported by Microsoft
 please refer to this
 [documentation](https://docs.microsoft.com/azure/storage/common/storage-choose-data-transfer-solution).
+
+* * *
+Please see this project's [Code of Conduct](CODE_OF_CONDUCT.md) and
+[Contributing](CONTRIBUTING.md) guidelines.
