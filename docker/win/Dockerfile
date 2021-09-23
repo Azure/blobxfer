@@ -1,7 +1,6 @@
 # Dockerfile for Azure/blobxfer (Windows)
-# Adapted from: https://github.com/StefanScherer/dockerfiles-windows/blob/master/python/Dockerfile
 
-FROM python:3.9.4-windowsservercore-ltsc2016
+FROM python:3.9.7-windowsservercore-1809
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ENV chocolateyUseWindowsCompression false
@@ -21,26 +20,12 @@ RUN git clone -b $Env:GIT_BRANCH --single-branch --depth 5 https://github.com/Az
 RUN python -m compileall C:\Python\Lib\site-packages ; \
     exit 0
 
-FROM mcr.microsoft.com/windows/nanoserver:sac2016
+FROM mcr.microsoft.com/windows/nanoserver:1809
 
 COPY --from=0 /Python /Python
 COPY --from=0 /blobxfer/THIRD_PARTY_NOTICES.txt /BLOBXFER_THIRD_PARTY_NOTICES.txt
 COPY --from=0 /blobxfer/LICENSE /BLOBXFER_LICENSE.txt
 
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
-
-ENV PYTHON_VERSION 3.9.4
-ENV PYTHON_PIP_VERSION 21.0.1
-
-RUN $env:PATH = 'C:\Python;C:\Python\Scripts;{0}' -f $env:PATH ; \
-    Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment\' -Name Path -Value $env:PATH ; \
-    mkdir $env:APPDATA\Python\Python37\site-packages ; \
-    Invoke-WebRequest 'https://bootstrap.pypa.io/get-pip.py' -OutFile 'get-pip.py' -UseBasicParsing ; \
-    $replace = ('import tempfile{0}import site{0}site.getusersitepackages()' -f [char][int]10) ; \
-    Get-Content get-pip.py | Foreach-Object { $_ -replace 'import tempfile', $replace } | Out-File -Encoding Ascii getpip.py ; \
-    $pipInstall = ('pip=={0}' -f $env:PYTHON_PIP_VERSION) ; \
-    python getpip.py $pipInstall ; \
-    Remove-Item get-pip.py ; \
-    Remove-Item getpip.py
 
 ENTRYPOINT ["blobxfer"]

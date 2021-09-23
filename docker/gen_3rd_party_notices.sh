@@ -14,13 +14,13 @@ DEPENDENCIES=(
     https://github.com/scott-griffiths/bitstring/raw/master/LICENSE
     click
     https://github.com/pallets/click
-    https://github.com/pallets/click/raw/master/LICENSE.rst
+    https://github.com/pallets/click/raw/main/LICENSE.rst
     cryptography
     https://github.com/pyca/cryptography
     https://github.com/pyca/cryptography/raw/main/LICENSE.BSD
     Python
     https://python.org
-    https://github.com/python/cpython/raw/master/LICENSE
+    https://github.com/python/cpython/raw/main/LICENSE
     python-dateutil
     https://github.com/dateutil/dateutil
     https://github.com/dateutil/dateutil/raw/master/LICENSE

@@ -40,7 +40,7 @@ bitstring (https://github.com/scott-griffiths/bitstring)
 
 The MIT License
 
-Copyright (c) 2006-2016 Scott Griffiths (dr.scottgriffiths@gmail.com)
+Copyright (c) 2006 Scott Griffiths (dr.scottgriffiths@gmail.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -322,9 +322,9 @@ version prepared by Licensee.  Alternately, in lieu of CNRI's License
 Agreement, Licensee may substitute the following text (omitting the
 quotes): "Python 1.6.1 is made available subject to the terms and
 conditions in CNRI's License Agreement.  This Agreement together with
-Python 1.6.1 may be located on the Internet using the following
+Python 1.6.1 may be located on the internet using the following
 unique, persistent identifier (known as a handle): 1895.22/1013.  This
-Agreement may also be obtained from a proxy server on the Internet
+Agreement may also be obtained from a proxy server on the internet
 using the following URL: http://hdl.handle.net/1895.22/1013".
 
 3. In the event Licensee prepares a derivative work that is based on

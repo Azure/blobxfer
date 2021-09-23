@@ -1,6 +1,6 @@
 # Dockerfile for Azure/blobxfer (Linux)
 
-FROM python:3.9.4-alpine3.13
+FROM python:3.9.7-alpine3.14
 MAINTAINER Fred Park <https://github.com/Azure/blobxfer>
 
 ARG GIT_BRANCH

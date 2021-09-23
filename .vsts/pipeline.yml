@@ -1,16 +1,16 @@
 name: $(SourceBranch)$(Rev:.r)
 
 variables:
-  VENV_VERSION: '20.4.3'
-  PY36_VER: '3.6.13'
-  PY37_VER: '3.7.10'
-  PY38_VER: '3.8.9'
-  PY39_VER: '3.9.4'
+  VENV_VERSION: '20.8.0'
+  PY36_VER: '3.6.15'
+  PY37_VER: '3.7.12'
+  PY38_VER: '3.8.12'
+  PY39_VER: '3.9.7'
 
 jobs:
   - job: ComponentGovernance
     pool:
-      vmImage: vs2017-win2016
+      vmImage: windows-2019
     condition: ne(variables['Build.Reason'], 'PullRequest')
     variables:
       EnableDetectorPip: true
@@ -21,7 +21,7 @@ jobs:
 
   - job: Windows
     pool:
-      vmImage: vs2017-win2016
+      vmImage: windows-2019
     strategy:
       maxParallel: 0
       matrix:
@@ -293,7 +293,7 @@ jobs:
 
   - job: MacOS
     pool:
-      vmImage: macOS-10.15
+      vmImage: macOS-11
     strategy:
       maxParallel: 0
       matrix:

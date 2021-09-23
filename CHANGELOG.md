@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.11.0] - 2021-09-27
+### Changed
+- Updated dependencies
+- Binary builds and Docker images are now built against Python 3.9.7
+- MacOS X binary built against 11
+
 ## [1.10.0] - 2021-04-19
 ### Changed
 - Updated dependencies
@@ -564,7 +570,8 @@ usage documentation carefully when upgrading from 0.12.1.
   `--no-skiponmatch`.
 - 0.8.2: performance regression fixes
 
-[Unreleased]: https://github.com/Azure/blobxfer/compare/1.10.0...HEAD
+[Unreleased]: https://github.com/Azure/blobxfer/compare/1.11.0...HEAD
+[1.11.0]: https://github.com/Azure/blobxfer/compare/1.10.0...1.11.0
 [1.10.0]: https://github.com/Azure/blobxfer/compare/1.9.4...1.10.0
 [1.9.4]: https://github.com/Azure/blobxfer/compare/1.9.3...1.9.4
 [1.9.3]: https://github.com/Azure/blobxfer/compare/1.9.2...1.9.3
