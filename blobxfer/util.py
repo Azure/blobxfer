@@ -340,8 +340,8 @@ def explode_azure_storage_url(url):
     tmp = url.split('/')
     host = tmp[2].split('.')
     sa = host[0]
-    mode = host[1].lower()
-    ep = '.'.join(host[2:])
+    mode = host[len(host) - 4].lower()
+    ep = '.'.join(host[(len(host) - 3):])
     tmp = '/'.join(tmp[3:]).split('?')
     rpath = tmp[0]
     if len(tmp) > 1:
