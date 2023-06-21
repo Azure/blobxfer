@@ -236,3 +236,11 @@ def test_explode_azure_storage_url():
     assert ep == 'core.usgovcloudapi.net'
     assert rpath == 'cont2/file2'
     assert sas == 'sas'
+
+    url = 'https://managed-disk.z31.blob.storage.azure.net/randcont/abcd?sas'
+    sa, mode, ep, rpath, sas = blobxfer.util.explode_azure_storage_url(url)
+    assert sa == 'managed-disk'
+    assert mode == 'blob'
+    assert ep == 'storage.azure.net'
+    assert rpath == 'randcont/abcd'
+    assert sas == 'sas'
