@@ -3,6 +3,11 @@
 [![codecov](https://codecov.io/gh/Azure/blobxfer/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/blobxfer)
 [![PyPI](https://img.shields.io/pypi/v/blobxfer.svg)](https://pypi.python.org/pypi/blobxfer)
 
+## PROJECT STATUS
+**This project is no longer actively maintained.** For tools officially supported by
+Microsoft please refer to this
+[documentation](https://docs.microsoft.com/azure/storage/common/storage-choose-data-transfer-solution).
+
 # blobxfer
 `blobxfer` is an advanced data movement tool and library for Azure Storage
 Blob and Files. With `blobxfer` you can copy your files into or out of Azure
